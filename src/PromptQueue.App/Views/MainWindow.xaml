@@ -229,6 +229,10 @@
                 <MenuItem Header="Global _Instructions" Command="{Binding EditGlobalInstructionsCommand}"/>
                 <MenuItem Header="Global _Prompt" Command="{Binding EditGlobalPromptCommand}"/>
             </MenuItem>
+            <MenuItem Header="_Server">
+                <MenuItem Header="Start _Web View Server…" Command="{Binding StartWebServerCommand}"
+                          ToolTip="Opens a console window serving a read-only web view of all projects"/>
+            </MenuItem>
         </Menu>
 
         <!-- ===================== GLOBAL TOOLBAR ===================== -->

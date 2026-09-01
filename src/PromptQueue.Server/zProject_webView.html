@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>zProject — task view</title>
+<style>
+  :root{
+    --bg:#f3f3f3; --surface:#fff; --surface2:#ececec; --border:#d6d6d6;
+    --text:#1e1e1e; --text2:#6a6a6a; --accent:#4b6ea8; --sel:#e4eaf4;
+    --bug-s:#f1ecf8; --bug-b:#b6a6d2; --bug-t:#5e4791;
+    --err-s:#fbeaea; --err-b:#c98b8b; --err-t:#9e2a2a;
+    --done-s:#eaf3ec; --done-b:#a7c9b0; --done-t:#3c7a4e;
+    --lock-s:#e6e6e6; --lock-b:#c4c4c4;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font:12.5px/1.45 "Segoe UI", system-ui, sans-serif;
+  }
+  header{
+    background:var(--bg); border-bottom:1px solid var(--border);
+    padding:8px 14px; display:flex; align-items:center; gap:12px;
+  }
+  header .title{font-weight:600; font-size:14px}
+  header .crumb{color:var(--text2)}
+  header a{color:var(--accent); text-decoration:none; cursor:pointer}
+  header .ro{
+    margin-left:auto; font-size:11px; color:var(--text2);
+    border:1px solid var(--border); border-radius:2px; padding:1px 6px;
+  }
+  main{max-width:1000px; margin:0 auto; padding:14px}
+  .muted{color:var(--text2)}
+
+  /* project picker */
+  .plist{border:1px solid var(--border); border-radius:2px; background:var(--surface)}
+  .prow{
+    display:flex; align-items:baseline; gap:10px; padding:9px 12px;
+    border-bottom:1px solid var(--border); cursor:pointer;
+  }
+  .prow:last-child{border-bottom:0}
+  .prow:hover{background:var(--sel)}
+  .prow .pname{font-weight:600}
+  .prow .pdir{color:var(--text2); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .prow .pcount{margin-left:auto; color:var(--text2); font-size:11px; white-space:nowrap}
+
+  /* sections + cards */
+  .section-h{
+    font-size:11px; font-weight:600; letter-spacing:.02em; color:var(--text2);
+    padding:6px 4px 3px; margin-top:12px; border-top:1px solid var(--border);
+  }
+  .section-h.bugs{color:var(--bug-t); background:var(--bug-s); border-top:2px solid var(--bug-b); border-bottom:1px solid var(--bug-b)}
+  .section-h.err{color:var(--err-t); background:var(--err-s); border-top:2px solid var(--err-b); border-bottom:1px solid var(--err-b)}
+  .section-h.done{color:var(--done-t); background:var(--done-s); border-bottom:1px solid var(--done-b)}
+  .section-h.arch{color:var(--text2); background:var(--lock-s); border-bottom:1px solid var(--lock-b)}
+
+  .card{
+    border:1px solid var(--border); border-radius:2px; background:var(--surface);
+    padding:6px 8px; margin:3px 0; display:grid; grid-template-columns:20px 150px 1fr; gap:8px;
+  }
+  .card.done{background:var(--done-s); border-color:var(--done-b)}
+  .card.err{background:var(--err-s); border-color:var(--err-b)}
+  .card.bug{background:var(--bug-s); border-color:var(--bug-b)}
+  .card.locked,.card.archived{background:var(--lock-s); border-color:var(--lock-b)}
+
+  .card .chev{
+    background:none; border:0; color:var(--text2); cursor:pointer; font-size:11px;
+    padding:0; width:18px; height:18px; align-self:start;
+  }
+  .card .head .name{font-weight:600}
+  .card.done .head .name, .card.archived .head .name{text-decoration:line-through}
+  .card .head .id, .card .head .status{color:var(--text2); font-size:10.5px}
+  .card .head .ip{color:var(--accent); font-size:10.5px}
+
+  .detail{min-width:0}
+  .detail .prompt{white-space:pre-wrap}
+  .detail .req{color:var(--text2); margin-top:2px}
+  .detail .blocked{color:var(--text2); font-style:italic; margin-top:3px}
+  .detail .dates{color:var(--text2); margin-top:3px}
+  .detail.hidden{display:none}
+
+  .chips{display:flex; flex-wrap:wrap; gap:4px; margin-top:4px}
+  .chip{
+    border:1px solid var(--border); border-radius:2px; padding:0 4px;
+    font-size:9.5px; font-weight:600; color:var(--text2);
+  }
+  .chip.bug{background:var(--bug-s); border-color:var(--bug-b); color:var(--bug-t)}
+  .chip.err{background:var(--err-s); border-color:var(--err-b); color:var(--err-t)}
+  .chip.rel{border-color:var(--accent); color:var(--accent)}
+
+  .subs{margin-top:4px}
+  .subs .sub{font-size:11.5px}
+  .subs .sub.done{color:var(--text2); text-decoration:line-through}
+
+  .agent{margin-top:5px; border-top:1px dashed var(--border); padding-top:4px; color:var(--text2)}
+  .agent b{color:var(--text)}
+
+  footer{max-width:1000px; margin:18px auto 30px; padding:0 14px; color:var(--text2); font-size:11px}
+</style>
+</head>
+<body>
+<header>
+  <span class="title">zProject</span>
+  <span class="crumb" id="crumb"></span>
+  <span class="ro">read only</span>
+</header>
+<main id="main"><p class="muted">Loading…</p></main>
+<footer id="foot"></footer>
+
+<script>
+const $main = document.getElementById('main');
+const $crumb = document.getElementById('crumb');
+const $foot = document.getElementById('foot');
+let currentProject = null;         // index or null (picker)
+let reloadSeconds = 120;
+const collapsed = new Set();       // task ids collapsed in this session
+
+function esc(s){ return (s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+// deterministic pale colour per tag (mirrors the app's TagColorConverter)
+function tagColor(tag){
+  let h = 2166136261 >>> 0;
+  for (const ch of tag.toLowerCase()) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+  const hue = h % 360;
+  return { bg:`hsl(${hue} 45% 90%)`, bd:`hsl(${hue} 40% 72%)`, fg:`hsl(${hue} 55% 32%)` };
+}
+
+function syncHash(){
+  const h = location.hash.replace('#','');
+  currentProject = /^\d+$/.test(h) ? +h : null;
+}
+window.addEventListener('hashchange', () => { syncHash(); load(); });
+
+async function load(){
+  try{
+    if (currentProject === null) await renderPicker();
+    else await renderProject(currentProject);
+  }catch(e){
+    $main.innerHTML = `<p class="muted">Could not load: ${esc(e.message)}</p>`;
+  }
+}
+
+async function renderPicker(){
+  const data = await (await fetch('/api/projects')).json();
+  reloadSeconds = data.reloadSeconds || 120;
+  $crumb.textContent = '';
+  if (!data.projects.length){
+    $main.innerHTML = '<p class="muted">No projects in the workspace yet.</p>';
+    return;
+  }
+  const rows = data.projects.map(p => `
+    <div class="prow" data-i="${p.index}">
+      <span class="pname">${esc(p.name)}</span>
+      <span class="pdir">${esc(p.directory)}</span>
+      <span class="pcount">${p.open} open · ${p.done} done · ${p.total} total</span>
+    </div>`).join('');
+  $main.innerHTML = `<div class="plist">${rows}</div>`;
+  $main.querySelectorAll('.prow').forEach(el =>
+    el.onclick = () => { location.hash = '#' + el.dataset.i; });
+  $foot.textContent = `${data.projects.length} project(s) · auto-reloads every ${reloadSeconds}s`;
+}
+
+const SECTION_CLASS = { 'Bugs':'bugs', 'Needs attention':'err', 'Completed':'done', 'Archived':'arch', 'Active':'' };
+
+async function renderProject(i){
+  const data = await (await fetch('/api/project/' + i)).json();
+  $crumb.innerHTML = `<a id="back">‹ all projects</a> &nbsp;/&nbsp; ${esc(data.name)}`;
+  document.getElementById('back').onclick = () => { location.hash = ''; };
+
+  const groups = new Map();
+  for (const t of data.tasks){
+    if (!groups.has(t.sectionKey)) groups.set(t.sectionKey, []);
+    groups.get(t.sectionKey).push(t);
+  }
+  const order = [...groups.keys()].sort((a,b) =>
+    (groups.get(a)[0].sectionRank) - (groups.get(b)[0].sectionRank));
+
+  let html = '';
+  for (const key of order){
+    html += `<div class="section-h ${SECTION_CLASS[key] ?? ''}">${esc(key)} (${groups.get(key).length})</div>`;
+    for (const t of groups.get(key)) html += card(t);
+  }
+  if (!data.tasks.length) html = '<p class="muted">No tasks in this project.</p>';
+  $main.innerHTML = html;
+  $main.querySelectorAll('.chev').forEach(b => b.onclick = () => {
+    const id = b.dataset.id;
+    collapsed.has(id) ? collapsed.delete(id) : collapsed.add(id);
+    load();
+  });
+  $foot.textContent = `${esc(data.directory)} · ${data.tasks.length} task(s) · auto-reloads every ${reloadSeconds}s`;
+}
+
+function card(t){
+  const cls = ['card'];
+  if (t.archived) cls.push('archived');
+  else if (t.locked) cls.push('locked');
+  else if (t.done) cls.push('done');
+  else if (t.bug) cls.push('bug');
+  else if (t.error) cls.push('err');
+
+  const isCollapsed = collapsed.has(t.id);
+  const chev = isCollapsed ? '❯' : '▾';
+
+  const chips = [];
+  if (t.bug) chips.push('<span class="chip bug">BUG</span>');
+  if (t.error) chips.push('<span class="chip err">ERROR</span>');
+  if (t.commit) chips.push('<span class="chip">COMMIT</span>');
+  if (t.build) chips.push('<span class="chip">BUILD</span>');
+  if (t.release) chips.push('<span class="chip rel">RELEASE</span>');
+  for (const tag of t.tags || []){
+    const c = tagColor(tag);
+    chips.push(`<span class="chip" style="background:${c.bg};border-color:${c.bd};color:${c.fg}">${esc(tag)}</span>`);
+  }
+
+  const subs = (t.subtasks || []).map(s =>
+    `<div class="sub ${s.done?'done':''}">${s.done?'☑':'☐'} ${esc(s.text)}</div>`).join('');
+  const subCount = t.subtasks && t.subtasks.length
+    ? `<span class="status">☑ ${t.subtasks.filter(s=>s.done).length}/${t.subtasks.length}</span>` : '';
+
+  const dates = [];
+  if (t.dateStarted) dates.push('Started ' + esc(t.dateStarted));
+  if (t.dueDate) dates.push('Due ' + esc(t.dueDate));
+
+  const agent = [];
+  if (t.errorMessage) agent.push(`<div><b>Error:</b> ${esc(t.errorMessage)}</div>`);
+  if (t.notes) agent.push(`<div><b>Notes:</b> ${esc(t.notes)}</div>`);
+  if (t.filesChanged) agent.push(`<div><b>Files changed:</b> ${esc(t.filesChanged)}</div>`);
+
+  const head = `
+    <div class="head">
+      <div class="name">${esc(t.displayName)}</div>
+      ${t.name ? `<div class="id">${esc(t.id)}</div>` : ''}
+      <div class="status">${esc(t.statusText)}</div>
+      ${t.inProgress ? '<div class="ip">in progress</div>' : ''}
+      ${subCount}
+    </div>`;
+
+  const detail = `
+    <div class="detail ${isCollapsed ? 'hidden' : ''}">
+      <div class="prompt">${esc(t.prompt)}</div>
+      ${t.requirements ? `<div class="req">${esc(t.requirements)}</div>` : ''}
+      ${t.blockedBy ? `<div class="blocked">⛔ blocked by ${esc(t.blockedBy)}</div>` : ''}
+      ${dates.length ? `<div class="dates">${dates.join('  •  ')}</div>` : ''}
+      ${chips.length ? `<div class="chips">${chips.join('')}</div>` : ''}
+      ${subs ? `<div class="subs">${subs}</div>` : ''}
+      ${agent.length ? `<div class="agent">${agent.join('')}</div>` : ''}
+    </div>`;
+
+  return `<div class="${cls.join(' ')}">
+    <button class="chev" data-id="${esc(t.id)}" title="collapse / expand">${chev}</button>
+    ${head}
+    ${detail}
+  </div>`;
+}
+
+// live updates: SSE reload events + a 120s fallback poll
+if (!location.search.includes('static')){
+  try{
+    const ev = new EventSource('/events');
+    ev.addEventListener('reload', () => load());
+  }catch(e){ /* SSE unsupported */ }
+  setInterval(load, (reloadSeconds || 120) * 1000);
+}
+
+syncHash();
+load();
+</script>
+</body>
+</html>

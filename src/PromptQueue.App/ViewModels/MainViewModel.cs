@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Data;
@@ -31,6 +32,7 @@ public sealed class MainViewModel : Observable
         SaveCurrentCommand = new RelayCommand(SaveCurrentProject, () => SelectedProject != null);
         ReloadProjectCommand = new RelayCommand(ReloadProject, () => SelectedProject != null);
         ExitCommand = new RelayCommand(() => ExitRequested?.Invoke());
+        StartWebServerCommand = new RelayCommand(StartWebServer);
 
         EditGlobalDesignCommand = new RelayCommand(() => EditText(
             "Global Design", "Default design requirements for every project",
@@ -151,6 +153,7 @@ public sealed class MainViewModel : Observable
     public RelayCommand SaveCurrentCommand { get; }
     public RelayCommand ReloadProjectCommand { get; }
     public RelayCommand ExitCommand { get; }
+    public RelayCommand StartWebServerCommand { get; }
 
     public RelayCommand EditGlobalDesignCommand { get; }
     public RelayCommand EditGlobalInstructionsCommand { get; }
@@ -223,6 +226,38 @@ public sealed class MainViewModel : Observable
         foreach (var project in Workspace.Projects)
             ProjectStore.Save(project);
         StatusText = $"Saved workspace and {Workspace.Projects.Count} project(s)";
+    }
+
+    /// <summary>
+    /// Launches the read-only web view server (ZP-38). It is a console app, so it
+    /// gets its own window; the workspace it serves is the same one this app uses.
+    /// </summary>
+    private void StartWebServer()
+    {
+        var exe = Path.Combine(AppContext.BaseDirectory, "zProject_server.exe");
+        if (!File.Exists(exe))
+        {
+            MessageBox.Show(
+                "zProject_server.exe was not found next to the app.\n\n" +
+                "Build the PromptQueue.Server project into the same folder.",
+                "zProject", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = exe,
+                UseShellExecute = true,   // gives the console app its own window
+                WorkingDirectory = AppContext.BaseDirectory,
+            });
+            StatusText = "Started the read-only web view server (see its console window)";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "zProject", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private void SaveCurrentProject()

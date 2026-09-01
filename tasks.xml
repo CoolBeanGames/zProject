@@ -502,7 +502,7 @@ all colors should be kind of pale and washed out</prompt>
     <prompt>build out webserver , it should be view only for the tasks for all project, you cannot edit tasks from the webview. while the server is running it opens a new console window with info.</prompt>
     <requirements>webserver complete</requirements>
     <inProgress>false</inProgress>
-    <done>false</done>
+    <done>true</done>
     <bug>false</bug>
     <error>false</error>
     <errorMessage></errorMessage>
@@ -510,18 +510,18 @@ all colors should be kind of pale and washed out</prompt>
     <build>false</build>
     <release>false</release>
     <tags>server, view</tags>
-    <notes></notes>
-    <filesChanged></filesChanged>
+    <notes>New console project src/PromptQueue.Server (AssemblyName zProject_server) built on HttpListener, referencing PromptQueue.Core so it reads the exact same workspace/tasks.xml as the app. It is strictly read-only — no write endpoints. Single-page zProject_webView.html: a project picker (all projects with open/done/total counts) and a per-project task view that mirrors the app's rules (Bugs/Needs attention/Active/Completed/Archived sections, pale colour-coding, BUG/ERROR/COMMIT/BUILD/RELEASE + deterministic tag chips, collapsible cards, subtask checklist, blocked-by line, locked/archived greying). Console: prints a banner with the address+port, logs every request with client IP and timing, logs SSE client connect/disconnect with an active count, and every 120s (and on each client connect) re-reads all projects from disk and pushes a "reload" event so open pages refresh; the page also polls every 120s as a fallback. Each /api/project/{i} call re-reads that project's tasks.xml, so switching projects always shows fresh data. The app's new "Server &gt; Start Web View Server" menu launches zProject_server.exe (a console app, so it opens its own window). A build now means building BOTH projects into the same folder (documented in instructions.txt); zProject.exe, zProject_server.exe and zProject_webView.html are co-located in builds/test, builds/debug and builds/release. Verified end to end: picker + task view render correctly (headless screenshots), API returns all projects/tasks, console logs address/requests/connect/disconnect.</notes>
+    <filesChanged>src/PromptQueue.Server/PromptQueue.Server.csproj (new); src/PromptQueue.Server/Program.cs (new); src/PromptQueue.Server/zProject_webView.html (new); src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml; PromptQueue.slnx; instructions.txt</filesChanged>
     <subtasks>
-      <subtask done="false">html project picker done</subtask>
-      <subtask done="false">html task view done (with same rules as main app)</subtask>
-      <subtask done="false">console displays address and port</subtask>
-      <subtask done="false">console shows connection/disconnection info</subtask>
-      <subtask done="false">auto reload xml when switch projects or a client connects</subtask>
-      <subtask done="false">auto reload every 120 seconds</subtask>
-      <subtask done="false">zProject_server.exe</subtask>
-      <subtask done="false">zProject_webView.html</subtask>
-      <subtask done="false">any other files needed</subtask>
+      <subtask done="true">html project picker done</subtask>
+      <subtask done="true">html task view done (with same rules as main app)</subtask>
+      <subtask done="true">console displays address and port</subtask>
+      <subtask done="true">console shows connection/disconnection info</subtask>
+      <subtask done="true">auto reload xml when switch projects or a client connects</subtask>
+      <subtask done="true">auto reload every 120 seconds</subtask>
+      <subtask done="true">zProject_server.exe</subtask>
+      <subtask done="true">zProject_webView.html</subtask>
+      <subtask done="true">any other files needed</subtask>
     </subtasks>
   </task>
 </tasks>

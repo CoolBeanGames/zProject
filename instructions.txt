@@ -6,6 +6,12 @@ the task is NOT complete unless the requirements have been met, if a task is imp
 
 if the task has a build tag set to true, the project should be built to project_root/builds/debug, if you need to test build to project_root/builds/test, if it has a release tag set use project_root/builds/release
 
+a build = BOTH the app and the read-only web server, into the same folder:
+  dotnet build src/PromptQueue.App/PromptQueue.App.csproj    -c <cfg> -o builds/<dir>
+  dotnet build src/PromptQueue.Server/PromptQueue.Server.csproj -c <cfg> -o builds/<dir>
+this puts zProject.exe, zProject_server.exe and zProject_webView.html together.
+"Server > Start Web View Server" in the app launches zProject_server.exe.
+
 SKIP RULES (a task the agent must not work on):
 - if <locked>true</locked> the task is locked: skip it entirely, do not change it.
 - if <archived>true</archived> the task is archived: skip it entirely, do not change it.

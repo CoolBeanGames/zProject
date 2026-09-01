@@ -2,5 +2,6 @@
   <Folder Name="/src/">
     <Project Path="src/PromptQueue.App/PromptQueue.App.csproj" />
     <Project Path="src/PromptQueue.Core/PromptQueue.Core.csproj" />
+    <Project Path="src/PromptQueue.Server/PromptQueue.Server.csproj" />
   </Folder>
 </Solution>
