@@ -78,6 +78,15 @@ public static class ProjectStore
         project.NextIndex = Math.Max(project.NextIndex, doc.NextIndex);
     }
 
+    /// <summary>Re-reads everything a project owns (tasks + local text files) from disk.</summary>
+    public static void ReloadInto(Project project)
+    {
+        ReloadTasks(project);
+        project.LocalDesign = ReadTextOrEmpty(Path.Combine(project.Directory, DesignFile));
+        project.LocalInstructions = ReadTextOrEmpty(Path.Combine(project.Directory, InstructionsFile));
+        project.LocalPrompt = ReadTextOrEmpty(Path.Combine(project.Directory, PromptFile));
+    }
+
     /// <summary>Compacts task order values to 0..n-1 following current sequence.</summary>
     public static void Normalize(Project project)
     {

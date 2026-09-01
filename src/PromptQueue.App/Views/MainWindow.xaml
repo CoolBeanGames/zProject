@@ -3,8 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:app="clr-namespace:PromptQueue.App"
         xmlns:vm="clr-namespace:PromptQueue.App.ViewModels"
-        Title="Prompt Queue" Height="720" Width="1120"
+        Title="zProject" Height="720" Width="1120"
         MinHeight="480" MinWidth="800"
+        Icon="pack://application:,,,/Assets/app.ico"
         FontFamily="{StaticResource UiFont}" FontSize="12"
         Background="{StaticResource AppBackgroundBrush}"
         UseLayoutRounding="True" SnapsToDevicePixels="True">

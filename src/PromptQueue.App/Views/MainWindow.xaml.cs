@@ -29,12 +29,59 @@ public partial class MainWindow : Window
     private double _gapHeight;
     private int _insertIndex = -1;
 
+    private bool _allowClose;
+    private bool _wasMinimized;
+    private MainViewModel? _hookedVm;
+
     public MainWindow()
     {
         InitializeComponent();
+        DataContextChanged += OnDataContextChanged;
     }
 
     private MainViewModel? Vm => DataContext as MainViewModel;
+
+    // ---- Close = minimise to taskbar; restore = reload all projects (ZP-20) ----
+
+    private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (_hookedVm != null)
+            _hookedVm.ExitRequested -= OnExitRequested;
+        _hookedVm = Vm;
+        if (_hookedVm != null)
+            _hookedVm.ExitRequested += OnExitRequested;
+    }
+
+    private void OnExitRequested()
+    {
+        _allowClose = true;
+        Close();
+    }
+
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+    {
+        if (!_allowClose)
+        {
+            e.Cancel = true;
+            WindowState = WindowState.Minimized;
+        }
+        base.OnClosing(e);
+    }
+
+    protected override void OnStateChanged(EventArgs e)
+    {
+        base.OnStateChanged(e);
+        if (WindowState != WindowState.Minimized)
+        {
+            if (_wasMinimized)
+                Vm?.ReloadAllProjects();
+            _wasMinimized = false;
+        }
+        else
+        {
+            _wasMinimized = true;
+        }
+    }
 
     // ---- Press / start ------------------------------------------------
 

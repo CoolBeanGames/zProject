@@ -26,7 +26,7 @@ public partial class App : Application
     {
         MessageBox.Show(
             e.Exception.Message,
-            "Prompt Queue",
+            "zProject",
             MessageBoxButton.OK,
             MessageBoxImage.Error);
         e.Handled = true;

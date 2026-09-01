@@ -26,8 +26,9 @@ public sealed class MainViewModel : Observable
 
         NewProjectCommand = new RelayCommand(NewProject);
         SaveAllCommand = new RelayCommand(SaveAll);
+        SaveCurrentCommand = new RelayCommand(SaveCurrentProject, () => SelectedProject != null);
         ReloadProjectCommand = new RelayCommand(ReloadProject, () => SelectedProject != null);
-        ExitCommand = new RelayCommand(() => Application.Current.Shutdown());
+        ExitCommand = new RelayCommand(() => ExitRequested?.Invoke());
 
         EditGlobalDesignCommand = new RelayCommand(() => EditText(
             "Global Design", "Default design requirements for every project",
@@ -60,6 +61,9 @@ public sealed class MainViewModel : Observable
     }
 
     public Workspace Workspace { get; }
+
+    /// <summary>Raised when the user really wants to quit (File &gt; Exit).</summary>
+    public event Action? ExitRequested;
 
     public Project? SelectedProject
     {
@@ -116,6 +120,7 @@ public sealed class MainViewModel : Observable
 
     public RelayCommand NewProjectCommand { get; }
     public RelayCommand SaveAllCommand { get; }
+    public RelayCommand SaveCurrentCommand { get; }
     public RelayCommand ReloadProjectCommand { get; }
     public RelayCommand ExitCommand { get; }
 
@@ -161,18 +166,18 @@ public sealed class MainViewModel : Observable
     {
         if (SelectedProject == null)
             return;
-        ProjectStore.ReloadTasks(SelectedProject);
-        SelectedProject.LocalDesign = ReadOrKeep(ProjectStore.DesignFile, SelectedProject.LocalDesign);
-        SelectedProject.LocalInstructions = ReadOrKeep(ProjectStore.InstructionsFile, SelectedProject.LocalInstructions);
-        SelectedProject.LocalPrompt = ReadOrKeep(ProjectStore.PromptFile, SelectedProject.LocalPrompt);
+        ProjectStore.ReloadInto(SelectedProject);
         RebuildTasksView();
         StatusText = $"Reloaded \"{SelectedProject.Name}\" from disk";
     }
 
-    private string ReadOrKeep(string fileName, string current)
+    /// <summary>Re-reads every known project from disk (used on window restore).</summary>
+    public void ReloadAllProjects()
     {
-        var path = Path.Combine(SelectedProject!.Directory, fileName);
-        return File.Exists(path) ? File.ReadAllText(path) : current;
+        foreach (var project in Workspace.Projects)
+            ProjectStore.ReloadInto(project);
+        RebuildTasksView();
+        StatusText = $"Reloaded {Workspace.Projects.Count} project(s) from disk";
     }
 
     private void SaveAll()
@@ -181,6 +186,15 @@ public sealed class MainViewModel : Observable
         foreach (var project in Workspace.Projects)
             ProjectStore.Save(project);
         StatusText = $"Saved workspace and {Workspace.Projects.Count} project(s)";
+    }
+
+    private void SaveCurrentProject()
+    {
+        if (SelectedProject == null)
+            return;
+        ProjectStore.Save(SelectedProject);
+        Workspace.SaveDataCfg();
+        StatusText = $"Saved project \"{SelectedProject.Name}\"";
     }
 
     private void SaveCurrent()
@@ -324,7 +338,7 @@ public sealed class MainViewModel : Observable
 
         var confirm = MessageBox.Show(
             $"Delete task {task.Id}?",
-            "Prompt Queue",
+            "zProject",
             MessageBoxButton.OKCancel,
             MessageBoxImage.Warning);
         if (confirm != MessageBoxResult.OK)

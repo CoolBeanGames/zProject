@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<tasks project="zProject" nextIndex="19">
+<tasks project="zProject" nextIndex="29">
   <task id="ZP-3">
     <prompt>verify that you are able to identify task.</prompt>
     <requirements>this task was marked as in progress, and xml was saved</requirements>
@@ -194,5 +194,127 @@
     <release>true</release>
     <notes>Workspace now writes data.cfg next to the executable (AppContext.BaseDirectory) on load and on every Save(). It is an XML "promptQueueData" database holding every project (name + directory path + its full task queue via TaskXmlSerializer.ToElement) plus verbatim CDATA copies of the global design / instructions / prompt. If the executable directory is read-only the write is skipped silently. On startup, when there is no per-user workspace.xml, the workspace hydrates projects + globals from data.cfg instead. New projects with no local design/instructions/prompt are now seeded with copies of the globals ("that then just get copied"). Built to builds/debug and builds/release and committed per the build/release/commit flags.</notes>
     <filesChanged>src/PromptQueue.Core/Storage/Workspace.cs; src/PromptQueue.Core/Serialization/TaskXmlSerializer.cs; tasks.xml</filesChanged>
+  </task>
+  <task id="ZP-19">
+    <prompt>design, generate, and use a icon for this project that is inline with the design astetic</prompt>
+    <requirements>the icon has been updated</requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <notes>Designed a restrained checklist mark in the app's own palette (off-white rounded tile with a thin #C7C7C7 border, charcoal #282828 marks, one muted-blue #4B6EA8 accent checkbox with a white tick, three task bars of decreasing weight). Generated a real multi-resolution icon (16/24/32/48/64/128/256, PNG-compressed frames) at src/PromptQueue.App/Assets/app.ico via a System.Drawing generator script. Wired it up: &lt;ApplicationIcon&gt; in the csproj (shell / taskbar / exe) and Window.Icon="pack://application:,,,/Assets/app.ico" (title bar). Verified the icon shows in the title bar and taskbar.</notes>
+    <filesChanged>src/PromptQueue.App/Assets/app.ico (new); src/PromptQueue.App/PromptQueue.App.csproj; src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
+  </task>
+  <task id="ZP-20">
+    <prompt>when the project is closed it goes to the task bar, when it is restored it automatically reloads all projects</prompt>
+    <requirements>taskbar reduce is complete</requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <notes>Pressing the window's close [X] now cancels the close and minimises to the taskbar instead (MainWindow.OnClosing). Restoring from minimised (MainWindow.OnStateChanged, _wasMinimized latch) calls MainViewModel.ReloadAllProjects(), which re-reads tasks.xml and the local design/instructions/prompt for every known project via the new ProjectStore.ReloadInto and rebuilds the grouped view. Real quit is still available via File &gt; Exit, which raises MainViewModel.ExitRequested; the window sets an _allowClose flag and closes for real.</notes>
+    <filesChanged>src/PromptQueue.App/Views/MainWindow.xaml.cs; src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.Core/Storage/ProjectStore.cs</filesChanged>
+  </task>
+  <task id="ZP-21">
+    <prompt>change the application name to zProject</prompt>
+    <requirements>project name and exe name changed</requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <commit>true</commit>
+    <build>true</build>
+    <release>true</release>
+    <notes>Renamed the application to "zProject": csproj now sets AssemblyName/Product/AssemblyTitle=zProject so the build output is zProject.exe; the window Title is "zProject"; the two MessageBox captions (delete-task confirm, unhandled-exception) say "zProject". Verified: title bar and taskbar show "zProject" with the new icon, and builds/*/zProject.exe is produced. Built to builds/debug and builds/release and committed per the flags.</notes>
+    <filesChanged>src/PromptQueue.App/PromptQueue.App.csproj; src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/App.xaml.cs</filesChanged>
+  </task>
+  <task id="ZP-22">
+    <prompt>add support for subtasks, when creating a task subtasks can be designed. create a simple ui where each one is a small line, each subtask can be checked off one by one.</prompt>
+    <requirements>subtasks implemented</requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <notes></notes>
+    <filesChanged></filesChanged>
+  </task>
+  <task id="ZP-23">
+    <prompt>add a new checkbox for "bugs" to be identified as bugs, these are automatically at the TOP of the xml file when saving no matter where it is in the list</prompt>
+    <requirements>bug checkbox added</requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <notes></notes>
+    <filesChanged></filesChanged>
+  </task>
+  <task id="ZP-24">
+    <prompt>more color-coding
+red: errors
+purple: bugs
+green: done
+
+all colors should be kind of pale and washed out</prompt>
+    <requirements>new color codes</requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <notes></notes>
+    <filesChanged></filesChanged>
+  </task>
+  <task id="ZP-25">
+    <prompt>add displays from the main view for bug,error,commit,build,and release so i can see at a glance</prompt>
+    <requirements>new display tags</requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <notes></notes>
+    <filesChanged></filesChanged>
+  </task>
+  <task id="ZP-26">
+    <prompt>right next to add task, add a text field for comma seperated tags, keep track (per project) of each tag and autocomplete exisiting ones as they are typed. color code each tag a random color, again this is for easy identification, these tags will also be saved to the xml (text only) so the agent cant tell what it is</prompt>
+    <requirements>added tags</requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <commit>true</commit>
+    <build>true</build>
+    <release>true</release>
+    <notes></notes>
+    <filesChanged></filesChanged>
+  </task>
+  <task id="ZP-28">
+    <prompt>add save current to only save the open project</prompt>
+    <requirements>save current added</requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <notes></notes>
+    <filesChanged></filesChanged>
   </task>
 </tasks>
