@@ -8,6 +8,7 @@ using System.Windows.Media.Imaging;
 using PromptQueue.App.Controls;
 using PromptQueue.App.ViewModels;
 using PromptQueue.Core.Models;
+using WinForms = System.Windows.Forms;
 
 namespace PromptQueue.App.Views;
 
@@ -32,16 +33,62 @@ public partial class MainWindow : Window
     private bool _allowClose;
     private bool _wasMinimized;
     private MainViewModel? _hookedVm;
+    private WinForms.NotifyIcon? _tray;
 
     public MainWindow()
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
+        Loaded += (_, _) => SetupTray();
     }
 
     private MainViewModel? Vm => DataContext as MainViewModel;
 
-    // ---- Close = minimise to taskbar; restore = reload all projects (ZP-20) ----
+    // ---- Close = hide to the notification area (system tray), ZP-44 ----
+
+    private void SetupTray()
+    {
+        if (_tray != null)
+            return;
+
+        var menu = new WinForms.ContextMenuStrip();
+        menu.Items.Add("Open", null, (_, _) => RestoreFromTray());
+        menu.Items.Add("Close", null, (_, _) => { _allowClose = true; Close(); });
+
+        _tray = new WinForms.NotifyIcon
+        {
+            Text = "zProject",
+            Icon = LoadTrayIcon(),
+            Visible = true,
+            ContextMenuStrip = menu,
+        };
+        _tray.DoubleClick += (_, _) => RestoreFromTray();
+    }
+
+    private static System.Drawing.Icon LoadTrayIcon()
+    {
+        try
+        {
+            var uri = new Uri("pack://application:,,,/Assets/app.ico");
+            using var stream = System.Windows.Application.GetResourceStream(uri)!.Stream;
+            return new System.Drawing.Icon(stream);
+        }
+        catch
+        {
+            return System.Drawing.SystemIcons.Application;
+        }
+    }
+
+    private void RestoreFromTray()
+    {
+        Show();
+        ShowInTaskbar = true;
+        WindowState = WindowState.Normal;
+        Activate();
+        Topmost = true;
+        Topmost = false;
+        Vm?.ReloadAllProjects();   // pick up any changes made while hidden (ZP-20)
+    }
 
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
@@ -62,8 +109,15 @@ public partial class MainWindow : Window
     {
         if (!_allowClose)
         {
+            // Hide to the tray instead of exiting; the taskbar button goes away.
             e.Cancel = true;
-            WindowState = WindowState.Minimized;
+            Hide();
+            ShowInTaskbar = false;
+        }
+        else
+        {
+            _tray?.Dispose();
+            _tray = null;
         }
         base.OnClosing(e);
     }

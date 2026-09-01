@@ -87,12 +87,16 @@ public static class ProjectStore
         project.LocalPrompt = ReadTextOrEmpty(Path.Combine(project.Directory, PromptFile));
     }
 
-    /// <summary>Compacts task order values to 0..n-1 following current sequence.</summary>
+    /// <summary>
+    /// Sets each task's <see cref="TaskItem.Order"/> to its physical position in
+    /// the collection (0..n-1). The collection order is authoritative — a drag or
+    /// a section re-sort changes the collection, and Order must follow it, not the
+    /// other way around.
+    /// </summary>
     public static void Normalize(Project project)
     {
-        var ordered = project.Tasks.OrderBy(t => t.Order).ToList();
-        for (int i = 0; i < ordered.Count; i++)
-            ordered[i].Order = i;
+        for (int i = 0; i < project.Tasks.Count; i++)
+            project.Tasks[i].Order = i;
     }
 
     private static string ReadTextOrEmpty(string path)

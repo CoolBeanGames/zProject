@@ -31,28 +31,16 @@ internal static class Program
         _workspace = Workspace.Load();
         _viewHtml = LoadViewHtml();
 
-        HttpListener listener = new();
-        var prefix = $"http://localhost:{FindFreePort(port)}/";
-        listener.Prefixes.Add(prefix);
-
-        try
+        port = FindFreePort(port);
+        var listener = StartListener(port);
+        if (listener == null)
         {
-            listener.Start();
-        }
-        catch (HttpListenerException ex)
-        {
-            Console.WriteLine($"Could not start the listener on {prefix}");
-            Console.WriteLine(ex.Message);
-            Console.WriteLine();
-            Console.WriteLine("If this is an access error, run once in an elevated prompt:");
-            Console.WriteLine($"    netsh http add urlacl url={prefix} user=%USERNAME%");
-            Console.WriteLine();
             Console.WriteLine("Press any key to exit.");
             Console.ReadKey();
             return 1;
         }
 
-        Banner(prefix);
+        Banner(port);
 
         using var reloadTimer = new Timer(_ => AutoReload(), null,
             TimeSpan.FromSeconds(ReloadSeconds), TimeSpan.FromSeconds(ReloadSeconds));
@@ -71,16 +59,120 @@ internal static class Program
         return 0;
     }
 
-    private static void Banner(string prefix)
+    /// <summary>
+    /// Binds to every network interface so a phone on the same wifi can reach it
+    /// (ZP-39). "http://+:port/" needs a one-time URL ACL on Windows; if it is
+    /// missing we offer to add it (one UAC prompt) and fall back to localhost.
+    /// </summary>
+    private static HttpListener? StartListener(int port)
     {
+        var all = $"http://+:{port}/";
+        var local = $"http://localhost:{port}/";
+
+        var listener = new HttpListener();
+        listener.Prefixes.Add(all);
+        try
+        {
+            listener.Start();
+            return listener;
+        }
+        catch (HttpListenerException) { /* almost always: missing URL ACL */ }
+
+        Console.WriteLine($"Windows is blocking {all} (no URL reservation).");
+        Console.Write("Add the reservation now so your phone can connect? A UAC prompt will appear. [Y/n] ");
+        var key = Console.ReadLine();
+        if (string.IsNullOrWhiteSpace(key) || key.Trim().StartsWith("y", StringComparison.OrdinalIgnoreCase))
+        {
+            if (TryAddUrlAcl(port))
+            {
+                var retry = new HttpListener();
+                retry.Prefixes.Add(all);
+                try { retry.Start(); Console.WriteLine("Reservation added — now reachable on the network."); return retry; }
+                catch (HttpListenerException ex) { Console.WriteLine("Still blocked: " + ex.Message); }
+            }
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("Falling back to localhost only (this machine can view it, phones cannot).");
+        Console.WriteLine("To enable network access later, run once in an elevated prompt:");
+        Console.WriteLine($"    netsh http add urlacl url={all} user=\"{Environment.UserDomainName}\\{Environment.UserName}\"");
+        Console.WriteLine($"    netsh advfirewall firewall add rule name=\"zProject server\" dir=in action=allow protocol=TCP localport={port}");
+        Console.WriteLine();
+
+        var loc = new HttpListener();
+        loc.Prefixes.Add(local);
+        try { loc.Start(); return loc; }
+        catch (HttpListenerException ex) { Console.WriteLine("Could not start even on localhost: " + ex.Message); return null; }
+    }
+
+    private static bool TryAddUrlAcl(int port)
+    {
+        try
+        {
+            var user = $"{Environment.UserDomainName}\\{Environment.UserName}";
+            var script =
+                $"http add urlacl url=http://+:{port}/ user=\"{user}\" & " +
+                $"advfirewall firewall add rule name=\"zProject server\" dir=in action=allow protocol=TCP localport={port}";
+            var psi = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = $"/c netsh {script}",
+                Verb = "runas",              // triggers UAC
+                UseShellExecute = true,
+                WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden,
+            };
+            var proc = System.Diagnostics.Process.Start(psi);
+            proc?.WaitForExit(15000);
+            return proc?.ExitCode == 0;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Could not add the reservation automatically: " + ex.Message);
+            return false;
+        }
+    }
+
+    private static void Banner(int port)
+    {
+        var urls = LocalUrls(port).ToList();
         Console.WriteLine(new string('=', 60));
         Console.WriteLine("  zProject task server  —  read only");
         Console.WriteLine(new string('=', 60));
-        Console.WriteLine($"  Address : {prefix}");
-        Console.WriteLine($"  Open    : {prefix}");
+        Console.WriteLine($"  Port    : {port}");
+        Console.WriteLine("  Open on this machine :");
+        Console.WriteLine($"    http://localhost:{port}/");
+        Console.WriteLine("  Open on your phone (same wifi) :");
+        foreach (var u in urls)
+            Console.WriteLine($"    {u}");
+        if (urls.Count == 0)
+            Console.WriteLine("    (no LAN address detected)");
         Console.WriteLine($"  Projects: {_workspace.Projects.Count}");
         Console.WriteLine($"  Auto-reload every {ReloadSeconds}s and on each client connect");
         Console.WriteLine(new string('=', 60));
+    }
+
+    private static IEnumerable<string> LocalUrls(int port)
+    {
+        System.Net.NetworkInformation.NetworkInterface[] nics;
+        try { nics = System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces(); }
+        catch { yield break; }
+
+        foreach (var nic in nics)
+        {
+            if (nic.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up)
+                continue;
+            if (nic.NetworkInterfaceType == System.Net.NetworkInformation.NetworkInterfaceType.Loopback)
+                continue;
+            foreach (var addr in nic.GetIPProperties().UnicastAddresses)
+            {
+                if (addr.Address.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
+                    continue;
+                var s = addr.Address.ToString();
+                if (s.StartsWith("169.254.") || s == "127.0.0.1")
+                    continue;
+                yield return $"http://{s}:{port}/";
+            }
+        }
     }
 
     // ---- request loop --------------------------------------------------
