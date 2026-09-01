@@ -133,6 +133,16 @@ public sealed class TagColorConverter : IValueConverter
     }
 }
 
+/// <summary>Collapsed → ChevronRight, expanded → ChevronDown (Segoe MDL2 Assets).</summary>
+public sealed class ChevronGlyphConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is true ? "" : "";
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => Binding.DoNothing;
+}
+
 /// <summary>Splits "a, b, c" into a list for an ItemsControl of tag chips.</summary>
 public sealed class TagListConverter : IValueConverter
 {

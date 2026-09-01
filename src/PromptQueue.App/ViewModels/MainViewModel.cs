@@ -193,13 +193,19 @@ public sealed class MainViewModel : Observable
             : $"Created project \"{project.Name}\" at {project.Directory}";
     }
 
+    /// <summary>
+    /// The Reload button / menu item: re-reads ONLY the currently selected
+    /// project's files from disk (ZP-35). Other open projects are untouched.
+    /// </summary>
     private void ReloadProject()
     {
-        if (SelectedProject == null)
+        var project = SelectedProject;
+        if (project == null)
             return;
-        ProjectStore.ReloadInto(SelectedProject);
+        ProjectStore.ReloadInto(project);
         RebuildTasksView();
-        StatusText = $"Reloaded \"{SelectedProject.Name}\" from disk";
+        Workspace.SaveDataCfg();
+        StatusText = $"Reloaded only \"{project.Name}\" from disk";
     }
 
     /// <summary>Re-reads every known project from disk (used on window restore).</summary>

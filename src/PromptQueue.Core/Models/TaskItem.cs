@@ -46,11 +46,14 @@ public sealed class TaskItem : Observable
     public string Name
     {
         get => _name;
-        set { if (Set(ref _name, value)) Raise(nameof(DisplayName)); }
+        set { if (Set(ref _name, value)) { Raise(nameof(DisplayName)); Raise(nameof(HasName)); } }
     }
 
     /// <summary>The name shown on the card: <see cref="Name"/> if set, else <see cref="Id"/>.</summary>
     public string DisplayName => string.IsNullOrWhiteSpace(Name) ? Id : Name;
+
+    /// <summary>True when a distinct <see cref="Name"/> is set (so the id is worth showing too).</summary>
+    public bool HasName => !string.IsNullOrWhiteSpace(Name);
 
     /// <summary>Prompt text passed to the agent that processes this task.</summary>
     public string Prompt
@@ -70,7 +73,7 @@ public sealed class TaskItem : Observable
     public bool InProgress
     {
         get => _inProgress;
-        set => Set(ref _inProgress, value);
+        set { if (Set(ref _inProgress, value)) Raise(nameof(StatusText)); }
     }
 
     /// <summary>Invisible tag: the task has been completed.</summary>
@@ -118,7 +121,7 @@ public sealed class TaskItem : Observable
     public string BlockedBy
     {
         get => _blockedBy;
-        set { if (Set(ref _blockedBy, value)) { Raise(nameof(IsBlocked)); Raise(nameof(BlockedByLabel)); } }
+        set { if (Set(ref _blockedBy, value)) { Raise(nameof(IsBlocked)); Raise(nameof(BlockedByLabel)); Raise(nameof(StatusText)); } }
     }
 
     public bool IsBlocked => !string.IsNullOrWhiteSpace(BlockedBy);
@@ -165,8 +168,30 @@ public sealed class TaskItem : Observable
     public bool Collapsed
     {
         get => _collapsed;
-        set => Set(ref _collapsed, value);
+        set { if (Set(ref _collapsed, value)) Raise(nameof(Expanded)); }
     }
+
+    public bool Expanded => !Collapsed;
+
+    private bool _tagsCollapsed;
+
+    /// <summary>Runtime-only: whether the tag chips are hidden on an expanded card.</summary>
+    public bool TagsCollapsed
+    {
+        get => _tagsCollapsed;
+        set => Set(ref _tagsCollapsed, value);
+    }
+
+    /// <summary>Single-word status for the collapsed card, e.g. "Bug" / "Done".</summary>
+    public string StatusText =>
+        Archived ? "Archived" :
+        Locked ? "Locked" :
+        Done ? "Done" :
+        Bug ? "Bug" :
+        Error ? "Error" :
+        IsBlocked ? "Blocked" :
+        InProgress ? "In progress" :
+        "Active";
 
     /// <summary>
     /// Which list section the task belongs to. Rank 0 = an unfinished bug
@@ -193,6 +218,7 @@ public sealed class TaskItem : Observable
     {
         Raise(nameof(SectionRank));
         Raise(nameof(SectionKey));
+        Raise(nameof(StatusText));
     }
 
     /// <summary>Explanation posted by the agent when <see cref="Error"/> is set.</summary>

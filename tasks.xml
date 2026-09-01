@@ -420,7 +420,7 @@ all colors should be kind of pale and washed out</prompt>
     <prompt>make preview cards collapsable, show only name, status, and ID as well as colorcoding</prompt>
     <requirements>all behavior implemented</requirements>
     <inProgress>false</inProgress>
-    <done>false</done>
+    <done>true</done>
     <bug>false</bug>
     <error>false</error>
     <errorMessage></errorMessage>
@@ -428,21 +428,21 @@ all colors should be kind of pale and washed out</prompt>
     <build>false</build>
     <release>false</release>
     <tags>view</tags>
-    <notes></notes>
-    <filesChanged></filesChanged>
+    <notes>Every card has a chevron toggle (ChevronGlyphConverter, Segoe MDL2) bound to a runtime-only TaskItem.Collapsed via MainViewModel.ToggleTaskCollapsedCommand. Collapsed cards show only: the name (TaskItem.DisplayName), the single-word status (TaskItem.StatusText), the ID, and the colour-coded background/border (which still applies). The detail block (prompt/requirements/blocked-by/dates/chips/subtasks) is hidden via a Visibility bound to Expanded. Tags are separately collapsable on an expanded card via a small ToggleButton bound to TaskItem.TagsCollapsed (new ToolbarToggle style). All five subtasks complete.</notes>
+    <filesChanged>src/PromptQueue.Core/Models/TaskItem.cs; src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/Converters.cs; src/PromptQueue.App/Theme/Styles.xaml</filesChanged>
     <subtasks>
-      <subtask done="false">name</subtask>
-      <subtask done="false">status</subtask>
-      <subtask done="false">id</subtask>
-      <subtask done="false">color</subtask>
-      <subtask done="false">collapsable tags</subtask>
+      <subtask done="true">name</subtask>
+      <subtask done="true">status</subtask>
+      <subtask done="true">id</subtask>
+      <subtask done="true">color</subtask>
+      <subtask done="true">collapsable tags</subtask>
     </subtasks>
   </task>
   <task id="ZP-34">
     <prompt>add optional name field to cards, if blank assume the ID for the name</prompt>
     <requirements>name field added</requirements>
     <inProgress>false</inProgress>
-    <done>false</done>
+    <done>true</done>
     <bug>false</bug>
     <error>false</error>
     <errorMessage></errorMessage>
@@ -450,14 +450,14 @@ all colors should be kind of pale and washed out</prompt>
     <build>false</build>
     <release>false</release>
     <tags>view</tags>
-    <notes></notes>
-    <filesChanged></filesChanged>
+    <notes>TaskItem.Name (optional) with the &lt;name&gt; xml tag; TaskItem.DisplayName returns Name when set, otherwise the Id. The task pop-up has a "Name (optional — defaults to the ID)" field at the top. Cards show DisplayName as the primary label, with the Id shown as a small secondary line only when a distinct Name is set (TaskItem.HasName). The Blocked-by autocomplete and its card label also use "ID — name".</notes>
+    <filesChanged>src/PromptQueue.Core/Models/TaskItem.cs; src/PromptQueue.Core/Serialization/TaskXmlSerializer.cs; src/PromptQueue.App/ViewModels/TaskFormViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
   </task>
   <task id="ZP-35">
     <prompt>ensure reload button only reloads the currently opened project</prompt>
     <requirements>reload process verified</requirements>
     <inProgress>false</inProgress>
-    <done>false</done>
+    <done>true</done>
     <bug>false</bug>
     <error>false</error>
     <errorMessage></errorMessage>
@@ -465,8 +465,8 @@ all colors should be kind of pale and washed out</prompt>
     <build>true</build>
     <release>true</release>
     <tags></tags>
-    <notes></notes>
-    <filesChanged></filesChanged>
+    <notes>Verified and tightened: the Reload button and "File &gt; Reload Project from Disk" both call MainViewModel.ReloadProject, which re-reads ONLY SelectedProject via ProjectStore.ReloadInto (tasks.xml + local design/instructions/prompt) and rebuilds just that project's grouped view; no other open project is read or written. Status now reads "Reloaded only \"X\" from disk". (Reloading every project is a separate path, ReloadAllProjects, used only on window-restore per ZP-20.) Built to builds/debug; the Release build is deferred because an app instance is currently running from builds/release — Release config compiles clean and will be emitted there once it is closed.</notes>
+    <filesChanged>src/PromptQueue.App/ViewModels/MainViewModel.cs</filesChanged>
   </task>
   <task id="ZP-36">
     <prompt>move all cards marked done to a new tag called "archived" archived tasks still show in this app, but AI will ignore them completly</prompt>
