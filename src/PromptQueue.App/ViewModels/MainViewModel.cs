@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Data;
+using System.Windows.Threading;
 using Microsoft.Win32;
 using PromptQueue.Core.Models;
 using PromptQueue.Core.Storage;
@@ -33,6 +34,16 @@ public sealed class MainViewModel : Observable
         ReloadProjectCommand = new RelayCommand(ReloadProject, () => SelectedProject != null);
         ExitCommand = new RelayCommand(() => ExitRequested?.Invoke());
         StartWebServerCommand = new RelayCommand(StartWebServer);
+
+        InstallCodexCliCommand = new RelayCommand(() => RunInTerminal(
+            "npm install -g @openai/codex", "Install ChatGPT / Codex CLI"));
+        InstallClaudeCliCommand = new RelayCommand(() => RunInTerminal(
+            "npm install -g @anthropic-ai/claude-code", "Install Claude Code"));
+        InstallBothCliCommand = new RelayCommand(() => RunInTerminal(
+            "npm install -g @openai/codex @anthropic-ai/claude-code", "Install both AI CLIs"));
+
+        DeployCodexCommand = new RelayCommand(() => DeployAgent("codex"), HasProject);
+        DeployClaudeCommand = new RelayCommand(() => DeployAgent("claude"), HasProject);
 
         EditGlobalDesignCommand = new RelayCommand(() => EditText(
             "Global Design", "Default design requirements for every project",
@@ -65,6 +76,23 @@ public sealed class MainViewModel : Observable
 
         if (Workspace.Projects.Count > 0)
             SelectedProject = Workspace.Projects[0];
+
+        // Auto-reload the open project from disk every 120s (ZP-43).
+        _autoReloadTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(120) };
+        _autoReloadTimer.Tick += (_, _) => AutoReloadTick();
+        _autoReloadTimer.Start();
+    }
+
+    private readonly DispatcherTimer _autoReloadTimer;
+
+    private void AutoReloadTick()
+    {
+        // Skip while an editor / task form is open so we don't discard edits.
+        if (SelectedProject == null || Overlay != null)
+            return;
+        ProjectStore.ReloadInto(SelectedProject);
+        RebuildTasksView();
+        StatusText = $"Auto-reloaded \"{SelectedProject.Name}\" ({DateTime.Now:HH:mm})";
     }
 
     public Workspace Workspace { get; }
@@ -154,6 +182,11 @@ public sealed class MainViewModel : Observable
     public RelayCommand ReloadProjectCommand { get; }
     public RelayCommand ExitCommand { get; }
     public RelayCommand StartWebServerCommand { get; }
+    public RelayCommand InstallCodexCliCommand { get; }
+    public RelayCommand InstallClaudeCliCommand { get; }
+    public RelayCommand InstallBothCliCommand { get; }
+    public RelayCommand DeployCodexCommand { get; }
+    public RelayCommand DeployClaudeCommand { get; }
 
     public RelayCommand EditGlobalDesignCommand { get; }
     public RelayCommand EditGlobalInstructionsCommand { get; }
@@ -257,6 +290,61 @@ public sealed class MainViewModel : Observable
         catch (Exception ex)
         {
             MessageBox.Show(ex.Message, "zProject", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    /// <summary>Opens a new terminal window and runs <paramref name="command"/> (ZP-41).</summary>
+    private void RunInTerminal(string command, string title)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = $"/k title {title} && echo {title} && echo. && {command}",
+                UseShellExecute = true,
+            });
+            StatusText = $"Running: {command}";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "zProject", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    /// <summary>
+    /// Opens a terminal in the selected project's directory and starts the agent
+    /// pointed at its prompt.txt so it works the task queue (ZP-42).
+    /// </summary>
+    private void DeployAgent(string agent)
+    {
+        var project = SelectedProject;
+        if (project == null)
+            return;
+        if (!Directory.Exists(project.Directory))
+        {
+            MessageBox.Show($"The project directory does not exist:\n{project.Directory}",
+                "zProject", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var boot = "Read prompt.txt in this directory and follow it exactly, then work the task queue.";
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = $"/k cd /d \"{project.Directory}\" && {agent} \"{boot}\"",
+                UseShellExecute = true,
+                WorkingDirectory = project.Directory,
+            });
+            StatusText = $"Deployed {agent} to \"{project.Name}\"";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Could not start '{agent}'. Is it installed and on PATH?\n\n{ex.Message}",
+                "zProject", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 

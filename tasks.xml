@@ -821,7 +821,7 @@ all colors should be kind of pale and washed out</prompt>
     <prompt>add buttons to the file menu to install chatGPT cli and Claude Codex</prompt>
     <requirements>install both (or only one or the other) AI agents via a button press.</requirements>
     <inProgress>false</inProgress>
-    <done>false</done>
+    <done>true</done>
     <bug>false</bug>
     <error>false</error>
     <errorMessage></errorMessage>
@@ -834,15 +834,15 @@ all colors should be kind of pale and washed out</prompt>
     <build>false</build>
     <release>false</release>
     <tags>AI,agents,file_menu,automation</tags>
-    <notes></notes>
-    <filesChanged></filesChanged>
+    <notes>File &gt; "Install AI CLI" submenu with three items: "Install ChatGPT / Codex CLI" (npm install -g @openai/codex), "Install Claude Code" (npm install -g @anthropic-ai/claude-code), and "Install both". Each opens a new cmd window (cmd /k) that runs the npm install so the user sees the output and any errors. MainViewModel.RunInTerminal.</notes>
+    <filesChanged>src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
   </task>
   <task id="ZP-42">
     <name>deploy AI buttons</name>
     <prompt>add buttons to the top which deploy AI to the working directory in a terminal via CD, then tell it to read the prompt.txt file and set it loose</prompt>
     <requirements>AI can now be set loose on tasks via button press from this tool</requirements>
     <inProgress>false</inProgress>
-    <done>false</done>
+    <done>true</done>
     <bug>false</bug>
     <error>false</error>
     <errorMessage></errorMessage>
@@ -855,11 +855,11 @@ all colors should be kind of pale and washed out</prompt>
     <build>false</build>
     <release>false</release>
     <tags>AI, automation, tools</tags>
-    <notes></notes>
-    <filesChanged></filesChanged>
+    <notes>Added a "DEPLOY  ▶ Codex  ▶ Claude" group to the top toolbar of the project view. Each button (MainViewModel.DeployAgent) opens a new terminal: `cmd /k cd /d "&lt;project dir&gt;" &amp;&amp; &lt;agent&gt; "Read prompt.txt in this directory and follow it exactly, then work the task queue."` — so the agent lands in the project's working directory and is pointed at prompt.txt (which bootstraps the whole instructions.txt / tasks.xml loop). Kept the launch to plain interactive `codex` / `claude` (no skip-permission flags) so the user stays in the loop; they can add autonomy flags themselves. Disabled when no project is selected. Both subtasks complete.</notes>
+    <filesChanged>src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
     <subtasks>
-      <subtask done="false">ChatGPT button</subtask>
-      <subtask done="false">Claude Button</subtask>
+      <subtask done="true">ChatGPT button</subtask>
+      <subtask done="true">Claude Button</subtask>
     </subtasks>
   </task>
   <task id="ZP-43">
@@ -867,7 +867,7 @@ all colors should be kind of pale and washed out</prompt>
     <prompt>autoreload the current open project every 120 seconds</prompt>
     <requirements>the project reloads every 2 minutes if open</requirements>
     <inProgress>false</inProgress>
-    <done>false</done>
+    <done>true</done>
     <bug>false</bug>
     <error>false</error>
     <errorMessage></errorMessage>
@@ -880,15 +880,15 @@ all colors should be kind of pale and washed out</prompt>
     <build>true</build>
     <release>true</release>
     <tags></tags>
-    <notes></notes>
-    <filesChanged></filesChanged>
+    <notes>MainViewModel now runs a 120s DispatcherTimer that re-reads the currently selected project from disk (ProjectStore.ReloadInto + RebuildTasksView) and updates the status bar. It skips the tick while a text-editor / task-form overlay is open so in-progress edits are never discarded. Built to builds/debug and builds/release and committed.</notes>
+    <filesChanged>src/PromptQueue.App/ViewModels/MainViewModel.cs</filesChanged>
   </task>
   <task id="ZP-45">
     <name>double click to open</name>
     <prompt>double clicking ANYWHERE on a task opens the full view</prompt>
     <requirements>double click working</requirements>
     <inProgress>false</inProgress>
-    <done>false</done>
+    <done>true</done>
     <bug>false</bug>
     <error>false</error>
     <errorMessage></errorMessage>
@@ -901,7 +901,7 @@ all colors should be kind of pale and washed out</prompt>
     <build>false</build>
     <release>false</release>
     <tags>control</tags>
-    <notes></notes>
-    <filesChanged></filesChanged>
+    <notes>Switched the row's double-click handler from the bubbling MouseDoubleClick to the tunneling PreviewMouseDoubleClick on the ListBoxItem, so it fires no matter which descendant was hit (name, status, prompt, requirements, chips, blank space, collapsed or expanded). It opens the full Edit Task view. A click that lands on an actual control (Edit/Delete/lock buttons, checkboxes, text boxes, the tags combo — detected by walking the visual tree in IsInteractive) is left to that control. Verified: double-clicking the prompt text of a collapsed card opens "Edit Task".</notes>
+    <filesChanged>src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/Views/MainWindow.xaml.cs</filesChanged>
   </task>
 </tasks>

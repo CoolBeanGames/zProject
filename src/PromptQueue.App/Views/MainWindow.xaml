@@ -219,6 +219,14 @@
                 <MenuItem Header="_Save All" Command="{Binding SaveAllCommand}"/>
                 <MenuItem Header="_Reload Project from Disk" Command="{Binding ReloadProjectCommand}"/>
                 <Separator/>
+                <MenuItem Header="Install _AI CLI">
+                    <MenuItem Header="Install ChatGPT / Codex CLI" Command="{Binding InstallCodexCliCommand}"
+                              ToolTip="npm install -g @openai/codex"/>
+                    <MenuItem Header="Install Claude Code" Command="{Binding InstallClaudeCliCommand}"
+                              ToolTip="npm install -g @anthropic-ai/claude-code"/>
+                    <MenuItem Header="Install both" Command="{Binding InstallBothCliCommand}"/>
+                </MenuItem>
+                <Separator/>
                 <MenuItem Header="E_xit" Command="{Binding ExitCommand}"/>
             </MenuItem>
             <MenuItem Header="_Edit">
@@ -321,6 +329,15 @@
                                           ToolTip="Tags for new tasks (comma separated) — existing tags autocomplete"
                                           ItemsSource="{Binding DataContext.KnownTags, RelativeSource={RelativeSource AncestorType=Window}}"
                                           Text="{Binding DataContext.NewTaskTagText, RelativeSource={RelativeSource AncestorType=Window}, UpdateSourceTrigger=PropertyChanged}"/>
+                                <Border Width="1" Background="{StaticResource BorderBrush}" Margin="10,2"/>
+                                <TextBlock Text="DEPLOY" VerticalAlignment="Center" Margin="0,0,8,0"
+                                           Style="{StaticResource SectionHeading}"/>
+                                <Button Content="▶ Codex" Style="{StaticResource ToolbarButton}"
+                                        ToolTip="Open a terminal in this project and run Codex on prompt.txt"
+                                        Command="{Binding DataContext.DeployCodexCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                <Button Content="▶ Claude" Style="{StaticResource ToolbarButton}" Margin="4,0,0,0"
+                                        ToolTip="Open a terminal in this project and run Claude Code on prompt.txt"
+                                        Command="{Binding DataContext.DeployClaudeCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
                                 <Border Width="1" Background="{StaticResource BorderBrush}" Margin="10,2"/>
                                 <TextBlock Text="LOCAL" VerticalAlignment="Center" Margin="0,0,8,0"
                                            Style="{StaticResource SectionHeading}"/>
@@ -464,7 +481,7 @@
                                     <Setter Property="Margin" Value="0,1"/>
                                     <EventSetter Event="PreviewMouseLeftButtonDown" Handler="TaskItem_PreviewMouseLeftButtonDown"/>
                                     <EventSetter Event="MouseMove" Handler="TaskItem_MouseMove"/>
-                                    <EventSetter Event="MouseDoubleClick" Handler="TaskItem_MouseDoubleClick"/>
+                                    <EventSetter Event="PreviewMouseDoubleClick" Handler="TaskItem_MouseDoubleClick"/>
                                 </Style>
                             </ListBox.ItemContainerStyle>
                             <ListBox.ItemTemplate>

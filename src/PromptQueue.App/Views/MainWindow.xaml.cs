@@ -310,17 +310,39 @@ public partial class MainWindow : Window
         tt.BeginAnimation(TranslateTransform.YProperty, anim);
     }
 
-    // ---- Double-click a row to edit ---------------------------------
+    // ---- Double-click ANYWHERE on a card opens the full view (ZP-45) ----
 
     private void TaskItem_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (_dragging)
             return;
-        if (sender is ListBoxItem { DataContext: TaskItem task } &&
-            Vm?.EditTaskCommand.CanExecute(task) == true)
+        if (sender is not ListBoxItem { DataContext: TaskItem task })
+            return;
+
+        // Let a double-click that lands on an actual control (Edit/Delete/lock
+        // buttons, checkboxes, the tags box) do its own thing instead.
+        if (IsInteractive(e.OriginalSource as DependencyObject))
+            return;
+
+        if (Vm?.EditTaskCommand.CanExecute(task) == true)
         {
             Vm.EditTaskCommand.Execute(task);
+            e.Handled = true;
         }
+    }
+
+    private static bool IsInteractive(DependencyObject? source)
+    {
+        for (var d = source; d != null; d = VisualTreeHelper.GetParent(d))
+        {
+            if (d is System.Windows.Controls.Primitives.ButtonBase
+                  or System.Windows.Controls.Primitives.TextBoxBase
+                  or ComboBox)
+                return true;
+            if (d is ListBoxItem)
+                return false;
+        }
+        return false;
     }
 
     // ---- Done checkbox toggled directly on the row ------------------
