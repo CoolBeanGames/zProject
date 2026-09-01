@@ -1,0 +1,501 @@
+# UI DESIGN STANDARD
+
+This document defines the visual design language for this project.
+
+Treat these rules as requirements whenever creating, modifying, or extending
+the user interface. New UI should look as though it was part of the original
+application from the beginning.
+
+Do NOT redesign the application's visual identity unless explicitly instructed.
+
+## OVERALL DESIGN
+
+The application uses a restrained, native-desktop productivity-app aesthetic.
+
+Think:
+
+- Windows desktop application
+- Music/library management software
+- Clean utility application
+- Light, neutral interface
+- Information-dense without feeling cluttered
+- Minimal decoration
+- Subtle visual hierarchy
+- Functionality prioritized over ornamentation
+
+Do NOT make the application look like:
+- A website
+- A mobile app
+- A modern SaaS dashboard
+- A gaming launcher
+- A highly stylized application
+- Material Design
+- Fluent Design taken to an exaggerated degree
+
+Avoid unnecessary visual effects.
+
+No gradients unless specifically requested.
+No glassmorphism.
+No large rounded cards.
+No oversized controls.
+No giant headings.
+No excessive whitespace.
+No floating UI elements.
+No decorative shadows unless extremely subtle.
+No pill-shaped controls unless their function specifically calls for one.
+
+The UI should feel like a polished native Windows utility.
+
+---
+
+# COLOR PALETTE
+
+Use an overwhelmingly neutral palette.
+
+Main application background:
+- Very light gray / off-white
+
+Primary content surfaces:
+- White or extremely light gray
+
+Secondary surfaces:
+- Slightly darker neutral gray
+
+Borders and separators:
+- Thin, low-contrast light gray
+
+Primary text:
+- Dark charcoal / near-black
+
+Secondary text:
+- Medium gray
+
+Disabled/inactive text:
+- Light gray
+
+Accent color:
+- Muted, desaturated blue
+
+The accent should be used sparingly for:
+- Selected navigation items
+- Active tabs
+- Device-connected states
+- Important interactive state
+
+Do not flood large portions of the interface with the accent color.
+
+Selection backgrounds should generally be a very pale version of the accent.
+
+---
+
+# TYPOGRAPHY
+
+Use the platform-native/default Windows UI font where practical.
+
+Prefer approximately:
+- Segoe UI
+- System UI fallback
+
+Typography should be compact and utilitarian.
+
+Normal interface text:
+~12-14 px equivalent
+
+Section labels:
+Small and understated
+
+Page headings:
+Approximately 20-24 px equivalent
+
+Do NOT use extremely large typography.
+
+Use font weight rather than dramatic size changes to establish hierarchy.
+
+Primary page headings may use medium/semi-bold weight.
+
+Navigation and normal controls should generally use regular weight.
+
+Small category headings such as:
+
+LIBRARY
+PLAYLISTS
+
+should be small, subtle, and may use uppercase styling.
+
+---
+
+# WINDOW STRUCTURE
+
+The interface follows a strong horizontal hierarchy.
+
+Typical structure:
+
+1. Native window title bar
+2. Traditional application menu
+3. Primary navigation tabs
+4. Main workspace
+5. Device/status bar
+6. Playback or contextual controls
+
+Keep these areas visually distinct using subtle separators rather than large
+containers.
+
+---
+
+# MENU BAR
+
+Use a traditional desktop menu.
+
+Example:
+
+File
+Edit
+View
+Playback
+Help
+
+Keep it compact and native-looking.
+
+Do not replace traditional menus with oversized toolbar buttons.
+
+---
+
+# PRIMARY NAVIGATION
+
+Primary application sections appear in a horizontal navigation strip.
+
+Example:
+
+Music
+Podcasts
+Download
+iPod
+
+Navigation items should consist of:
+- Small icon
+- Short text label
+
+Use generous but not excessive horizontal spacing.
+
+The selected section should be recognizable through a subtle accent or
+background treatment.
+
+Do not use large tab buttons.
+
+---
+
+# SIDEBAR
+
+Sidebars should be narrow and functional.
+
+Example hierarchy:
+
+LIBRARY
+
+Artists
+Albums
+Genres
+Songs
+
+
+PLAYLISTS
+
+Playlist A
+Playlist B
+
+Selected items use a very pale accent-colored rectangular background.
+
+Corners should be square or only very slightly rounded.
+
+Avoid card-style navigation.
+
+Section headings should be small and visually secondary.
+
+---
+
+# MAIN CONTENT
+
+Content should be arranged using panels, columns, lists, grids, and tables.
+
+Panels should generally:
+- Share the same background
+- Be separated using thin borders
+- Avoid looking like independent floating cards
+
+Example music browser layout:
+
+| Sidebar | Artists | Albums | Tracks |
+
+The interface should visually communicate hierarchy through alignment,
+spacing, borders, and typography rather than decoration.
+
+---
+
+# TABLES AND LISTS
+
+Tables are an important part of the design language.
+
+Use:
+- Compact rows
+- Thin or subtle separators
+- Clear column headings
+- Left-aligned text by default
+- Minimal decoration
+
+Example columns:
+
+#
+Name
+Artist
+Album
+Genre
+Plays
+
+Do not make tables look like spreadsheets unless specifically required.
+
+Avoid heavy grid lines.
+
+Highlight rows ONLY when there is a functional reason such as:
+- Selection
+- Missing metadata
+- Error/warning state
+
+Do NOT alternate row colors merely for decoration unless explicitly requested.
+
+---
+
+# BUTTONS
+
+Buttons should resemble restrained desktop application controls.
+
+Characteristics:
+- Compact
+- Rectangular
+- Thin neutral border
+- Very light background
+- Small amount of padding
+- Minimal corner radius
+
+Buttons should not look like large web CTA buttons.
+
+Primary and secondary actions should generally remain visually restrained.
+
+Examples:
+
+Edit metadata
+Eject
+Sync all
++ New playlist
+
+Icon-only buttons are appropriate for universally recognizable actions such as
+playback controls.
+
+---
+
+# INPUT FIELDS
+
+Text boxes, search fields, selectors, etc. should use:
+
+- White/light background
+- Thin gray border
+- Small corner radius or square corners
+- Compact height
+- Standard desktop padding
+
+Avoid giant search bars or mobile-style inputs.
+
+---
+
+# EMPTY STATES
+
+Empty states should remain understated.
+
+Center a small icon with a short explanation.
+
+Example:
+
+[ music icon ]
+
+Drop music here to add it
+
+or choose File -> Add files to library
+
+Do not turn empty states into large illustrated onboarding screens.
+
+---
+
+# STATUS / DEVICE BAR
+
+Connected hardware should have a persistent status area.
+
+When disconnected:
+- Neutral gray
+- Clearly indicate disconnected state
+
+When connected:
+- May use the application's muted blue accent
+- Show device name
+- Capacity
+- Remaining storage
+- Relevant actions
+
+Example:
+
+● HAPTICS' IPOD  •  238.2 GB capacity  •  234.6 GB free
+
+Actions such as Eject and Sync should remain aligned consistently.
+
+---
+
+# PLAYBACK BAR
+
+Playback controls should remain compact and visually secondary to the main
+workspace.
+
+Typical layout:
+
+Previous
+Play
+Pause
+Stop
+Next
+
+Additional information may include:
+
+Album artwork
+Current track
+Current time
+Total time
+Progress
+Track number / queue length
+Shuffle
+Repeat
+
+Do not make the player dominate the application.
+
+This is primarily a library-management application with playback capability,
+not a full-screen music player.
+
+---
+
+# SPACING
+
+Use consistent, relatively compact spacing.
+
+Approximate conceptual spacing system:
+
+4px  - tiny internal separation
+8px  - standard compact spacing
+12px - normal component spacing
+16px - section spacing
+24px - major content separation
+
+Avoid enormous empty gaps.
+
+Information density should resemble a traditional desktop productivity
+application rather than a touch-first interface.
+
+---
+
+# BORDERS
+
+Use borders heavily but subtly to establish structure.
+
+Typical border:
+1px low-contrast neutral gray
+
+Use borders for:
+- Panel separation
+- Tables
+- Input fields
+- Buttons
+- Toolbars
+- Status areas
+
+Avoid thick borders.
+
+---
+
+# ICONOGRAPHY
+
+Icons should be:
+- Small
+- Simple
+- Mostly monochrome
+- Line-based or restrained filled icons
+- Consistent in visual weight
+
+Do not use colorful emoji as application icons.
+
+Do not mix radically different icon styles.
+
+---
+
+# INTERACTION PHILOSOPHY
+
+The UI should behave like a desktop application.
+
+Support where appropriate:
+
+- Right-click context menus
+- Double-click actions
+- Drag and drop
+- Keyboard shortcuts
+- Ctrl+Z / Ctrl+Y
+- Tab navigation
+- Multi-selection
+- Shift selection
+- Ctrl selection
+- Rename-in-place
+- Tooltips
+- Standard Windows keyboard behavior
+
+Do not assume touchscreen interaction.
+
+Mouse and keyboard are the primary input mechanisms.
+
+---
+
+# CRITICAL CONSISTENCY RULE
+
+Before implementing ANY new UI:
+
+1. Inspect existing UI components.
+2. Reuse existing styles/resources/components whenever possible.
+3. Match existing spacing and sizing.
+4. Match existing typography.
+5. Match existing border treatments.
+6. Match existing interaction behavior.
+7. Do not introduce a new visual pattern when an existing one can be reused.
+
+When there is ambiguity, prefer consistency with existing UI over creating
+something new.
+
+The goal is that a user should NOT be able to tell which screens were created
+at different times or by different AI agents.
+
+If implementing a feature requires a new reusable UI pattern, create it as a
+shared component/style so subsequent features can reuse it.
+
+---
+
+# DESIGN PRINCIPLE
+
+This application should feel:
+
+CLEAN
+QUIET
+FAST
+NATIVE
+COMPACT
+ORGANIZED
+FUNCTIONAL
+
+It should NOT feel:
+
+FLASHY
+WEB-LIKE
+MOBILE-FIRST
+CARD-HEAVY
+OVERSIZED
+DECORATIVE

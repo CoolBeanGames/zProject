@@ -1,0 +1,7 @@
+read through tasks.xml and complete tasks in the order they are presented. work through the list until reaching the end or you run out of usage. as you finish a task update the xml to mark it as done, as you begin mark it as in-progress. save the xml every time you make a change.
+
+if a task has the tag commit set to true then commit the project and push to github with a meaningful message of all the changes made. Add notes about the changes you made, log all files, and move on to the next task.
+
+the task is NOT complete unless the requirements have been met, if a task is impossible to complete add an "error" flag, set it to true, and add error message text in before saving XML and end execution of tasks there, notifiying your chat of the error and the taskID. 
+
+if the task has a build tag set to true, the project should be built to project_root/builds/debug, if you need to test build to project_root/builds/test, if it has a release tag set use project_root/builds/release

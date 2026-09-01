@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="utf-8"?>
+<tasks project="zProject" nextIndex="19">
+  <task id="ZP-3">
+    <prompt>verify that you are able to identify task.</prompt>
+    <requirements>this task was marked as in progress, and xml was saved</requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <notes>Task identified by id ZP-3. Marked in-progress and saved tasks.xml, then completed and saved again.</notes>
+    <filesChanged>tasks.xml</filesChanged>
+  </task>
+  <task id="ZP-4">
+    <prompt>add a mouse over tool tip that shows notes from the agent, any error codes from the agent if posted, and the files changed if complete</prompt>
+    <requirements>the tooltil is implement and successfully shows</requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <notes>Added a ToolTip to every task row in MainWindow.xaml. It shows an Error section (when errorMessage is set), a Notes section (when notes are set) and a Files changed section (when filesChanged is set); each section is hidden when its field is empty, with a fallback line when nothing is recorded. Added AllEmptyToVisibilityConverter (IMultiValueConverter) to support the fallback. Also added Error/ErrorMessage/Commit/Build/Release to the TaskItem model and to TaskXmlSerializer so the tooltip has data to bind to.</notes>
+    <filesChanged>src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/Converters.cs; src/PromptQueue.Core/Models/TaskItem.cs; src/PromptQueue.Core/Serialization/TaskXmlSerializer.cs</filesChanged>
+  </task>
+  <task id="ZP-5">
+    <prompt>add an error tag to the xml, and a space for error messages to be posted</prompt>
+    <requirements>the tag and error message xml tag exists</requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <notes>The &lt;error&gt; boolean tag and the &lt;errorMessage&gt; text tag are now written and read for every task by TaskXmlSerializer, and are present on every task in this file. Backed by TaskItem.Error / TaskItem.ErrorMessage. ParseBool defaults &lt;error&gt; to false when the element is absent, so older files still load.</notes>
+    <filesChanged>src/PromptQueue.Core/Serialization/TaskXmlSerializer.cs; src/PromptQueue.Core/Models/TaskItem.cs; tasks.xml</filesChanged>
+  </task>
+  <task id="ZP-6">
+    <prompt>add displays to the pop up editor for errors, error messages, notes from the agent, and files changed ONLY if these files are populated</prompt>
+    <requirements>the files show up when they are populated</requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <notes>The task edit pop-up now shows an Error section (error flag + error message), a Notes section, and a Files changed section, each rendered ONLY when that field was already populated when the pop-up opened. Visibility is latched in TaskFormViewModel (HasError / HasNotes / HasFilesChanged) so editing the text does not make a section disappear. Replaced the old ShowAgentFields gate.</notes>
+    <filesChanged>src/PromptQueue.App/ViewModels/TaskFormViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
+  </task>
+  <task id="ZP-7">
+    <prompt>add an error message to this task and add notes that say "error message posed" in the error message field</prompt>
+    <requirements>the error was posted</requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <error>true</error>
+    <errorMessage>error message posed</errorMessage>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <notes>error message posed. This error was posted deliberately per the ZP-7 prompt to exercise the error-display path (row tooltip, pop-up editor Error section, and the red row background added by ZP-9). The task requirement "the error was posted" is met, so execution continues to the next task rather than halting (the halt rule applies only to tasks that are impossible to complete).</notes>
+    <filesChanged>tasks.xml</filesChanged>
+  </task>
+  <task id="ZP-8">
+    <prompt>change it so pressing tab moves from prompt to requirements instead in inserting a tab, make shift tab work also</prompt>
+    <requirements>tab and shift tab works as well</requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <notes>Set AcceptsTab="False" on the Prompt and Requirements text boxes in the task pop-up (overriding the EditorTextBox style, which keeps AcceptsTab for the full-page design/instruction editor). Tab now moves focus Prompt -&gt; Requirements -&gt; the In progress / Done checkboxes, and Shift+Tab moves backwards, using WPF's standard focus traversal.</notes>
+    <filesChanged>src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
+  </task>
+  <task id="ZP-9">
+    <prompt>give error tasks a red background</prompt>
+    <requirements>errors now show in red</requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <notes>Task rows now use a Style with a DataTrigger on Error=True that swaps the row background to a restrained low-saturation red (ErrorSurfaceBrush #FBEAEA) and the border to ErrorBorderBrush. Added ErrorSurface/ErrorBorder/ErrorText brushes to Theme/Styles.xaml. ZP-7 is flagged as an error and now renders red.</notes>
+    <filesChanged>src/PromptQueue.App/Theme/Styles.xaml; src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
+  </task>
+  <task id="ZP-11">
+    <prompt>add commit checkbox to top right of pop-up text editor and tag to xml, to indicate we should push to github</prompt>
+    <requirements>the checkbox is implimented</requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <notes>Added a "Commit" checkbox to the top-right of the task pop-up (header restructured into a Grid: title/ID on the left, checkbox row on the right). Bound to TaskFormViewModel.Commit -&gt; TaskItem.Commit. The &lt;commit&gt; XML tag is written and read by TaskXmlSerializer and is present on every task in this file. Per instructions.txt, a task with commit=true triggers a project commit + push once it is done.</notes>
+    <filesChanged>src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/ViewModels/TaskFormViewModel.cs; src/PromptQueue.Core/Serialization/TaskXmlSerializer.cs; src/PromptQueue.Core/Models/TaskItem.cs</filesChanged>
+  </task>
+  <task id="ZP-12">
+    <prompt>rather than up and down arrows, use click and drag to reorder tasks.</prompt>
+    <requirements>tasks can now be reordered by clicking and draggin</requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <notes>Removed the up/down arrow buttons from each task row and the ORDER column. Reordering is now click-and-drag: press on a row and drag it onto another row to drop it there (handled by TaskItem_PreviewMouseLeftButtonDown / MouseMove / Drop in MainWindow.xaml.cs via DragDrop.DoDragDrop; MainViewModel.MoveTask persists the new order and normalizes). Added a grip glyph and "drag to reorder" affordance in the first column and header. Removed the now-unused MoveTaskUp/Down commands and MoveTaskBy from MainViewModel.</notes>
+    <filesChanged>src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/ViewModels/MainViewModel.cs</filesChanged>
+  </task>
+  <task id="ZP-13">
+    <prompt>add build checkbox, indicating the project should be built once this task is done</prompt>
+    <requirements>the build box is implimented</requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <notes>Added a "Build" checkbox next to "Commit" in the task pop-up top-right, bound to TaskFormViewModel.Build -&gt; TaskItem.Build. The &lt;build&gt; XML tag is written/read by TaskXmlSerializer and present on every task. Per instructions.txt, build=true means the project is built to builds/debug once the task is done (builds/test for test builds, builds/release when release is also set).</notes>
+    <filesChanged>src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/ViewModels/TaskFormViewModel.cs; src/PromptQueue.Core/Serialization/TaskXmlSerializer.cs; src/PromptQueue.Core/Models/TaskItem.cs</filesChanged>
+  </task>
+  <task id="ZP-14">
+    <prompt>add a release check box next ot build and commit checkboxes indicating a release build should be made</prompt>
+    <requirements>checkbox is implimented</requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <notes>Added a "Release" checkbox next to Commit and Build in the task pop-up top-right, bound to TaskFormViewModel.Release -&gt; TaskItem.Release. The &lt;release&gt; XML tag is written/read by TaskXmlSerializer and present on every task. Per instructions.txt, release=true means a release build is produced to builds/release once the task is done.</notes>
+    <filesChanged>src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/ViewModels/TaskFormViewModel.cs; src/PromptQueue.Core/Serialization/TaskXmlSerializer.cs; src/PromptQueue.Core/Models/TaskItem.cs</filesChanged>
+  </task>
+  <task id="ZP-15">
+    <prompt>add a small preview when your dragging tasks around (while you are still holding the task, physically move the box with the mouse. when it comes in between two other tasks, move the bottom task down to make room, when it moves out of that gap, close the gap again.)</prompt>
+    <requirements>task moving is more visually acceptable</requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <commit>true</commit>
+    <build>true</build>
+    <release>false</release>
+    <notes>Replaced OLE drag-and-drop with a manual drag. On drag start the row is snapshotted to a RenderTargetBitmap and shown as a semi-transparent "ghost" (RowDragAdorner) that follows the mouse; the real row is collapsed so the list closes up behind it. As the pointer passes each row's midpoint an insertion index is computed and every row at/after it animates down by the row height (120ms CubicEase) to open a gap; moving away animates the gap closed. On mouse-up the task is moved to that index via MainViewModel.MoveTaskToIndex and the order is persisted. ListBox switched to a non-virtualizing StackPanel items host so container transforms are stable. Built to builds/debug and committed per the commit/build flags.</notes>
+    <filesChanged>src/PromptQueue.App/Controls/RowDragAdorner.cs (new); src/PromptQueue.App/Views/MainWindow.xaml.cs; src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/ViewModels/MainViewModel.cs; tasks.xml</filesChanged>
+  </task>
+  <task id="ZP-16">
+    <prompt>all complete tasks, appear at the bottom of the list and there is a button to collapse the complete list. there is a clear divider between active and complete tasks.</prompt>
+    <requirements>tasks are now sorted by completion</requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <notes></notes>
+    <filesChanged></filesChanged>
+  </task>
+  <task id="ZP-17">
+    <prompt>tasks with an error that are not complete are at the top of the list, this divider is clear</prompt>
+    <requirements>error tasks are at the top of the list</requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <notes></notes>
+    <filesChanged></filesChanged>
+  </task>
+  <task id="ZP-18">
+    <prompt>save an active database of projects and tasks to the executable direcory as data.cfg this contains all projects and paths as well as copies of the global design instructions and prompt that then just get copied</prompt>
+    <requirements>the database is now saved</requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <commit>true</commit>
+    <build>true</build>
+    <release>true</release>
+    <notes></notes>
+    <filesChanged></filesChanged>
+  </task>
+</tasks>

@@ -1,0 +1,102 @@
+using PromptQueue.Core.Models;
+using PromptQueue.Core.Serialization;
+
+namespace PromptQueue.Core.Storage;
+
+/// <summary>
+/// Persists a single project inside its own root directory. Everything a
+/// project owns lives there as plain, human-readable files:
+/// <list type="bullet">
+///   <item><c>tasks.xml</c> — the prompt queue</item>
+///   <item><c>design.txt</c> — local design overrides</item>
+///   <item><c>instructions.txt</c> — local instruction overrides</item>
+///   <item><c>prompt.txt</c> — local base prompt override</item>
+/// </list>
+/// </summary>
+public static class ProjectStore
+{
+    public const string DesignFile = "design.txt";
+    public const string InstructionsFile = "instructions.txt";
+    public const string PromptFile = "prompt.txt";
+
+    /// <summary>
+    /// Loads the project rooted at <paramref name="directory"/>, creating an
+    /// empty in-memory project if no files exist yet.
+    /// </summary>
+    public static Project Load(string directory)
+    {
+        directory = Path.GetFullPath(directory);
+        var project = new Project
+        {
+            Directory = directory,
+            Name = new DirectoryInfo(directory).Name,
+        };
+
+        var tasksPath = Path.Combine(directory, TaskXmlSerializer.FileName);
+        if (File.Exists(tasksPath))
+        {
+            var doc = TaskXmlSerializer.Deserialize(File.ReadAllText(tasksPath));
+            project.NextIndex = doc.NextIndex;
+            foreach (var t in doc.Tasks)
+                project.Tasks.Add(t);
+        }
+
+        project.LocalDesign = ReadTextOrEmpty(Path.Combine(directory, DesignFile));
+        project.LocalInstructions = ReadTextOrEmpty(Path.Combine(directory, InstructionsFile));
+        project.LocalPrompt = ReadTextOrEmpty(Path.Combine(directory, PromptFile));
+
+        return project;
+    }
+
+    /// <summary>Writes every file the project owns to its directory.</summary>
+    public static void Save(Project project)
+    {
+        System.IO.Directory.CreateDirectory(project.Directory);
+
+        Normalize(project);
+
+        File.WriteAllText(
+            Path.Combine(project.Directory, TaskXmlSerializer.FileName),
+            TaskXmlSerializer.Serialize(project));
+
+        WriteOrDelete(Path.Combine(project.Directory, DesignFile), project.LocalDesign);
+        WriteOrDelete(Path.Combine(project.Directory, InstructionsFile), project.LocalInstructions);
+        WriteOrDelete(Path.Combine(project.Directory, PromptFile), project.LocalPrompt);
+    }
+
+    /// <summary>Re-reads tasks.xml into an existing project, replacing its task list.</summary>
+    public static void ReloadTasks(Project project)
+    {
+        var tasksPath = Path.Combine(project.Directory, TaskXmlSerializer.FileName);
+        if (!File.Exists(tasksPath))
+            return;
+
+        var doc = TaskXmlSerializer.Deserialize(File.ReadAllText(tasksPath));
+        project.Tasks.Clear();
+        foreach (var t in doc.Tasks)
+            project.Tasks.Add(t);
+        project.NextIndex = Math.Max(project.NextIndex, doc.NextIndex);
+    }
+
+    /// <summary>Compacts task order values to 0..n-1 following current sequence.</summary>
+    public static void Normalize(Project project)
+    {
+        var ordered = project.Tasks.OrderBy(t => t.Order).ToList();
+        for (int i = 0; i < ordered.Count; i++)
+            ordered[i].Order = i;
+    }
+
+    private static string ReadTextOrEmpty(string path)
+        => File.Exists(path) ? File.ReadAllText(path) : "";
+
+    private static void WriteOrDelete(string path, string content)
+    {
+        if (string.IsNullOrEmpty(content))
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+            return;
+        }
+        File.WriteAllText(path, content);
+    }
+}
