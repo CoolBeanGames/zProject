@@ -13,6 +13,7 @@ namespace PromptQueue.Core.Models;
 public sealed class TaskItem : Observable
 {
     private string _id = "";
+    private string _name = "";
     private string _prompt = "";
     private string _requirements = "";
     private bool _inProgress;
@@ -20,6 +21,11 @@ public sealed class TaskItem : Observable
     private bool _bug;
     private bool _error;
     private string _errorMessage = "";
+    private bool _locked;
+    private bool _archived;
+    private string _blockedBy = "";
+    private DateTime? _dateStarted;
+    private DateTime? _dueDate;
     private bool _commit;
     private bool _build;
     private bool _release;
@@ -27,13 +33,24 @@ public sealed class TaskItem : Observable
     private string _notes = "";
     private string _filesChanged = "";
     private int _order;
+    private bool _collapsed;
 
     /// <summary>Human-readable identifier, e.g. "MCA-3".</summary>
     public string Id
     {
         get => _id;
-        set => Set(ref _id, value);
+        set { if (Set(ref _id, value)) Raise(nameof(DisplayName)); }
     }
+
+    /// <summary>Optional display name. When blank the task falls back to its id.</summary>
+    public string Name
+    {
+        get => _name;
+        set { if (Set(ref _name, value)) Raise(nameof(DisplayName)); }
+    }
+
+    /// <summary>The name shown on the card: <see cref="Name"/> if set, else <see cref="Id"/>.</summary>
+    public string DisplayName => string.IsNullOrWhiteSpace(Name) ? Id : Name;
 
     /// <summary>Prompt text passed to the agent that processes this task.</summary>
     public string Prompt
@@ -78,11 +95,86 @@ public sealed class TaskItem : Observable
     }
 
     /// <summary>
+    /// When true an agent must ignore this task (it is "locked"). The card is
+    /// greyed out. Serialized as &lt;locked&gt; so the contract is visible in the xml.
+    /// </summary>
+    public bool Locked
+    {
+        get => _locked;
+        set { if (Set(ref _locked, value)) RaiseSection(); }
+    }
+
+    /// <summary>
+    /// A completed task that has been archived. Still shown in the app (its own
+    /// section) but an agent ignores it completely.
+    /// </summary>
+    public bool Archived
+    {
+        get => _archived;
+        set { if (Set(ref _archived, value)) RaiseSection(); }
+    }
+
+    /// <summary>Id of a task that must be completed before this one (ZP-31).</summary>
+    public string BlockedBy
+    {
+        get => _blockedBy;
+        set { if (Set(ref _blockedBy, value)) { Raise(nameof(IsBlocked)); Raise(nameof(BlockedByLabel)); } }
+    }
+
+    public bool IsBlocked => !string.IsNullOrWhiteSpace(BlockedBy);
+
+    private string _blockedByName = "";
+
+    /// <summary>Runtime-only: display name of the blocking task, resolved by the app.</summary>
+    public string BlockedByName
+    {
+        get => _blockedByName;
+        set { if (Set(ref _blockedByName, value)) Raise(nameof(BlockedByLabel)); }
+    }
+
+    /// <summary>e.g. "MCA-3" or "MCA-3 — Fix the parser".</summary>
+    public string BlockedByLabel =>
+        !IsBlocked ? "" :
+        string.IsNullOrWhiteSpace(BlockedByName) ? BlockedBy : $"{BlockedBy} — {BlockedByName}";
+
+    /// <summary>When the task was started (date + time).</summary>
+    public DateTime? DateStarted
+    {
+        get => _dateStarted;
+        set { if (Set(ref _dateStarted, value)) RaiseDates(); }
+    }
+
+    /// <summary>When the task is due (date + time).</summary>
+    public DateTime? DueDate
+    {
+        get => _dueDate;
+        set { if (Set(ref _dueDate, value)) RaiseDates(); }
+    }
+
+    private void RaiseDates()
+    {
+        Raise(nameof(DateStartedText));
+        Raise(nameof(DueDateText));
+        Raise(nameof(DatesSummary));
+        Raise(nameof(HasDates));
+    }
+
+    public bool HasDates => DateStarted.HasValue || DueDate.HasValue;
+
+    /// <summary>Runtime-only: whether the card is collapsed in the list (not serialized).</summary>
+    public bool Collapsed
+    {
+        get => _collapsed;
+        set => Set(ref _collapsed, value);
+    }
+
+    /// <summary>
     /// Which list section the task belongs to. Rank 0 = an unfinished bug
     /// (shown first); 1 = an unfinished task flagged with an error; 2 = active;
-    /// 3 = completed (shown last).
+    /// 3 = completed; 4 = archived (shown last).
     /// </summary>
     public int SectionRank =>
+        Archived ? 4 :
         !Done && Bug ? 0 :
         !Done && Error ? 1 :
         Done ? 3 : 2;
@@ -93,6 +185,7 @@ public sealed class TaskItem : Observable
         0 => "Bugs",
         1 => "Needs attention",
         3 => "Completed",
+        4 => "Archived",
         _ => "Active",
     };
 
@@ -216,11 +309,30 @@ public sealed class TaskItem : Observable
     /// <summary>e.g. "2/5" — completed vs total subtasks.</summary>
     public string SubtaskProgress => Subtasks.Count == 0 ? "" : $"{SubtasksDone}/{Subtasks.Count}";
 
+    private const string DateFormat = "yyyy-MM-dd HH:mm";
+
+    public string DateStartedText => DateStarted?.ToString(DateFormat) ?? "";
+
+    public string DueDateText => DueDate?.ToString(DateFormat) ?? "";
+
+    /// <summary>e.g. "Due 2026-09-05 17:00" / "Started 2026-09-01 09:30".</summary>
+    public string DatesSummary
+    {
+        get
+        {
+            var parts = new List<string>();
+            if (DateStarted.HasValue) parts.Add($"Started {DateStartedText}");
+            if (DueDate.HasValue) parts.Add($"Due {DueDateText}");
+            return string.Join("  •  ", parts);
+        }
+    }
+
     public TaskItem Clone()
     {
         var copy = new TaskItem
         {
             Id = Id,
+            Name = Name,
             Prompt = Prompt,
             Requirements = Requirements,
             InProgress = InProgress,
@@ -228,6 +340,11 @@ public sealed class TaskItem : Observable
             Bug = Bug,
             Error = Error,
             ErrorMessage = ErrorMessage,
+            Locked = Locked,
+            Archived = Archived,
+            BlockedBy = BlockedBy,
+            DateStarted = DateStarted,
+            DueDate = DueDate,
             Commit = Commit,
             Build = Build,
             Release = Release,
@@ -244,6 +361,7 @@ public sealed class TaskItem : Observable
     public void CopyFrom(TaskItem other)
     {
         Id = other.Id;
+        Name = other.Name;
         Prompt = other.Prompt;
         Requirements = other.Requirements;
         InProgress = other.InProgress;
@@ -251,6 +369,11 @@ public sealed class TaskItem : Observable
         Bug = other.Bug;
         Error = other.Error;
         ErrorMessage = other.ErrorMessage;
+        Locked = other.Locked;
+        Archived = other.Archived;
+        BlockedBy = other.BlockedBy;
+        DateStarted = other.DateStarted;
+        DueDate = other.DueDate;
         Commit = other.Commit;
         Build = other.Build;
         Release = other.Release;

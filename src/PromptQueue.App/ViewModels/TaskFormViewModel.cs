@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using PromptQueue.Core.Models;
 
 namespace PromptQueue.App.ViewModels;
@@ -10,6 +11,7 @@ namespace PromptQueue.App.ViewModels;
 /// </summary>
 public sealed class TaskFormViewModel : Observable
 {
+    private string _name;
     private string _prompt;
     private string _requirements;
     private bool _inProgress;
@@ -17,6 +19,13 @@ public sealed class TaskFormViewModel : Observable
     private bool _bug;
     private bool _error;
     private string _errorMessage;
+    private bool _locked;
+    private bool _archived;
+    private string _blockedBy;
+    private DateTime? _startDatePart;
+    private string _startTimePart;
+    private DateTime? _dueDatePart;
+    private string _dueTimePart;
     private bool _commit;
     private bool _build;
     private bool _release;
@@ -33,10 +42,12 @@ public sealed class TaskFormViewModel : Observable
         string id,
         TaskItem? source,
         Action<TaskFormViewModel> onSave,
-        Action onClose)
+        Action onClose,
+        IEnumerable<TaskItem>? peers = null)
     {
         IsNew = isNew;
         Id = id;
+        _name = source?.Name ?? "";
         _prompt = source?.Prompt ?? "";
         _requirements = source?.Requirements ?? "";
         _inProgress = source?.InProgress ?? false;
@@ -44,6 +55,13 @@ public sealed class TaskFormViewModel : Observable
         _bug = source?.Bug ?? false;
         _error = source?.Error ?? false;
         _errorMessage = source?.ErrorMessage ?? "";
+        _locked = source?.Locked ?? false;
+        _archived = source?.Archived ?? false;
+        _blockedBy = source?.BlockedBy ?? "";
+        _startDatePart = source?.DateStarted?.Date;
+        _startTimePart = source?.DateStarted?.ToString("HH:mm", CultureInfo.InvariantCulture) ?? "";
+        _dueDatePart = source?.DueDate?.Date;
+        _dueTimePart = source?.DueDate?.ToString("HH:mm", CultureInfo.InvariantCulture) ?? "";
         _commit = source?.Commit ?? false;
         _build = source?.Build ?? false;
         _release = source?.Release ?? false;
@@ -52,6 +70,11 @@ public sealed class TaskFormViewModel : Observable
         _filesChanged = source?.FilesChanged ?? "";
         _onSave = onSave;
         _onClose = onClose;
+
+        BlockCandidates = (peers ?? Enumerable.Empty<TaskItem>())
+            .Where(t => !string.Equals(t.Id, id, StringComparison.OrdinalIgnoreCase))
+            .Select(t => string.IsNullOrWhiteSpace(t.Name) ? t.Id : $"{t.Id} — {t.Name}")
+            .ToList();
 
         if (source != null)
         {
@@ -94,6 +117,15 @@ public sealed class TaskFormViewModel : Observable
 
     public string Id { get; }
 
+    /// <summary>"ID — name" strings for the Blocked-by autocomplete.</summary>
+    public IReadOnlyList<string> BlockCandidates { get; }
+
+    public string Name
+    {
+        get => _name;
+        set => Set(ref _name, value);
+    }
+
     public string Prompt
     {
         get => _prompt;
@@ -122,6 +154,49 @@ public sealed class TaskFormViewModel : Observable
     {
         get => _bug;
         set => Set(ref _bug, value);
+    }
+
+    public bool Locked
+    {
+        get => _locked;
+        set => Set(ref _locked, value);
+    }
+
+    public bool Archived
+    {
+        get => _archived;
+        set => Set(ref _archived, value);
+    }
+
+    /// <summary>Raw "ID" or "ID — name" text of the blocking task.</summary>
+    public string BlockedBy
+    {
+        get => _blockedBy;
+        set => Set(ref _blockedBy, value);
+    }
+
+    public DateTime? StartDatePart
+    {
+        get => _startDatePart;
+        set => Set(ref _startDatePart, value);
+    }
+
+    public string StartTimePart
+    {
+        get => _startTimePart;
+        set => Set(ref _startTimePart, value);
+    }
+
+    public DateTime? DueDatePart
+    {
+        get => _dueDatePart;
+        set => Set(ref _dueDatePart, value);
+    }
+
+    public string DueTimePart
+    {
+        get => _dueTimePart;
+        set => Set(ref _dueTimePart, value);
     }
 
     public bool Error
@@ -202,6 +277,7 @@ public sealed class TaskFormViewModel : Observable
 
     public void ApplyTo(TaskItem task)
     {
+        task.Name = Name.Trim();
         task.Prompt = Prompt.Trim();
         task.Requirements = Requirements.Trim();
         task.InProgress = InProgress;
@@ -209,6 +285,11 @@ public sealed class TaskFormViewModel : Observable
         task.Bug = Bug;
         task.Error = Error;
         task.ErrorMessage = ErrorMessage;
+        task.Locked = Locked;
+        task.Archived = Archived;
+        task.BlockedBy = ExtractId(BlockedBy);
+        task.DateStarted = Combine(StartDatePart, StartTimePart);
+        task.DueDate = Combine(DueDatePart, DueTimePart);
         task.Commit = Commit;
         task.Build = Build;
         task.Release = Release;
@@ -219,5 +300,28 @@ public sealed class TaskFormViewModel : Observable
         task.Subtasks.Clear();
         foreach (var s in Subtasks)
             task.Subtasks.Add(new Subtask { Text = s.Text.Trim(), Done = s.Done });
+    }
+
+    /// <summary>Takes the leading id token from "ID" or "ID — name".</summary>
+    private static string ExtractId(string text)
+    {
+        text = (text ?? "").Trim();
+        if (text.Length == 0)
+            return "";
+        var dash = text.IndexOf('—');
+        if (dash < 0)
+            dash = text.IndexOf(" - ", StringComparison.Ordinal);
+        return (dash > 0 ? text[..dash] : text).Trim();
+    }
+
+    private static DateTime? Combine(DateTime? date, string time)
+    {
+        if (date is null)
+            return null;
+        var d = date.Value.Date;
+        if (!string.IsNullOrWhiteSpace(time) &&
+            TimeSpan.TryParse(time.Trim(), CultureInfo.InvariantCulture, out var t))
+            return d + t;
+        return d;
     }
 }

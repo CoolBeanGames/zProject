@@ -48,6 +48,11 @@
     <SolidColorBrush x:Key="DoneSurfaceBrush" Color="{StaticResource DoneSurfaceColor}"/>
     <SolidColorBrush x:Key="DoneBorderBrush" Color="{StaticResource DoneBorderColor}"/>
     <SolidColorBrush x:Key="DoneTextBrush" Color="{StaticResource DoneTextColor}"/>
+    <!-- grey = locked (an agent ignores it) -->
+    <Color x:Key="LockedSurfaceColor">#E6E6E6</Color>
+    <Color x:Key="LockedBorderColor">#C4C4C4</Color>
+    <SolidColorBrush x:Key="LockedSurfaceBrush" Color="{StaticResource LockedSurfaceColor}"/>
+    <SolidColorBrush x:Key="LockedBorderBrush" Color="{StaticResource LockedBorderColor}"/>
 
     <!-- ============================================================= -->
     <!--  TYPOGRAPHY                                                    -->

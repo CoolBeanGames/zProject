@@ -56,6 +56,9 @@ public sealed class MainViewModel : Observable
         EditTaskCommand = new RelayCommand(p => EditTask(p as TaskItem));
         DeleteTaskCommand = new RelayCommand(p => DeleteTask(p as TaskItem));
         ToggleTaskDoneCommand = new RelayCommand(p => ToggleDone(p as TaskItem));
+        ToggleTaskLockCommand = new RelayCommand(p => ToggleLock(p as TaskItem));
+        ToggleTaskCollapsedCommand = new RelayCommand(p => ToggleCollapsed(p as TaskItem));
+        ArchiveDoneCommand = new RelayCommand(ArchiveDone, () => SelectedProject?.Tasks.Any(t => t.Done && !t.Archived) == true);
         ToggleCompletedCollapsedCommand = new RelayCommand(() => CompletedCollapsed = !CompletedCollapsed);
 
         if (Workspace.Projects.Count > 0)
@@ -161,6 +164,9 @@ public sealed class MainViewModel : Observable
     public RelayCommand EditTaskCommand { get; }
     public RelayCommand DeleteTaskCommand { get; }
     public RelayCommand ToggleTaskDoneCommand { get; }
+    public RelayCommand ToggleTaskLockCommand { get; }
+    public RelayCommand ToggleTaskCollapsedCommand { get; }
+    public RelayCommand ArchiveDoneCommand { get; }
 
     // ---- Projects ------------------------------------------------------
 
@@ -272,6 +278,8 @@ public sealed class MainViewModel : Observable
 
         SortIntoSections(SelectedProject);
 
+        ResolveBlockedByNames();
+
         var view = new ListCollectionView(SelectedProject.Tasks);
         view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(TaskItem.SectionKey)));
         _tasksView = view;
@@ -301,10 +309,31 @@ public sealed class MainViewModel : Observable
         if (SelectedProject == null)
             return;
         SortIntoSections(SelectedProject);
+        ResolveBlockedByNames();
         _tasksView?.Refresh();
         RefreshKnownTags();
+        ArchiveDoneCommand.RaiseCanExecuteChanged();
         SaveCurrent();
         Workspace.Save();
+    }
+
+    private void ResolveBlockedByNames()
+    {
+        var project = SelectedProject;
+        if (project == null)
+            return;
+        foreach (var t in project.Tasks)
+        {
+            if (!t.IsBlocked)
+            {
+                t.BlockedByName = "";
+                continue;
+            }
+            var blocker = project.Tasks.FirstOrDefault(x =>
+                string.Equals(x.Id, t.BlockedBy, StringComparison.OrdinalIgnoreCase));
+            t.BlockedByName = blocker != null && !string.IsNullOrWhiteSpace(blocker.Name)
+                ? blocker.Name : "";
+        }
     }
 
     // ---- Tasks -------------------------------------------------------
@@ -333,10 +362,8 @@ public sealed class MainViewModel : Observable
                 AfterTasksChanged();
                 StatusText = $"Added task {task.Id}";
             },
-            onClose: () =>
-            {
-                CloseOverlay();
-            });
+            onClose: CloseOverlay,
+            peers: project.Tasks.ToList());
     }
 
     private void EditTask(TaskItem? task)
@@ -355,7 +382,8 @@ public sealed class MainViewModel : Observable
                 AfterTasksChanged();
                 StatusText = $"Updated task {task.Id}";
             },
-            onClose: CloseOverlay);
+            onClose: CloseOverlay,
+            peers: project.Tasks.ToList());
     }
 
     private void DeleteTask(TaskItem? task)
@@ -411,6 +439,40 @@ public sealed class MainViewModel : Observable
         StatusText = $"{task.Id} marked {(task.Done ? "done" : "not done")}";
     }
 
+    private void ToggleLock(TaskItem? task)
+    {
+        if (task == null)
+            return;
+        task.Locked = !task.Locked;
+        AfterTasksChanged();
+        StatusText = $"{task.Id} {(task.Locked ? "locked — an agent will ignore it" : "unlocked")}";
+    }
+
+    private void ToggleCollapsed(TaskItem? task)
+    {
+        if (task == null)
+            return;
+        task.Collapsed = !task.Collapsed;
+    }
+
+    private void ArchiveDone()
+    {
+        var project = SelectedProject;
+        if (project == null)
+            return;
+        int n = 0;
+        foreach (var t in project.Tasks.Where(t => t.Done && !t.Archived))
+        {
+            t.Archived = true;
+            n++;
+        }
+        if (n == 0)
+            return;
+        AfterTasksChanged();
+        RefreshCommandStates();
+        StatusText = $"Archived {n} completed task(s)";
+    }
+
     /// <summary>Called by the view after a checkbox binding flips Done/InProgress.</summary>
     public void PersistTaskFlagChange(TaskItem task)
     {
@@ -427,7 +489,9 @@ public sealed class MainViewModel : Observable
     private void RefreshCommandStates()
     {
         ReloadProjectCommand.RaiseCanExecuteChanged();
+        SaveCurrentCommand.RaiseCanExecuteChanged();
         AddTaskCommand.RaiseCanExecuteChanged();
+        ArchiveDoneCommand.RaiseCanExecuteChanged();
         EditLocalDesignCommand.RaiseCanExecuteChanged();
         EditLocalInstructionsCommand.RaiseCanExecuteChanged();
         EditLocalPromptCommand.RaiseCanExecuteChanged();

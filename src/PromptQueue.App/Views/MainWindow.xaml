@@ -20,6 +20,7 @@
         <app:CheckGlyphConverter x:Key="CheckGlyph"/>
         <app:TagColorConverter x:Key="TagColor"/>
         <app:TagListConverter x:Key="TagList"/>
+        <app:LockGlyphConverter x:Key="LockGlyph"/>
 
         <!-- ===================== TEXT EDITOR OVERLAY ===================== -->
         <DataTemplate DataType="{x:Type vm:TextEditorViewModel}">
@@ -78,7 +79,10 @@
 
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel>
-                            <TextBlock Style="{StaticResource FieldLabel}" Text="Prompt"/>
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="Name (optional — defaults to the ID)"/>
+                            <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"/>
+
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="Prompt" Margin="0,12,0,3"/>
                             <TextBox Style="{StaticResource EditorTextBox}" Height="120"
                                      AcceptsTab="False"
                                      Text="{Binding Prompt, UpdateSourceTrigger=PropertyChanged}"/>
@@ -118,7 +122,45 @@
                                 <CheckBox Content="Done" Margin="16,0,0,0" IsChecked="{Binding Done}"/>
                                 <CheckBox Content="Bug" Margin="16,0,0,0" IsChecked="{Binding Bug}"
                                           ToolTip="Flag as a bug — bugs sort to the top of the list and the xml file"/>
+                                <CheckBox Content="Locked" Margin="16,0,0,0" IsChecked="{Binding Locked}"
+                                          ToolTip="Locked — greyed out and ignored by an agent"/>
+                                <CheckBox Content="Archived" Margin="16,0,0,0" IsChecked="{Binding Archived}"
+                                          ToolTip="Archived — still shown here, ignored by an agent"/>
                             </StackPanel>
+
+                            <!-- Blocked by (ZP-31) -->
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="Blocked by (task ID)" Margin="0,12,0,3"/>
+                            <ComboBox IsEditable="True" IsTextSearchEnabled="True"
+                                      ItemsSource="{Binding BlockCandidates}"
+                                      Text="{Binding BlockedBy, UpdateSourceTrigger=PropertyChanged}"
+                                      ToolTip="An agent completes this task's blocker first, or skips them both"/>
+
+                            <!-- Dates (ZP-32) -->
+                            <Grid Margin="0,12,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Date started"/>
+                                    <DockPanel>
+                                        <TextBox DockPanel.Dock="Right" Width="60" Margin="6,0,0,0"
+                                                 Text="{Binding StartTimePart, UpdateSourceTrigger=PropertyChanged}"
+                                                 ToolTip="Time, HH:mm"/>
+                                        <DatePicker SelectedDate="{Binding StartDatePart}"/>
+                                    </DockPanel>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Due"/>
+                                    <DockPanel>
+                                        <TextBox DockPanel.Dock="Right" Width="60" Margin="6,0,0,0"
+                                                 Text="{Binding DueTimePart, UpdateSourceTrigger=PropertyChanged}"
+                                                 ToolTip="Time, HH:mm"/>
+                                        <DatePicker SelectedDate="{Binding DueDatePart}"/>
+                                    </DockPanel>
+                                </StackPanel>
+                            </Grid>
 
                             <TextBlock Style="{StaticResource FieldLabel}" Text="Tags (comma separated)" Margin="0,12,0,3"/>
                             <TextBox Text="{Binding TagText, UpdateSourceTrigger=PropertyChanged}"/>
@@ -441,6 +483,11 @@
                                                         <Setter Property="Background" Value="{StaticResource BugSurfaceBrush}"/>
                                                         <Setter Property="BorderBrush" Value="{StaticResource BugBorderBrush}"/>
                                                     </MultiDataTrigger>
+                                                    <!-- locked = grey (wins over everything; an agent ignores it) -->
+                                                    <DataTrigger Binding="{Binding Locked}" Value="True">
+                                                        <Setter Property="Background" Value="{StaticResource LockedSurfaceBrush}"/>
+                                                        <Setter Property="BorderBrush" Value="{StaticResource LockedBorderBrush}"/>
+                                                    </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
                                         </Border.Style>
@@ -543,6 +590,20 @@
                                                            Visibility="{Binding Requirements, Converter={StaticResource StrVis}}"
                                                            Margin="0,2,0,0"/>
 
+                                                <!-- blocked by (ZP-31) -->
+                                                <TextBlock Style="{StaticResource SecondaryText}" Margin="0,2,0,0"
+                                                           FontStyle="Italic"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           Visibility="{Binding IsBlocked, Converter={StaticResource BoolVis}}">
+                                                    <Run Text="⛔ blocked by "/><Run Text="{Binding BlockedByLabel, Mode=OneWay}"/>
+                                                </TextBlock>
+
+                                                <!-- dates (ZP-32) -->
+                                                <TextBlock Style="{StaticResource SecondaryText}" Margin="0,2,0,0"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           Visibility="{Binding HasDates, Converter={StaticResource BoolVis}}"
+                                                           Text="{Binding DatesSummary, Mode=OneWay}"/>
+
                                                 <!-- at-a-glance status chips (ZP-25) -->
                                                 <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
                                                     <StackPanel.Visibility>
@@ -622,7 +683,13 @@
 
                                             <!-- actions -->
                                             <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Top">
-                                                <Button Content="Edit" Style="{StaticResource ToolbarButton}"
+                                                <Button Style="{StaticResource ToolbarButton}" Width="24" Padding="0"
+                                                        FontFamily="Segoe MDL2 Assets" FontSize="13"
+                                                        Content="{Binding Locked, Converter={StaticResource LockGlyph}}"
+                                                        ToolTip="Lock / unlock — a locked task is greyed out and ignored by an agent"
+                                                        Command="{Binding DataContext.ToggleTaskLockCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}"/>
+                                                <Button Content="Edit" Style="{StaticResource ToolbarButton}" Margin="2,0,0,0"
                                                         Command="{Binding DataContext.EditTaskCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                         CommandParameter="{Binding}"/>
                                                 <Button Content="Delete" Style="{StaticResource ToolbarButton}" Margin="2,0,0,0"

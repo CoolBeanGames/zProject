@@ -38,6 +38,7 @@ public static class TaskXmlSerializer
     {
         var el = new XElement("task",
             new XAttribute("id", task.Id),
+            new XElement("name", task.Name),
             new XElement("prompt", task.Prompt),
             new XElement("requirements", task.Requirements),
             new XElement("inProgress", task.InProgress),
@@ -45,6 +46,11 @@ public static class TaskXmlSerializer
             new XElement("bug", task.Bug),
             new XElement("error", task.Error),
             new XElement("errorMessage", task.ErrorMessage),
+            new XElement("locked", task.Locked),
+            new XElement("archived", task.Archived),
+            new XElement("blockedBy", task.BlockedBy),
+            new XElement("dateStarted", FormatDate(task.DateStarted)),
+            new XElement("dueDate", FormatDate(task.DueDate)),
             new XElement("commit", task.Commit),
             new XElement("build", task.Build),
             new XElement("release", task.Release),
@@ -93,6 +99,7 @@ public static class TaskXmlSerializer
             var task = new TaskItem
             {
                 Id = (string?)el.Attribute("id") ?? "",
+                Name = (string?)el.Element("name") ?? "",
                 Prompt = (string?)el.Element("prompt") ?? "",
                 Requirements = (string?)el.Element("requirements") ?? "",
                 InProgress = ParseBool(el.Element("inProgress")),
@@ -100,6 +107,11 @@ public static class TaskXmlSerializer
                 Bug = ParseBool(el.Element("bug")),
                 Error = ParseBool(el.Element("error")),
                 ErrorMessage = (string?)el.Element("errorMessage") ?? "",
+                Locked = ParseBool(el.Element("locked")),
+                Archived = ParseBool(el.Element("archived")),
+                BlockedBy = ((string?)el.Element("blockedBy") ?? "").Trim(),
+                DateStarted = ParseDate(el.Element("dateStarted")),
+                DueDate = ParseDate(el.Element("dueDate")),
                 Commit = ParseBool(el.Element("commit")),
                 Build = ParseBool(el.Element("build")),
                 Release = ParseBool(el.Element("release")),
@@ -129,6 +141,22 @@ public static class TaskXmlSerializer
 
     private static bool ParseBool(XElement? el)
         => el != null && bool.TryParse(el.Value.Trim(), out var b) && b;
+
+    private const string DateFmt = "yyyy-MM-dd HH:mm";
+
+    private static string FormatDate(DateTime? d)
+        => d?.ToString(DateFmt, System.Globalization.CultureInfo.InvariantCulture) ?? "";
+
+    private static DateTime? ParseDate(XElement? el)
+    {
+        var s = el?.Value.Trim();
+        if (string.IsNullOrEmpty(s))
+            return null;
+        if (DateTime.TryParse(s, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var d))
+            return d;
+        return null;
+    }
 
     /// <summary>
     /// Falls back to the highest numeric suffix seen among task ids + 1 when the

@@ -143,6 +143,16 @@ public sealed class TagListConverter : IValueConverter
         => Binding.DoNothing;
 }
 
+/// <summary>true → closed padlock, false → open padlock (Segoe MDL2 Assets glyphs).</summary>
+public sealed class LockGlyphConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is true ? "" : "";
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => Binding.DoNothing;
+}
+
 /// <summary>true → "☑", false → "☐" (subtask state in tooltips).</summary>
 public sealed class CheckGlyphConverter : IValueConverter
 {

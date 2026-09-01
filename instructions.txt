@@ -5,3 +5,11 @@ if a task has the tag commit set to true then commit the project and push to git
 the task is NOT complete unless the requirements have been met, if a task is impossible to complete add an "error" flag, set it to true, and add error message text in before saving XML and end execution of tasks there, notifiying your chat of the error and the taskID. 
 
 if the task has a build tag set to true, the project should be built to project_root/builds/debug, if you need to test build to project_root/builds/test, if it has a release tag set use project_root/builds/release
+
+SKIP RULES (a task the agent must not work on):
+- if <locked>true</locked> the task is locked: skip it entirely, do not change it.
+- if <archived>true</archived> the task is archived: skip it entirely, do not change it.
+- if <blockedBy> names a task id: complete that blocking task first, then come
+  back to this one. if the blocking task cannot be completed (or is locked /
+  archived / missing), skip BOTH this task and its blocker and move on.
+skipped tasks do not count as done and do not stop execution.
