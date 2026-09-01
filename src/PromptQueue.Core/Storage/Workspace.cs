@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Xml.Linq;
 using PromptQueue.Core.Models;
+using PromptQueue.Core.Serialization;
 
 namespace PromptQueue.Core.Storage;
 
@@ -48,6 +49,11 @@ public sealed class Workspace : Observable
     public const string GlobalInstructionsFile = "global.instructions.txt";
     public const string GlobalPromptFile = "global.prompt.txt";
 
+    /// <summary>Consolidated, portable database written next to the executable.</summary>
+    public const string DataCfgFile = "data.cfg";
+
+    public static string DataCfgPath => Path.Combine(AppContext.BaseDirectory, DataCfgFile);
+
     public static Workspace Load(string? rootDirectory = null)
     {
         var root = rootDirectory ?? DefaultRootDirectory;
@@ -70,11 +76,20 @@ public sealed class Workspace : Observable
                 ws.Projects.Add(ProjectStore.Load(dir));
             }
         }
+        else
+        {
+            // No per-user index yet: fall back to the portable data.cfg if one
+            // shipped alongside the executable.
+            ws.HydrateFromDataCfg();
+        }
+
+        // Keep the portable database current from the moment the app opens.
+        ws.SaveDataCfg();
 
         return ws;
     }
 
-    /// <summary>Persists the project index and the global text files.</summary>
+    /// <summary>Persists the project index, the global text files and data.cfg.</summary>
     public void Save()
     {
         Directory.CreateDirectory(RootDirectory);
@@ -88,6 +103,81 @@ public sealed class Workspace : Observable
         File.WriteAllText(Path.Combine(RootDirectory, GlobalDesignFile), GlobalDesign);
         File.WriteAllText(Path.Combine(RootDirectory, GlobalInstructionsFile), GlobalInstructions);
         File.WriteAllText(Path.Combine(RootDirectory, GlobalPromptFile), GlobalPrompt);
+
+        SaveDataCfg();
+    }
+
+    /// <summary>
+    /// Writes <c>data.cfg</c> to the executable directory: an active database of
+    /// every project (name + path + its task queue) plus verbatim copies of the
+    /// global design / instructions / prompt.
+    /// </summary>
+    public void SaveDataCfg()
+    {
+        var root = new XElement("promptQueueData",
+            new XAttribute("savedUtc", DateTime.UtcNow.ToString("o")));
+
+        var projects = new XElement("projects");
+        foreach (var p in Projects)
+        {
+            projects.Add(new XElement("project",
+                new XAttribute("name", p.Name),
+                new XAttribute("directory", p.Directory),
+                TaskXmlSerializer.ToElement(p)));
+        }
+        root.Add(projects);
+
+        root.Add(new XElement("globalDesign", new XCData(GlobalDesign)));
+        root.Add(new XElement("globalInstructions", new XCData(GlobalInstructions)));
+        root.Add(new XElement("globalPrompt", new XCData(GlobalPrompt)));
+
+        try
+        {
+            new XDocument(new XDeclaration("1.0", "utf-8", null), root).Save(DataCfgPath);
+        }
+        catch (IOException)
+        {
+            // The executable directory may be read-only (e.g. Program Files);
+            // data.cfg is a convenience mirror, so a failure here is non-fatal.
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+    }
+
+    /// <summary>Loads projects and globals from data.cfg when there is no workspace.xml.</summary>
+    private void HydrateFromDataCfg()
+    {
+        if (!File.Exists(DataCfgPath))
+            return;
+
+        XDocument doc;
+        try
+        {
+            doc = XDocument.Load(DataCfgPath);
+        }
+        catch
+        {
+            return;
+        }
+
+        var root = doc.Root;
+        if (root == null)
+            return;
+
+        GlobalDesign = (string?)root.Element("globalDesign") ?? GlobalDesign;
+        GlobalInstructions = (string?)root.Element("globalInstructions") ?? GlobalInstructions;
+        GlobalPrompt = (string?)root.Element("globalPrompt") ?? GlobalPrompt;
+
+        foreach (var el in root.Element("projects")?.Elements("project") ?? Enumerable.Empty<XElement>())
+        {
+            var dir = (string?)el.Attribute("directory");
+            if (string.IsNullOrWhiteSpace(dir) || !Directory.Exists(dir))
+                continue;
+            if (Projects.Any(p => string.Equals(p.Directory, dir, StringComparison.OrdinalIgnoreCase)))
+                continue;
+            Projects.Add(ProjectStore.Load(dir));
+        }
     }
 
     /// <summary>Adds the directory as a project (or returns the existing one).</summary>
@@ -100,10 +190,25 @@ public sealed class Workspace : Observable
             return existing;
 
         var project = ProjectStore.Load(directory);
+        SeedLocalsFromGlobals(project);
         Projects.Add(project);
         Save();
         ProjectStore.Save(project);
         return project;
+    }
+
+    /// <summary>
+    /// A new project with no local design / instructions / prompt of its own
+    /// starts from copies of the global versions.
+    /// </summary>
+    private void SeedLocalsFromGlobals(Project project)
+    {
+        if (string.IsNullOrEmpty(project.LocalDesign) && !string.IsNullOrEmpty(GlobalDesign))
+            project.LocalDesign = GlobalDesign;
+        if (string.IsNullOrEmpty(project.LocalInstructions) && !string.IsNullOrEmpty(GlobalInstructions))
+            project.LocalInstructions = GlobalInstructions;
+        if (string.IsNullOrEmpty(project.LocalPrompt) && !string.IsNullOrEmpty(GlobalPrompt))
+            project.LocalPrompt = GlobalPrompt;
     }
 
     private static string ReadTextOrEmpty(string path)

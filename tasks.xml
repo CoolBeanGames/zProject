@@ -160,39 +160,39 @@
     <prompt>all complete tasks, appear at the bottom of the list and there is a button to collapse the complete list. there is a clear divider between active and complete tasks.</prompt>
     <requirements>tasks are now sorted by completion</requirements>
     <inProgress>false</inProgress>
-    <done>false</done>
+    <done>true</done>
     <error>false</error>
     <errorMessage></errorMessage>
     <commit>false</commit>
     <build>false</build>
     <release>false</release>
-    <notes></notes>
-    <filesChanged></filesChanged>
+    <notes>The task list is now grouped into sections via a grouped ICollectionView (MainViewModel.TasksView) with a PropertyGroupDescription on TaskItem.SectionKey. Project.Tasks is kept physically stable-sorted by SectionRank (SortIntoSections, called from AfterTasksChanged on every add/edit/toggle/reorder) so drag-reorder stays index-based. Sections render in order: "Needs attention", "Active", "Completed". Each section has a clear divider (thin rule + small caps label + count) from a GroupStyle.ContainerStyle template. The "Completed" section (all done tasks, at the bottom) has a Show/Hide button that toggles MainViewModel.CompletedCollapsed; a MultiDataTrigger collapses that group's ItemsPresenter when set. Verified visually.</notes>
+    <filesChanged>src/PromptQueue.Core/Models/TaskItem.cs; src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/Converters.cs</filesChanged>
   </task>
   <task id="ZP-17">
     <prompt>tasks with an error that are not complete are at the top of the list, this divider is clear</prompt>
     <requirements>error tasks are at the top of the list</requirements>
     <inProgress>false</inProgress>
-    <done>false</done>
+    <done>true</done>
     <error>false</error>
     <errorMessage></errorMessage>
     <commit>false</commit>
     <build>false</build>
     <release>false</release>
-    <notes></notes>
-    <filesChanged></filesChanged>
+    <notes>Unfinished error tasks (TaskItem.SectionRank 0) already sort to the top as the "Needs attention" group from ZP-16. Made that divider unmistakable: the section header bar gets a pale-red background (ErrorSurfaceBrush), a red top/bottom rule (ErrorBorderBrush, 2px top / 1px bottom) and red small-caps label text, via DataTriggers on the group name in the GroupItem template. Confirmed in the grouped-list screenshot: "Needs attention (1)" sits above "Active" and "Completed".</notes>
+    <filesChanged>src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
   </task>
   <task id="ZP-18">
     <prompt>save an active database of projects and tasks to the executable direcory as data.cfg this contains all projects and paths as well as copies of the global design instructions and prompt that then just get copied</prompt>
     <requirements>the database is now saved</requirements>
     <inProgress>false</inProgress>
-    <done>false</done>
+    <done>true</done>
     <error>false</error>
     <errorMessage></errorMessage>
     <commit>true</commit>
     <build>true</build>
     <release>true</release>
-    <notes></notes>
-    <filesChanged></filesChanged>
+    <notes>Workspace now writes data.cfg next to the executable (AppContext.BaseDirectory) on load and on every Save(). It is an XML "promptQueueData" database holding every project (name + directory path + its full task queue via TaskXmlSerializer.ToElement) plus verbatim CDATA copies of the global design / instructions / prompt. If the executable directory is read-only the write is skipped silently. On startup, when there is no per-user workspace.xml, the workspace hydrates projects + globals from data.cfg instead. New projects with no local design/instructions/prompt are now seeded with copies of the globals ("that then just get copied"). Built to builds/debug and builds/release and committed per the build/release/commit flags.</notes>
+    <filesChanged>src/PromptQueue.Core/Storage/Workspace.cs; src/PromptQueue.Core/Serialization/TaskXmlSerializer.cs; tasks.xml</filesChanged>
   </task>
 </tasks>

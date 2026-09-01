@@ -15,7 +15,8 @@ public static class TaskXmlSerializer
 
     public sealed record Document(string ProjectName, int NextIndex, List<TaskItem> Tasks);
 
-    public static string Serialize(Project project)
+    /// <summary>Builds the <c>&lt;tasks&gt;</c> element for a project (also reused inside data.cfg).</summary>
+    public static XElement ToElement(Project project)
     {
         var root = new XElement("tasks",
             new XAttribute("project", project.Name),
@@ -38,7 +39,12 @@ public static class TaskXmlSerializer
                 new XElement("filesChanged", task.FilesChanged)));
         }
 
-        var doc = new XDocument(new XDeclaration("1.0", "utf-8", null), root);
+        return root;
+    }
+
+    public static string Serialize(Project project)
+    {
+        var doc = new XDocument(new XDeclaration("1.0", "utf-8", null), ToElement(project));
         using var sw = new Utf8StringWriter();
         using (var xw = XmlWriter.Create(sw, new XmlWriterSettings
         {

@@ -72,6 +72,16 @@ public sealed class StringToVisibilityConverter : IValueConverter
         => Binding.DoNothing;
 }
 
+/// <summary>true → "Show", false → "Hide" (for the Completed-section collapse toggle).</summary>
+public sealed class BoolToShowHideConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is true ? "Show" : "Hide";
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => Binding.DoNothing;
+}
+
 /// <summary>Collapses whitespace/newlines to single spaces for one-line previews.</summary>
 public sealed class SingleLinePreviewConverter : IValueConverter
 {

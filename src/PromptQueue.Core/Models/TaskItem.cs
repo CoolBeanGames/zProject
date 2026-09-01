@@ -54,14 +54,35 @@ public sealed class TaskItem : Observable
     public bool Done
     {
         get => _done;
-        set => Set(ref _done, value);
+        set { if (Set(ref _done, value)) RaiseSection(); }
     }
 
     /// <summary>Set by an agent when the task could not be completed.</summary>
     public bool Error
     {
         get => _error;
-        set => Set(ref _error, value);
+        set { if (Set(ref _error, value)) RaiseSection(); }
+    }
+
+    /// <summary>
+    /// Which list section the task belongs to. Rank 0 = an unfinished task an
+    /// agent flagged with an error (shown first); 1 = active; 2 = completed
+    /// (shown last).
+    /// </summary>
+    public int SectionRank => Error && !Done ? 0 : Done ? 2 : 1;
+
+    /// <summary>Human-readable section name, used to group the task list.</summary>
+    public string SectionKey => SectionRank switch
+    {
+        0 => "Needs attention",
+        2 => "Completed",
+        _ => "Active",
+    };
+
+    private void RaiseSection()
+    {
+        Raise(nameof(SectionRank));
+        Raise(nameof(SectionKey));
     }
 
     /// <summary>Explanation posted by the agent when <see cref="Error"/> is set.</summary>

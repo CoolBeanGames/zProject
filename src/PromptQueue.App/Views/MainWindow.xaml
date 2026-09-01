@@ -15,6 +15,7 @@
         <app:StringToVisibilityConverter x:Key="StrVis"/>
         <app:SingleLinePreviewConverter x:Key="OneLine"/>
         <app:AllEmptyToVisibilityConverter x:Key="AllEmpty"/>
+        <app:BoolToShowHideConverter x:Key="ShowHide"/>
 
         <!-- ===================== TEXT EDITOR OVERLAY ===================== -->
         <DataTemplate DataType="{x:Type vm:TextEditorViewModel}">
@@ -260,13 +261,73 @@
                                  HorizontalContentAlignment="Stretch"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                  VirtualizingStackPanel.IsVirtualizing="False"
-                                 ItemsSource="{Binding Tasks}"
+                                 ItemsSource="{Binding DataContext.TasksView, RelativeSource={RelativeSource AncestorType=Window}}"
                                  KeyboardNavigation.DirectionalNavigation="Cycle">
                             <ListBox.ItemsPanel>
                                 <ItemsPanelTemplate>
                                     <StackPanel IsItemsHost="True"/>
                                 </ItemsPanelTemplate>
                             </ListBox.ItemsPanel>
+                            <ListBox.GroupStyle>
+                                <GroupStyle>
+                                    <GroupStyle.ContainerStyle>
+                                        <Style TargetType="GroupItem">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="GroupItem">
+                                                        <StackPanel>
+                                                            <!-- section divider -->
+                                                            <Border x:Name="Divider"
+                                                                    BorderBrush="{StaticResource BorderBrush}"
+                                                                    BorderThickness="0,1,0,0"
+                                                                    Margin="0,8,0,3" Padding="2,5,2,3">
+                                                                <DockPanel>
+                                                                    <Button x:Name="CollapseBtn" DockPanel.Dock="Right"
+                                                                            Style="{StaticResource ToolbarButton}"
+                                                                            AutomationProperties.AutomationId="CollapseCompletedBtn"
+                                                                            Visibility="Collapsed"
+                                                                            Command="{Binding DataContext.ToggleCompletedCollapsedCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                            Content="{Binding DataContext.CompletedCollapsed, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource ShowHide}}"/>
+                                                                    <TextBlock x:Name="SectionLabel"
+                                                                               Style="{StaticResource SectionHeading}"
+                                                                               VerticalAlignment="Center"
+                                                                               Text="{Binding Name}"/>
+                                                                    <TextBlock Style="{StaticResource SectionHeading}"
+                                                                               VerticalAlignment="Center" Opacity="0.7"
+                                                                               Text="{Binding ItemCount, StringFormat=' ({0})'}"/>
+                                                                </DockPanel>
+                                                            </Border>
+                                                            <ItemsPresenter x:Name="Items"/>
+                                                        </StackPanel>
+                                                        <ControlTemplate.Triggers>
+                                                            <DataTrigger Binding="{Binding Name}" Value="Needs attention">
+                                                                <Setter TargetName="SectionLabel" Property="Foreground"
+                                                                        Value="{StaticResource ErrorTextBrush}"/>
+                                                                <Setter TargetName="Divider" Property="Background"
+                                                                        Value="{StaticResource ErrorSurfaceBrush}"/>
+                                                                <Setter TargetName="Divider" Property="BorderBrush"
+                                                                        Value="{StaticResource ErrorBorderBrush}"/>
+                                                                <Setter TargetName="Divider" Property="BorderThickness"
+                                                                        Value="0,2,0,1"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Name}" Value="Completed">
+                                                                <Setter TargetName="CollapseBtn" Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding Name}" Value="Completed"/>
+                                                                    <Condition Binding="{Binding DataContext.CompletedCollapsed, RelativeSource={RelativeSource AncestorType=Window}}" Value="True"/>
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter TargetName="Items" Property="Visibility" Value="Collapsed"/>
+                                                            </MultiDataTrigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </GroupStyle.ContainerStyle>
+                                </GroupStyle>
+                            </ListBox.GroupStyle>
                             <ListBox.ItemContainerStyle>
                                 <Style TargetType="ListBoxItem" BasedOn="{StaticResource SidebarItem}">
                                     <Setter Property="Padding" Value="0"/>

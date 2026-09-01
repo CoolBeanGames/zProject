@@ -176,10 +176,12 @@ public partial class MainWindow : Window
 
     private List<ListBoxItem> AllContainers()
     {
+        // Iterate items (not indices): with grouping the top-level generator
+        // yields GroupItems, but ContainerFromItem still resolves the row.
         var list = new List<ListBoxItem>();
-        for (int i = 0; i < TaskList.Items.Count; i++)
+        foreach (var item in TaskList.Items)
         {
-            if (TaskList.ItemContainerGenerator.ContainerFromIndex(i) is ListBoxItem c)
+            if (TaskList.ItemContainerGenerator.ContainerFromItem(item) is ListBoxItem c)
                 list.Add(c);
         }
         return list;

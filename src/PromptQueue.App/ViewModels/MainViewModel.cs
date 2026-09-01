@@ -1,5 +1,7 @@
+using System.ComponentModel;
 using System.IO;
 using System.Windows;
+using System.Windows.Data;
 using Microsoft.Win32;
 using PromptQueue.Core.Models;
 using PromptQueue.Core.Storage;
@@ -15,6 +17,8 @@ public sealed class MainViewModel : Observable
     private Project? _selectedProject;
     private object? _overlay;
     private string _statusText = "Ready";
+    private ICollectionView? _tasksView;
+    private bool _completedCollapsed;
 
     public MainViewModel(Workspace workspace)
     {
@@ -49,6 +53,7 @@ public sealed class MainViewModel : Observable
         EditTaskCommand = new RelayCommand(p => EditTask(p as TaskItem));
         DeleteTaskCommand = new RelayCommand(p => DeleteTask(p as TaskItem));
         ToggleTaskDoneCommand = new RelayCommand(p => ToggleDone(p as TaskItem));
+        ToggleCompletedCollapsedCommand = new RelayCommand(() => CompletedCollapsed = !CompletedCollapsed);
 
         if (Workspace.Projects.Count > 0)
             SelectedProject = Workspace.Projects[0];
@@ -64,6 +69,7 @@ public sealed class MainViewModel : Observable
             if (Set(ref _selectedProject, value))
             {
                 CloseOverlay();
+                RebuildTasksView();
                 Raise(nameof(HasSelectedProject));
                 RefreshCommandStates();
             }
@@ -71,6 +77,22 @@ public sealed class MainViewModel : Observable
     }
 
     public bool HasSelectedProject => SelectedProject != null;
+
+    /// <summary>
+    /// The task list as shown: grouped into the "Needs attention" / "Active" /
+    /// "Completed" sections. The underlying <see cref="Project.Tasks"/> is kept
+    /// physically ordered to match, so drag-reorder stays index-based.
+    /// </summary>
+    public ICollectionView? TasksView => _tasksView;
+
+    /// <summary>Whether the Completed section is collapsed (hidden) in the list.</summary>
+    public bool CompletedCollapsed
+    {
+        get => _completedCollapsed;
+        set => Set(ref _completedCollapsed, value);
+    }
+
+    public RelayCommand ToggleCompletedCollapsedCommand { get; }
 
     public object? Overlay
     {
@@ -143,6 +165,7 @@ public sealed class MainViewModel : Observable
         SelectedProject.LocalDesign = ReadOrKeep(ProjectStore.DesignFile, SelectedProject.LocalDesign);
         SelectedProject.LocalInstructions = ReadOrKeep(ProjectStore.InstructionsFile, SelectedProject.LocalInstructions);
         SelectedProject.LocalPrompt = ReadOrKeep(ProjectStore.PromptFile, SelectedProject.LocalPrompt);
+        RebuildTasksView();
         StatusText = $"Reloaded \"{SelectedProject.Name}\" from disk";
     }
 
@@ -197,6 +220,52 @@ public sealed class MainViewModel : Observable
             CloseOverlay);
     }
 
+    // ---- Task list view / sections ---------------------------------
+
+    private void RebuildTasksView()
+    {
+        if (SelectedProject == null)
+        {
+            _tasksView = null;
+            Raise(nameof(TasksView));
+            return;
+        }
+
+        SortIntoSections(SelectedProject);
+
+        var view = new ListCollectionView(SelectedProject.Tasks);
+        view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(TaskItem.SectionKey)));
+        _tasksView = view;
+        Raise(nameof(TasksView));
+    }
+
+    /// <summary>
+    /// Stable-orders the project's tasks by section rank: error-and-unfinished
+    /// first, then active, then completed. Order within a section is preserved.
+    /// </summary>
+    public static void SortIntoSections(Project project)
+    {
+        var sorted = project.Tasks.OrderBy(t => t.SectionRank).ToList();
+        for (int i = 0; i < sorted.Count; i++)
+        {
+            var current = project.Tasks.IndexOf(sorted[i]);
+            if (current != i)
+                project.Tasks.Move(current, i);
+        }
+        ProjectStore.Normalize(project);
+    }
+
+    /// <summary>Re-sections, refreshes the grouped view and persists.</summary>
+    private void AfterTasksChanged()
+    {
+        if (SelectedProject == null)
+            return;
+        SortIntoSections(SelectedProject);
+        _tasksView?.Refresh();
+        SaveCurrent();
+        Workspace.Save();
+    }
+
     // ---- Tasks -------------------------------------------------------
 
     private void AddTask()
@@ -219,9 +288,7 @@ public sealed class MainViewModel : Observable
                 };
                 form.ApplyTo(task);
                 project.Tasks.Add(task);
-                ProjectStore.Normalize(project);
-                SaveCurrent();
-                Workspace.Save();
+                AfterTasksChanged();
                 StatusText = $"Added task {task.Id}";
             },
             onClose: () =>
@@ -243,7 +310,7 @@ public sealed class MainViewModel : Observable
             onSave: form =>
             {
                 form.ApplyTo(task);
-                SaveCurrent();
+                AfterTasksChanged();
                 StatusText = $"Updated task {task.Id}";
             },
             onClose: CloseOverlay);
@@ -264,8 +331,7 @@ public sealed class MainViewModel : Observable
             return;
 
         project.Tasks.Remove(task);
-        ProjectStore.Normalize(project);
-        SaveCurrent();
+        AfterTasksChanged();
         StatusText = $"Deleted task {task.Id}";
     }
 
@@ -287,13 +353,9 @@ public sealed class MainViewModel : Observable
         var target = Math.Clamp(indexAmongOthers, 0, project.Tasks.Count);
         project.Tasks.Insert(target, task);
 
-        if (target == oldIndex)
-            return;
-
-        ProjectStore.Normalize(project);
-        SaveCurrent();
-        Workspace.Save();
-        StatusText = $"Moved {task.Id} to position {target + 1}";
+        AfterTasksChanged();
+        if (target != oldIndex)
+            StatusText = $"Moved {task.Id} to position {target + 1}";
     }
 
     private void ToggleDone(TaskItem? task)
@@ -303,7 +365,7 @@ public sealed class MainViewModel : Observable
         task.Done = !task.Done;
         if (task.Done)
             task.InProgress = false;
-        SaveCurrent();
+        AfterTasksChanged();
         StatusText = $"{task.Id} marked {(task.Done ? "done" : "not done")}";
     }
 
@@ -312,7 +374,7 @@ public sealed class MainViewModel : Observable
     {
         if (task.Done && task.InProgress)
             task.InProgress = false;
-        SaveCurrent();
+        AfterTasksChanged();
         StatusText = $"Updated {task.Id}";
     }
 
