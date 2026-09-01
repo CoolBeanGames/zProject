@@ -472,7 +472,7 @@ all colors should be kind of pale and washed out</prompt>
     <prompt>move all cards marked done to a new tag called "archived" archived tasks still show in this app, but AI will ignore them completly</prompt>
     <requirements>archive done</requirements>
     <inProgress>false</inProgress>
-    <done>false</done>
+    <done>true</done>
     <bug>false</bug>
     <error>false</error>
     <errorMessage></errorMessage>
@@ -480,14 +480,14 @@ all colors should be kind of pale and washed out</prompt>
     <build>false</build>
     <release>false</release>
     <tags></tags>
-    <notes></notes>
-    <filesChanged></filesChanged>
+    <notes>TaskItem.Archived + &lt;archived&gt; xml tag (kept as a dedicated flag, like &lt;locked&gt;, rather than a visible text tag so it actually signals an agent). New "Archive done" button in the project header runs MainViewModel.ArchiveDoneCommand, which sets Archived on every done, not-yet-archived task. Archived tasks still show in the app in their own bottom "Archived" section (SectionRank 4) with a grey divider and grey card background. instructions.txt SKIP RULES: an agent skips any &lt;archived&gt;true&lt;/archived&gt; task entirely.</notes>
+    <filesChanged>src/PromptQueue.Core/Models/TaskItem.cs; src/PromptQueue.Core/Serialization/TaskXmlSerializer.cs; src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml; instructions.txt</filesChanged>
   </task>
   <task id="ZP-37">
     <prompt>if a card is blocked by another, position it automatically direcrtly under that card and slightly indented, if unblocked undo this, in the xml keep its original position, and move it back to that position when finished</prompt>
     <requirements>blocked by view complete</requirements>
     <inProgress>false</inProgress>
-    <done>false</done>
+    <done>true</done>
     <bug>false</bug>
     <error>false</error>
     <errorMessage></errorMessage>
@@ -495,8 +495,8 @@ all colors should be kind of pale and washed out</prompt>
     <build>true</build>
     <release>true</release>
     <tags>control</tags>
-    <notes></notes>
-    <filesChanged></filesChanged>
+    <notes>Blocked cards are repositioned in the list view only — the xml Order is never touched, so an unblocked card snaps straight back to its real position. MainViewModel.RecomputeBlockedLayout gives each task a runtime DisplayOrder (= Order, but nudged to blocker.DisplayOrder + tiny epsilon when blocked, a few passes for short chains) and an IndentLevel (blocker.IndentLevel + 1). The grouped ListCollectionView uses a CustomSort by (SectionRank, DisplayOrder), and the card's left Margin is bound to IndentLevel via IndentConverter (18px per level). Verified: "Wire the API" (blocked by BK-1) sits directly under "Set up database", indented. Built to builds/debug; Release build deferred while an app instance runs from builds/release.</notes>
+    <filesChanged>src/PromptQueue.Core/Models/TaskItem.cs; src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/Converters.cs</filesChanged>
   </task>
   <task id="ZP-38">
     <prompt>build out webserver , it should be view only for the tasks for all project, you cannot edit tasks from the webview. while the server is running it opens a new console window with info.</prompt>

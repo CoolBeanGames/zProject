@@ -133,6 +133,19 @@ public sealed class TagColorConverter : IValueConverter
     }
 }
 
+/// <summary>Indent level (int) → left Thickness for a blocked card (ZP-37).</summary>
+public sealed class IndentConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        var level = value is int i ? i : 0;
+        return new Thickness(level * 18, 0, 0, 0);
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => Binding.DoNothing;
+}
+
 /// <summary>Collapsed → ChevronRight, expanded → ChevronDown (Segoe MDL2 Assets).</summary>
 public sealed class ChevronGlyphConverter : IValueConverter
 {

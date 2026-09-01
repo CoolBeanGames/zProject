@@ -22,6 +22,7 @@
         <app:TagListConverter x:Key="TagList"/>
         <app:LockGlyphConverter x:Key="LockGlyph"/>
         <app:ChevronGlyphConverter x:Key="ChevronGlyph"/>
+        <app:IndentConverter x:Key="Indent"/>
 
         <!-- ===================== TEXT EDITOR OVERLAY ===================== -->
         <DataTemplate DataType="{x:Type vm:TextEditorViewModel}">
@@ -328,6 +329,9 @@
                                 <Border Width="1" Background="{StaticResource BorderBrush}" Margin="10,2"/>
                                 <Button Content="Reload" Style="{StaticResource ToolbarButton}"
                                         Command="{Binding DataContext.ReloadProjectCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                <Button Content="Archive done" Style="{StaticResource ToolbarButton}" Margin="4,0,0,0"
+                                        ToolTip="Move every completed task to the Archived section — an agent then ignores them"
+                                        Command="{Binding DataContext.ArchiveDoneCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
                             </StackPanel>
                             <Border Style="{StaticResource HSeparatorBorder}" Margin="0,12,0,0"/>
                             <Grid Margin="0,0,0,0">
@@ -427,6 +431,14 @@
                                                                 <Setter TargetName="Divider" Property="BorderBrush"
                                                                         Value="{StaticResource DoneBorderBrush}"/>
                                                             </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Name}" Value="Archived">
+                                                                <Setter TargetName="SectionLabel" Property="Foreground"
+                                                                        Value="{StaticResource SecondaryTextBrush}"/>
+                                                                <Setter TargetName="Divider" Property="Background"
+                                                                        Value="{StaticResource LockedSurfaceBrush}"/>
+                                                                <Setter TargetName="Divider" Property="BorderBrush"
+                                                                        Value="{StaticResource LockedBorderBrush}"/>
+                                                            </DataTrigger>
                                                             <MultiDataTrigger>
                                                                 <MultiDataTrigger.Conditions>
                                                                     <Condition Binding="{Binding Name}" Value="Completed"/>
@@ -454,6 +466,7 @@
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <Border BorderThickness="1" CornerRadius="2" Padding="6,5"
+                                            Margin="{Binding IndentLevel, Converter={StaticResource Indent}}"
                                             ToolTipService.ShowDuration="30000"
                                             ToolTipService.InitialShowDelay="500">
                                         <Border.Style>
@@ -484,6 +497,11 @@
                                                         <Setter Property="Background" Value="{StaticResource BugSurfaceBrush}"/>
                                                         <Setter Property="BorderBrush" Value="{StaticResource BugBorderBrush}"/>
                                                     </MultiDataTrigger>
+                                                    <!-- archived = grey (an agent ignores it) -->
+                                                    <DataTrigger Binding="{Binding Archived}" Value="True">
+                                                        <Setter Property="Background" Value="{StaticResource LockedSurfaceBrush}"/>
+                                                        <Setter Property="BorderBrush" Value="{StaticResource LockedBorderBrush}"/>
+                                                    </DataTrigger>
                                                     <!-- locked = grey (wins over everything; an agent ignores it) -->
                                                     <DataTrigger Binding="{Binding Locked}" Value="True">
                                                         <Setter Property="Background" Value="{StaticResource LockedSurfaceBrush}"/>

@@ -289,11 +289,33 @@ public sealed class TaskItem : Observable
         set => Set(ref _filesChanged, value);
     }
 
-    /// <summary>Zero-based position within the project's task list.</summary>
+    /// <summary>Zero-based position within the project's task list (authoritative; serialized).</summary>
     public int Order
     {
         get => _order;
-        set => Set(ref _order, value);
+        set { if (Set(ref _order, value)) { _displayOrder = value; } }
+    }
+
+    private double _displayOrder;
+    private int _indentLevel;
+
+    /// <summary>
+    /// Runtime-only sort key for the list view. Equals <see cref="Order"/> unless
+    /// the task is blocked, in which case it is nudged to sit just under its
+    /// blocker (ZP-37). The xml keeps <see cref="Order"/>, so the card returns to
+    /// its real position once it is unblocked.
+    /// </summary>
+    public double DisplayOrder
+    {
+        get => _displayOrder;
+        set => Set(ref _displayOrder, value);
+    }
+
+    /// <summary>Runtime-only indent depth for a blocked card.</summary>
+    public int IndentLevel
+    {
+        get => _indentLevel;
+        set => Set(ref _indentLevel, value);
     }
 
     public TaskItem()

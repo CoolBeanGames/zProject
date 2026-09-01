@@ -285,8 +285,12 @@ public sealed class MainViewModel : Observable
         SortIntoSections(SelectedProject);
 
         ResolveBlockedByNames();
+        RecomputeBlockedLayout();
 
-        var view = new ListCollectionView(SelectedProject.Tasks);
+        var view = new ListCollectionView(SelectedProject.Tasks)
+        {
+            CustomSort = new TaskDisplayComparer(),
+        };
         view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(TaskItem.SectionKey)));
         _tasksView = view;
         RefreshKnownTags();
@@ -316,6 +320,7 @@ public sealed class MainViewModel : Observable
             return;
         SortIntoSections(SelectedProject);
         ResolveBlockedByNames();
+        RecomputeBlockedLayout();
         _tasksView?.Refresh();
         RefreshKnownTags();
         ArchiveDoneCommand.RaiseCanExecuteChanged();
@@ -339,6 +344,71 @@ public sealed class MainViewModel : Observable
                 string.Equals(x.Id, t.BlockedBy, StringComparison.OrdinalIgnoreCase));
             t.BlockedByName = blocker != null && !string.IsNullOrWhiteSpace(blocker.Name)
                 ? blocker.Name : "";
+        }
+    }
+
+    /// <summary>
+    /// Recomputes each task's runtime DisplayOrder / IndentLevel so a blocked
+    /// card sits directly under its blocker, indented (ZP-37). Order (the xml
+    /// position) is never touched, so an unblocked card snaps back.
+    /// </summary>
+    private void RecomputeBlockedLayout()
+    {
+        var project = SelectedProject;
+        if (project == null)
+            return;
+
+        var byId = project.Tasks
+            .GroupBy(t => t.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        foreach (var t in project.Tasks)
+        {
+            t.DisplayOrder = t.Order;
+            t.IndentLevel = 0;
+        }
+
+        // A few passes settle short blocker chains; a cycle just stops early.
+        for (int pass = 0; pass < 6; pass++)
+        {
+            bool changed = false;
+            foreach (var t in project.Tasks)
+            {
+                if (!t.IsBlocked ||
+                    !byId.TryGetValue(t.BlockedBy.Trim(), out var blocker) ||
+                    ReferenceEquals(blocker, t))
+                    continue;
+
+                var siblings = project.Tasks
+                    .Where(x => x.IsBlocked &&
+                                string.Equals(x.BlockedBy.Trim(), blocker.Id, StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(x => x.Order)
+                    .ToList();
+                var idx = siblings.IndexOf(t);
+
+                var newDisplay = blocker.DisplayOrder + 0.0001 * (idx + 1);
+                var newIndent = blocker.IndentLevel + 1;
+
+                if (Math.Abs(newDisplay - t.DisplayOrder) > 1e-9 || newIndent != t.IndentLevel)
+                {
+                    t.DisplayOrder = newDisplay;
+                    t.IndentLevel = newIndent;
+                    changed = true;
+                }
+            }
+            if (!changed)
+                break;
+        }
+    }
+
+    private sealed class TaskDisplayComparer : System.Collections.IComparer
+    {
+        public int Compare(object? x, object? y)
+        {
+            if (x is not TaskItem a || y is not TaskItem b)
+                return 0;
+            var s = a.SectionRank.CompareTo(b.SectionRank);
+            return s != 0 ? s : a.DisplayOrder.CompareTo(b.DisplayOrder);
         }
     }
 
