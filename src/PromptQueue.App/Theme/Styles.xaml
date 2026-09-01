@@ -26,13 +26,28 @@
     <SolidColorBrush x:Key="SelectionBrush" Color="{StaticResource SelectionColor}"/>
     <SolidColorBrush x:Key="HoverBrush" Color="{StaticResource HoverColor}"/>
 
-    <!-- Error state: a restrained, low-saturation red for rows an agent flagged -->
+    <!-- Status colour-coding (ZP-24): all pale / washed out -->
+    <!-- red = errors -->
     <Color x:Key="ErrorSurfaceColor">#FBEAEA</Color>
     <Color x:Key="ErrorBorderColor">#C98B8B</Color>
     <Color x:Key="ErrorTextColor">#9E2A2A</Color>
     <SolidColorBrush x:Key="ErrorSurfaceBrush" Color="{StaticResource ErrorSurfaceColor}"/>
     <SolidColorBrush x:Key="ErrorBorderBrush" Color="{StaticResource ErrorBorderColor}"/>
     <SolidColorBrush x:Key="ErrorTextBrush" Color="{StaticResource ErrorTextColor}"/>
+    <!-- purple = bugs -->
+    <Color x:Key="BugSurfaceColor">#F1ECF8</Color>
+    <Color x:Key="BugBorderColor">#B6A6D2</Color>
+    <Color x:Key="BugTextColor">#5E4791</Color>
+    <SolidColorBrush x:Key="BugSurfaceBrush" Color="{StaticResource BugSurfaceColor}"/>
+    <SolidColorBrush x:Key="BugBorderBrush" Color="{StaticResource BugBorderColor}"/>
+    <SolidColorBrush x:Key="BugTextBrush" Color="{StaticResource BugTextColor}"/>
+    <!-- green = done -->
+    <Color x:Key="DoneSurfaceColor">#EAF3EC</Color>
+    <Color x:Key="DoneBorderColor">#A7C9B0</Color>
+    <Color x:Key="DoneTextColor">#3C7A4E</Color>
+    <SolidColorBrush x:Key="DoneSurfaceBrush" Color="{StaticResource DoneSurfaceColor}"/>
+    <SolidColorBrush x:Key="DoneBorderBrush" Color="{StaticResource DoneBorderColor}"/>
+    <SolidColorBrush x:Key="DoneTextBrush" Color="{StaticResource DoneTextColor}"/>
 
     <!-- ============================================================= -->
     <!--  TYPOGRAPHY                                                    -->
@@ -295,6 +310,21 @@
     <Style x:Key="HSeparatorBorder" TargetType="{x:Type Border}">
         <Setter Property="Height" Value="1"/>
         <Setter Property="Background" Value="{StaticResource BorderBrush}"/>
+    </Style>
+
+    <!-- Small at-a-glance status chip for task rows (ZP-25) -->
+    <Style x:Key="StatusChip" TargetType="{x:Type Border}">
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="2"/>
+        <Setter Property="Padding" Value="4,0"/>
+        <Setter Property="Margin" Value="0,0,4,0"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+    </Style>
+    <Style x:Key="StatusChipText" TargetType="{x:Type TextBlock}">
+        <Setter Property="FontFamily" Value="{StaticResource UiFont}"/>
+        <Setter Property="FontSize" Value="9.5"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
     </Style>
 
 </ResourceDictionary>

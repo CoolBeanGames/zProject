@@ -276,4 +276,29 @@ public partial class MainWindow : Window
         if (sender is CheckBox { DataContext: TaskItem task })
             Vm?.PersistTaskFlagChange(task);
     }
+
+    // ---- Inline subtask checkbox toggled on a task row -----------
+
+    private void Subtask_Changed(object sender, RoutedEventArgs e)
+    {
+        if (sender is not DependencyObject d)
+            return;
+        var container = ItemsControl.ContainerFromElement(TaskList, d) as ListBoxItem;
+        if (container?.DataContext is TaskItem task)
+            Vm?.PersistTaskFlagChange(task);
+    }
+
+    // ---- Enter in the "new subtask" box adds it -------------------
+
+    private void NewSubtask_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter)
+            return;
+        if ((sender as FrameworkElement)?.DataContext is TaskFormViewModel form &&
+            form.AddSubtaskCommand.CanExecute(null))
+        {
+            form.AddSubtaskCommand.Execute(null);
+            e.Handled = true;
+        }
+    }
 }

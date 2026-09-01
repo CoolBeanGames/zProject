@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using PromptQueue.Core.Models;
 
 namespace PromptQueue.App.ViewModels;
@@ -13,13 +14,16 @@ public sealed class TaskFormViewModel : Observable
     private string _requirements;
     private bool _inProgress;
     private bool _done;
+    private bool _bug;
     private bool _error;
     private string _errorMessage;
     private bool _commit;
     private bool _build;
     private bool _release;
+    private string _tagText;
     private string _notes;
     private string _filesChanged;
+    private string _newSubtask = "";
 
     private readonly Action<TaskFormViewModel> _onSave;
     private readonly Action _onClose;
@@ -37,15 +41,38 @@ public sealed class TaskFormViewModel : Observable
         _requirements = source?.Requirements ?? "";
         _inProgress = source?.InProgress ?? false;
         _done = source?.Done ?? false;
+        _bug = source?.Bug ?? false;
         _error = source?.Error ?? false;
         _errorMessage = source?.ErrorMessage ?? "";
         _commit = source?.Commit ?? false;
         _build = source?.Build ?? false;
         _release = source?.Release ?? false;
+        _tagText = source?.TagText ?? "";
         _notes = source?.Notes ?? "";
         _filesChanged = source?.FilesChanged ?? "";
         _onSave = onSave;
         _onClose = onClose;
+
+        if (source != null)
+        {
+            foreach (var s in source.Subtasks)
+                Subtasks.Add(s.Clone());
+        }
+        Subtasks.CollectionChanged += (_, _) => Raise(nameof(HasSubtasks));
+
+        AddSubtaskCommand = new RelayCommand(() =>
+        {
+            var text = NewSubtask.Trim();
+            if (text.Length == 0)
+                return;
+            Subtasks.Add(new Subtask { Text = text });
+            NewSubtask = "";
+        });
+        RemoveSubtaskCommand = new RelayCommand(p =>
+        {
+            if (p is Subtask s)
+                Subtasks.Remove(s);
+        });
 
         // Which agent-written sections to display: only those already populated
         // when the form opened (ZP-6). Latched so editing doesn't hide them.
@@ -91,6 +118,12 @@ public sealed class TaskFormViewModel : Observable
         set => Set(ref _done, value);
     }
 
+    public bool Bug
+    {
+        get => _bug;
+        set => Set(ref _bug, value);
+    }
+
     public bool Error
     {
         get => _error;
@@ -120,6 +153,27 @@ public sealed class TaskFormViewModel : Observable
         get => _release;
         set => Set(ref _release, value);
     }
+
+    /// <summary>Comma-separated tags for this task.</summary>
+    public string TagText
+    {
+        get => _tagText;
+        set => Set(ref _tagText, value);
+    }
+
+    public ObservableCollection<Subtask> Subtasks { get; } = new();
+
+    public bool HasSubtasks => Subtasks.Count > 0;
+
+    public string NewSubtask
+    {
+        get => _newSubtask;
+        set => Set(ref _newSubtask, value);
+    }
+
+    public RelayCommand AddSubtaskCommand { get; private set; } = null!;
+
+    public RelayCommand RemoveSubtaskCommand { get; private set; } = null!;
 
     public string Notes
     {
@@ -152,12 +206,18 @@ public sealed class TaskFormViewModel : Observable
         task.Requirements = Requirements.Trim();
         task.InProgress = InProgress;
         task.Done = Done;
+        task.Bug = Bug;
         task.Error = Error;
         task.ErrorMessage = ErrorMessage;
         task.Commit = Commit;
         task.Build = Build;
         task.Release = Release;
+        task.TagText = TagText.Trim();
         task.Notes = Notes;
         task.FilesChanged = FilesChanged;
+
+        task.Subtasks.Clear();
+        foreach (var s in Subtasks)
+            task.Subtasks.Add(new Subtask { Text = s.Text.Trim(), Done = s.Done });
     }
 }

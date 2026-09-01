@@ -22,24 +22,45 @@ public static class TaskXmlSerializer
             new XAttribute("project", project.Name),
             new XAttribute("nextIndex", project.NextIndex));
 
-        foreach (var task in project.Tasks.OrderBy(t => t.Order))
+        // Bugs are written first regardless of their position in the list (ZP-23),
+        // otherwise on-disk order follows the queue order.
+        foreach (var task in project.Tasks
+                     .OrderByDescending(t => t.Bug)
+                     .ThenBy(t => t.Order))
         {
-            root.Add(new XElement("task",
-                new XAttribute("id", task.Id),
-                new XElement("prompt", task.Prompt),
-                new XElement("requirements", task.Requirements),
-                new XElement("inProgress", task.InProgress),
-                new XElement("done", task.Done),
-                new XElement("error", task.Error),
-                new XElement("errorMessage", task.ErrorMessage),
-                new XElement("commit", task.Commit),
-                new XElement("build", task.Build),
-                new XElement("release", task.Release),
-                new XElement("notes", task.Notes),
-                new XElement("filesChanged", task.FilesChanged)));
+            root.Add(TaskToElement(task));
         }
 
         return root;
+    }
+
+    private static XElement TaskToElement(TaskItem task)
+    {
+        var el = new XElement("task",
+            new XAttribute("id", task.Id),
+            new XElement("prompt", task.Prompt),
+            new XElement("requirements", task.Requirements),
+            new XElement("inProgress", task.InProgress),
+            new XElement("done", task.Done),
+            new XElement("bug", task.Bug),
+            new XElement("error", task.Error),
+            new XElement("errorMessage", task.ErrorMessage),
+            new XElement("commit", task.Commit),
+            new XElement("build", task.Build),
+            new XElement("release", task.Release),
+            new XElement("tags", task.TagText),
+            new XElement("notes", task.Notes),
+            new XElement("filesChanged", task.FilesChanged));
+
+        if (task.Subtasks.Count > 0)
+        {
+            var subs = new XElement("subtasks");
+            foreach (var s in task.Subtasks)
+                subs.Add(new XElement("subtask", new XAttribute("done", s.Done), s.Text));
+            el.Add(subs);
+        }
+
+        return el;
     }
 
     public static string Serialize(Project project)
@@ -69,22 +90,35 @@ public static class TaskXmlSerializer
 
         foreach (var el in root.Elements("task"))
         {
-            tasks.Add(new TaskItem
+            var task = new TaskItem
             {
                 Id = (string?)el.Attribute("id") ?? "",
                 Prompt = (string?)el.Element("prompt") ?? "",
                 Requirements = (string?)el.Element("requirements") ?? "",
                 InProgress = ParseBool(el.Element("inProgress")),
                 Done = ParseBool(el.Element("done")),
+                Bug = ParseBool(el.Element("bug")),
                 Error = ParseBool(el.Element("error")),
                 ErrorMessage = (string?)el.Element("errorMessage") ?? "",
                 Commit = ParseBool(el.Element("commit")),
                 Build = ParseBool(el.Element("build")),
                 Release = ParseBool(el.Element("release")),
+                TagText = (string?)el.Element("tags") ?? "",
                 Notes = (string?)el.Element("notes") ?? "",
                 FilesChanged = (string?)el.Element("filesChanged") ?? "",
                 Order = order++,
-            });
+            };
+
+            foreach (var s in el.Element("subtasks")?.Elements("subtask") ?? Enumerable.Empty<XElement>())
+            {
+                task.Subtasks.Add(new Subtask
+                {
+                    Text = s.Value,
+                    Done = bool.TryParse(((string?)s.Attribute("done"))?.Trim(), out var d) && d,
+                });
+            }
+
+            tasks.Add(task);
         }
 
         var nextIndex = (int?)root.Attribute("nextIndex")

@@ -17,6 +17,9 @@
         <app:SingleLinePreviewConverter x:Key="OneLine"/>
         <app:AllEmptyToVisibilityConverter x:Key="AllEmpty"/>
         <app:BoolToShowHideConverter x:Key="ShowHide"/>
+        <app:CheckGlyphConverter x:Key="CheckGlyph"/>
+        <app:TagColorConverter x:Key="TagColor"/>
+        <app:TagListConverter x:Key="TagList"/>
 
         <!-- ===================== TEXT EDITOR OVERLAY ===================== -->
         <DataTemplate DataType="{x:Type vm:TextEditorViewModel}">
@@ -85,10 +88,55 @@
                                      AcceptsTab="False"
                                      Text="{Binding Requirements, UpdateSourceTrigger=PropertyChanged}"/>
 
+                            <!-- Subtasks (ZP-22) -->
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="Subtasks" Margin="0,12,0,3"/>
+                            <ItemsControl ItemsSource="{Binding Subtasks}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <DockPanel Margin="0,1">
+                                            <CheckBox DockPanel.Dock="Left" VerticalAlignment="Center"
+                                                      IsChecked="{Binding Done}" Margin="0,0,6,0"/>
+                                            <Button DockPanel.Dock="Right" Content="✕" Width="22" Padding="0"
+                                                    Style="{StaticResource ToolbarButton}"
+                                                    ToolTip="Remove subtask"
+                                                    Command="{Binding DataContext.RemoveSubtaskCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                    CommandParameter="{Binding}"/>
+                                            <TextBox Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}"/>
+                                        </DockPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <DockPanel Margin="0,3,0,0">
+                                <Button DockPanel.Dock="Right" Content="Add" MinWidth="48" Margin="6,0,0,0"
+                                        Command="{Binding AddSubtaskCommand}"/>
+                                <TextBox Text="{Binding NewSubtask, UpdateSourceTrigger=PropertyChanged}"
+                                         KeyDown="NewSubtask_KeyDown"/>
+                            </DockPanel>
+
                             <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
                                 <CheckBox Content="In progress" IsChecked="{Binding InProgress}"/>
                                 <CheckBox Content="Done" Margin="16,0,0,0" IsChecked="{Binding Done}"/>
+                                <CheckBox Content="Bug" Margin="16,0,0,0" IsChecked="{Binding Bug}"
+                                          ToolTip="Flag as a bug — bugs sort to the top of the list and the xml file"/>
                             </StackPanel>
+
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="Tags (comma separated)" Margin="0,12,0,3"/>
+                            <TextBox Text="{Binding TagText, UpdateSourceTrigger=PropertyChanged}"/>
+                            <ItemsControl ItemsSource="{Binding TagText, Converter={StaticResource TagList}}" Margin="0,4,0,0">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Style="{StaticResource StatusChip}" Padding="5,1"
+                                                Background="{Binding Converter={StaticResource TagColor}}"
+                                                BorderBrush="{Binding Converter={StaticResource TagColor}, ConverterParameter=border}">
+                                            <TextBlock Text="{Binding}" Style="{StaticResource StatusChipText}"
+                                                       Foreground="{Binding Converter={StaticResource TagColor}, ConverterParameter=text}"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
 
                             <!-- Agent-written sections: shown only when already populated (ZP-6) -->
                             <StackPanel Visibility="{Binding HasError, Converter={StaticResource BoolVis}}">
@@ -123,6 +171,7 @@
             <MenuItem Header="_File">
                 <MenuItem Header="_New Project…" Command="{Binding NewProjectCommand}"/>
                 <Separator/>
+                <MenuItem Header="Save _Current Project" Command="{Binding SaveCurrentCommand}"/>
                 <MenuItem Header="_Save All" Command="{Binding SaveAllCommand}"/>
                 <MenuItem Header="_Reload Project from Disk" Command="{Binding ReloadProjectCommand}"/>
                 <Separator/>
@@ -219,6 +268,11 @@
                             <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                                 <Button Content="Add Task" Style="{StaticResource AccentButton}" MinWidth="80"
                                         Command="{Binding DataContext.AddTaskCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                <ComboBox Width="200" Margin="6,0,0,0" IsEditable="True" IsTextSearchEnabled="True"
+                                          VerticalContentAlignment="Center"
+                                          ToolTip="Tags for new tasks (comma separated) — existing tags autocomplete"
+                                          ItemsSource="{Binding DataContext.KnownTags, RelativeSource={RelativeSource AncestorType=Window}}"
+                                          Text="{Binding DataContext.NewTaskTagText, RelativeSource={RelativeSource AncestorType=Window}, UpdateSourceTrigger=PropertyChanged}"/>
                                 <Border Width="1" Background="{StaticResource BorderBrush}" Margin="10,2"/>
                                 <TextBlock Text="LOCAL" VerticalAlignment="Center" Margin="0,0,8,0"
                                            Style="{StaticResource SectionHeading}"/>
@@ -301,6 +355,16 @@
                                                             <ItemsPresenter x:Name="Items"/>
                                                         </StackPanel>
                                                         <ControlTemplate.Triggers>
+                                                            <DataTrigger Binding="{Binding Name}" Value="Bugs">
+                                                                <Setter TargetName="SectionLabel" Property="Foreground"
+                                                                        Value="{StaticResource BugTextBrush}"/>
+                                                                <Setter TargetName="Divider" Property="Background"
+                                                                        Value="{StaticResource BugSurfaceBrush}"/>
+                                                                <Setter TargetName="Divider" Property="BorderBrush"
+                                                                        Value="{StaticResource BugBorderBrush}"/>
+                                                                <Setter TargetName="Divider" Property="BorderThickness"
+                                                                        Value="0,2,0,1"/>
+                                                            </DataTrigger>
                                                             <DataTrigger Binding="{Binding Name}" Value="Needs attention">
                                                                 <Setter TargetName="SectionLabel" Property="Foreground"
                                                                         Value="{StaticResource ErrorTextBrush}"/>
@@ -313,6 +377,12 @@
                                                             </DataTrigger>
                                                             <DataTrigger Binding="{Binding Name}" Value="Completed">
                                                                 <Setter TargetName="CollapseBtn" Property="Visibility" Value="Visible"/>
+                                                                <Setter TargetName="SectionLabel" Property="Foreground"
+                                                                        Value="{StaticResource DoneTextBrush}"/>
+                                                                <Setter TargetName="Divider" Property="Background"
+                                                                        Value="{StaticResource DoneSurfaceBrush}"/>
+                                                                <Setter TargetName="Divider" Property="BorderBrush"
+                                                                        Value="{StaticResource DoneBorderBrush}"/>
                                                             </DataTrigger>
                                                             <MultiDataTrigger>
                                                                 <MultiDataTrigger.Conditions>
@@ -348,10 +418,29 @@
                                                 <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
                                                 <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
                                                 <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding Error}" Value="True">
+                                                    <!-- done = pale green -->
+                                                    <DataTrigger Binding="{Binding Done}" Value="True">
+                                                        <Setter Property="Background" Value="{StaticResource DoneSurfaceBrush}"/>
+                                                        <Setter Property="BorderBrush" Value="{StaticResource DoneBorderBrush}"/>
+                                                    </DataTrigger>
+                                                    <!-- unfinished error = pale red -->
+                                                    <MultiDataTrigger>
+                                                        <MultiDataTrigger.Conditions>
+                                                            <Condition Binding="{Binding Error}" Value="True"/>
+                                                            <Condition Binding="{Binding Done}" Value="False"/>
+                                                        </MultiDataTrigger.Conditions>
                                                         <Setter Property="Background" Value="{StaticResource ErrorSurfaceBrush}"/>
                                                         <Setter Property="BorderBrush" Value="{StaticResource ErrorBorderBrush}"/>
-                                                    </DataTrigger>
+                                                    </MultiDataTrigger>
+                                                    <!-- unfinished bug = pale purple (wins over error) -->
+                                                    <MultiDataTrigger>
+                                                        <MultiDataTrigger.Conditions>
+                                                            <Condition Binding="{Binding Bug}" Value="True"/>
+                                                            <Condition Binding="{Binding Done}" Value="False"/>
+                                                        </MultiDataTrigger.Conditions>
+                                                        <Setter Property="Background" Value="{StaticResource BugSurfaceBrush}"/>
+                                                        <Setter Property="BorderBrush" Value="{StaticResource BugBorderBrush}"/>
+                                                    </MultiDataTrigger>
                                                 </Style.Triggers>
                                             </Style>
                                         </Border.Style>
@@ -379,6 +468,22 @@
                                                         <TextBlock Text="{Binding FilesChanged}" TextWrapping="Wrap"/>
                                                     </StackPanel>
 
+                                                    <StackPanel Margin="0,4,0,0"
+                                                                Visibility="{Binding HasSubtasks, Converter={StaticResource BoolVis}}">
+                                                        <TextBlock FontWeight="SemiBold">
+                                                            <Run Text="Subtasks"/><Run Text=" "/><Run Text="{Binding SubtaskProgress, Mode=OneWay}"/>
+                                                        </TextBlock>
+                                                        <ItemsControl ItemsSource="{Binding Subtasks}">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <TextBlock TextWrapping="Wrap">
+                                                                        <Run Text="{Binding Done, Converter={StaticResource CheckGlyph}, Mode=OneWay}"/><Run Text=" "/><Run Text="{Binding Text, Mode=OneWay}"/>
+                                                                    </TextBlock>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </StackPanel>
+
                                                     <TextBlock Text="No agent notes, errors, or file changes recorded yet."
                                                                Foreground="{StaticResource SecondaryTextBrush}"
                                                                Margin="0,4,0,0">
@@ -387,6 +492,7 @@
                                                                 <Binding Path="ErrorMessage"/>
                                                                 <Binding Path="Notes"/>
                                                                 <Binding Path="FilesChanged"/>
+                                                                <Binding Path="SubtaskProgress"/>
                                                             </MultiBinding>
                                                         </TextBlock.Visibility>
                                                     </TextBlock>
@@ -420,6 +526,10 @@
                                                 <TextBlock Text="in progress" Style="{StaticResource SecondaryText}"
                                                            Foreground="{StaticResource AccentBrush}" FontSize="10"
                                                            Visibility="{Binding InProgress, Converter={StaticResource BoolVis}}"/>
+                                                <TextBlock Style="{StaticResource SecondaryText}" FontSize="10"
+                                                           Visibility="{Binding HasSubtasks, Converter={StaticResource BoolVis}}">
+                                                    <Run Text="☑"/><Run Text=" "/><Run Text="{Binding SubtaskProgress, Mode=OneWay}"/>
+                                                </TextBlock>
                                             </StackPanel>
 
                                             <!-- content -->
@@ -432,6 +542,82 @@
                                                            TextTrimming="CharacterEllipsis"
                                                            Visibility="{Binding Requirements, Converter={StaticResource StrVis}}"
                                                            Margin="0,2,0,0"/>
+
+                                                <!-- at-a-glance status chips (ZP-25) -->
+                                                <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                                    <StackPanel.Visibility>
+                                                        <MultiBinding Converter="{StaticResource AllEmpty}" ConverterParameter="invert">
+                                                            <Binding Path="Bug"/>
+                                                            <Binding Path="Error"/>
+                                                            <Binding Path="Commit"/>
+                                                            <Binding Path="Build"/>
+                                                            <Binding Path="Release"/>
+                                                        </MultiBinding>
+                                                    </StackPanel.Visibility>
+                                                    <Border Style="{StaticResource StatusChip}"
+                                                            Background="{StaticResource BugSurfaceBrush}"
+                                                            BorderBrush="{StaticResource BugBorderBrush}"
+                                                            Visibility="{Binding Bug, Converter={StaticResource BoolVis}}">
+                                                        <TextBlock Text="BUG" Style="{StaticResource StatusChipText}"
+                                                                   Foreground="{StaticResource BugTextBrush}"/>
+                                                    </Border>
+                                                    <Border Style="{StaticResource StatusChip}"
+                                                            Background="{StaticResource ErrorSurfaceBrush}"
+                                                            BorderBrush="{StaticResource ErrorBorderBrush}"
+                                                            Visibility="{Binding Error, Converter={StaticResource BoolVis}}">
+                                                        <TextBlock Text="ERROR" Style="{StaticResource StatusChipText}"
+                                                                   Foreground="{StaticResource ErrorTextBrush}"/>
+                                                    </Border>
+                                                    <Border Style="{StaticResource StatusChip}"
+                                                            BorderBrush="{StaticResource BorderBrush}"
+                                                            Visibility="{Binding Commit, Converter={StaticResource BoolVis}}">
+                                                        <TextBlock Text="COMMIT" Style="{StaticResource StatusChipText}"
+                                                                   Foreground="{StaticResource SecondaryTextBrush}"/>
+                                                    </Border>
+                                                    <Border Style="{StaticResource StatusChip}"
+                                                            BorderBrush="{StaticResource BorderBrush}"
+                                                            Visibility="{Binding Build, Converter={StaticResource BoolVis}}">
+                                                        <TextBlock Text="BUILD" Style="{StaticResource StatusChipText}"
+                                                                   Foreground="{StaticResource SecondaryTextBrush}"/>
+                                                    </Border>
+                                                    <Border Style="{StaticResource StatusChip}"
+                                                            BorderBrush="{StaticResource AccentBrush}"
+                                                            Visibility="{Binding Release, Converter={StaticResource BoolVis}}">
+                                                        <TextBlock Text="RELEASE" Style="{StaticResource StatusChipText}"
+                                                                   Foreground="{StaticResource AccentBrush}"/>
+                                                    </Border>
+                                                </StackPanel>
+
+                                                <!-- colour-coded tag chips (ZP-26) -->
+                                                <ItemsControl ItemsSource="{Binding Tags}" Margin="0,3,0,0"
+                                                              Visibility="{Binding TagText, Converter={StaticResource StrVis}}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Border Style="{StaticResource StatusChip}" Padding="5,1"
+                                                                    Background="{Binding Converter={StaticResource TagColor}}"
+                                                                    BorderBrush="{Binding Converter={StaticResource TagColor}, ConverterParameter=border}">
+                                                                <TextBlock Text="{Binding}" Style="{StaticResource StatusChipText}"
+                                                                           Foreground="{Binding Converter={StaticResource TagColor}, ConverterParameter=text}"/>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+
+                                                <!-- inline subtask checklist (ZP-22) -->
+                                                <ItemsControl ItemsSource="{Binding Subtasks}" Margin="0,3,0,0"
+                                                              Visibility="{Binding HasSubtasks, Converter={StaticResource BoolVis}}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <CheckBox Margin="0,1" FontSize="11"
+                                                                      Content="{Binding Text}"
+                                                                      IsChecked="{Binding Done}"
+                                                                      Checked="Subtask_Changed" Unchecked="Subtask_Changed"/>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
                                             </StackPanel>
 
                                             <!-- actions -->

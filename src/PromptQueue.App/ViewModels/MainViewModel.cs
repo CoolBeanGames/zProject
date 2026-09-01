@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Windows;
@@ -19,6 +20,7 @@ public sealed class MainViewModel : Observable
     private string _statusText = "Ready";
     private ICollectionView? _tasksView;
     private bool _completedCollapsed;
+    private string _newTaskTagText = "";
 
     public MainViewModel(Workspace workspace)
     {
@@ -97,6 +99,29 @@ public sealed class MainViewModel : Observable
     }
 
     public RelayCommand ToggleCompletedCollapsedCommand { get; }
+
+    /// <summary>Every distinct tag used anywhere in the selected project (for autocomplete).</summary>
+    public ObservableCollection<string> KnownTags { get; } = new();
+
+    /// <summary>The header "tags" field — applied to newly created tasks.</summary>
+    public string NewTaskTagText
+    {
+        get => _newTaskTagText;
+        set => Set(ref _newTaskTagText, value);
+    }
+
+    private void RefreshKnownTags()
+    {
+        var tags = SelectedProject?.Tasks
+            .SelectMany(t => t.Tags)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(t => t, StringComparer.OrdinalIgnoreCase)
+            .ToList() ?? new List<string>();
+
+        KnownTags.Clear();
+        foreach (var t in tags)
+            KnownTags.Add(t);
+    }
 
     public object? Overlay
     {
@@ -250,6 +275,7 @@ public sealed class MainViewModel : Observable
         var view = new ListCollectionView(SelectedProject.Tasks);
         view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(TaskItem.SectionKey)));
         _tasksView = view;
+        RefreshKnownTags();
         Raise(nameof(TasksView));
     }
 
@@ -276,6 +302,7 @@ public sealed class MainViewModel : Observable
             return;
         SortIntoSections(SelectedProject);
         _tasksView?.Refresh();
+        RefreshKnownTags();
         SaveCurrent();
         Workspace.Save();
     }
@@ -289,10 +316,11 @@ public sealed class MainViewModel : Observable
             return;
 
         var newId = project.MintTaskId();
+        var seed = new TaskItem { TagText = NewTaskTagText.Trim() };
         Overlay = new TaskFormViewModel(
             isNew: true,
             id: newId,
-            source: null,
+            source: seed,
             onSave: form =>
             {
                 var task = new TaskItem

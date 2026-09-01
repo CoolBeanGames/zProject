@@ -72,6 +72,87 @@ public sealed class StringToVisibilityConverter : IValueConverter
         => Binding.DoNothing;
 }
 
+/// <summary>
+/// Maps a tag string to a stable, pale background colour so the same tag is
+/// always the same colour (ZP-26). "Random" but deterministic — no storage.
+/// </summary>
+public sealed class TagColorConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        var tag = (value as string ?? "").Trim().ToLowerInvariant();
+        unchecked
+        {
+            uint h = 2166136261;
+            foreach (var c in tag)
+                h = (h ^ c) * 16777619;
+            var hue = h % 360;
+            var (r, g, b) = HslToRgb(hue, 0.45, 0.90);   // pale, low-ish saturation
+            var (dr, dg, db) = HslToRgb(hue, 0.55, 0.32); // matching darker text
+            if (string.Equals(parameter as string, "text", StringComparison.OrdinalIgnoreCase))
+                return new SolidColorBrush(Color.FromRgb(dr, dg, db));
+            if (string.Equals(parameter as string, "border", StringComparison.OrdinalIgnoreCase))
+            {
+                var (br, bg, bb) = HslToRgb(hue, 0.40, 0.72);
+                return new SolidColorBrush(Color.FromRgb(br, bg, bb));
+            }
+            return new SolidColorBrush(Color.FromRgb(r, g, b));
+        }
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => Binding.DoNothing;
+
+    private static (byte, byte, byte) HslToRgb(double h, double s, double l)
+    {
+        h /= 360.0;
+        double r, g, b;
+        if (s == 0)
+        {
+            r = g = b = l;
+        }
+        else
+        {
+            double q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+            double p = 2 * l - q;
+            r = Hue(p, q, h + 1.0 / 3);
+            g = Hue(p, q, h);
+            b = Hue(p, q, h - 1.0 / 3);
+        }
+        return ((byte)Math.Round(r * 255), (byte)Math.Round(g * 255), (byte)Math.Round(b * 255));
+
+        static double Hue(double p, double q, double t)
+        {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1.0 / 6) return p + (q - p) * 6 * t;
+            if (t < 1.0 / 2) return q;
+            if (t < 2.0 / 3) return p + (q - p) * (2.0 / 3 - t) * 6;
+            return p;
+        }
+    }
+}
+
+/// <summary>Splits "a, b, c" into a list for an ItemsControl of tag chips.</summary>
+public sealed class TagListConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => PromptQueue.Core.Models.TaskItem.SplitTags(value as string);
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => Binding.DoNothing;
+}
+
+/// <summary>true → "☑", false → "☐" (subtask state in tooltips).</summary>
+public sealed class CheckGlyphConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is true ? "☑" : "☐";
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => Binding.DoNothing;
+}
+
 /// <summary>true → "Show", false → "Hide" (for the Completed-section collapse toggle).</summary>
 public sealed class BoolToShowHideConverter : IValueConverter
 {

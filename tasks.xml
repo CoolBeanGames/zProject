@@ -238,27 +238,27 @@
     <prompt>add support for subtasks, when creating a task subtasks can be designed. create a simple ui where each one is a small line, each subtask can be checked off one by one.</prompt>
     <requirements>subtasks implemented</requirements>
     <inProgress>false</inProgress>
-    <done>false</done>
+    <done>true</done>
     <error>false</error>
     <errorMessage></errorMessage>
     <commit>false</commit>
     <build>false</build>
     <release>false</release>
-    <notes></notes>
-    <filesChanged></filesChanged>
+    <notes>New Subtask model (Text + Done) and TaskItem.Subtasks (ObservableCollection). Serialized inside &lt;task&gt; as &lt;subtasks&gt;&lt;subtask done="false"&gt;text&lt;/subtask&gt;...&lt;/subtasks&gt; (read + write); flows into data.cfg too. The Add/Edit task pop-up has a Subtasks section: each existing subtask is one line (checkbox + editable text + remove button) and a "new subtask" box (Enter or Add). Each task row shows a "checkbox n/m" progress badge and an inline checklist whose checkboxes toggle Subtask.Done and persist immediately; the tooltip also lists them. TaskItem re-raises SubtaskProgress when a subtask's Done changes. Verified: SD-1 shows "2/4" and its checklist renders.</notes>
+    <filesChanged>src/PromptQueue.Core/Models/Subtask.cs (new); src/PromptQueue.Core/Models/TaskItem.cs; src/PromptQueue.Core/Serialization/TaskXmlSerializer.cs; src/PromptQueue.App/ViewModels/TaskFormViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/Views/MainWindow.xaml.cs; src/PromptQueue.App/Converters.cs</filesChanged>
   </task>
   <task id="ZP-23">
     <prompt>add a new checkbox for "bugs" to be identified as bugs, these are automatically at the TOP of the xml file when saving no matter where it is in the list</prompt>
     <requirements>bug checkbox added</requirements>
     <inProgress>false</inProgress>
-    <done>false</done>
+    <done>true</done>
     <error>false</error>
     <errorMessage></errorMessage>
     <commit>false</commit>
     <build>false</build>
     <release>false</release>
-    <notes></notes>
-    <filesChanged></filesChanged>
+    <notes>Added a "Bug" checkbox to the task pop-up (next to In progress / Done), bound to TaskFormViewModel.Bug -&gt; TaskItem.Bug. New &lt;bug&gt; tag read/written by TaskXmlSerializer. When serializing, tasks are ordered OrderByDescending(Bug).ThenBy(Order), so every bug is written at the TOP of tasks.xml regardless of its position in the list. In the app, an unfinished bug also sorts into a top "Bugs" section (TaskItem.SectionRank 0) ahead of "Needs attention" / "Active" / "Completed".</notes>
+    <filesChanged>src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/ViewModels/TaskFormViewModel.cs; src/PromptQueue.Core/Models/TaskItem.cs; src/PromptQueue.Core/Serialization/TaskXmlSerializer.cs</filesChanged>
   </task>
   <task id="ZP-24">
     <prompt>more color-coding
@@ -269,52 +269,52 @@ green: done
 all colors should be kind of pale and washed out</prompt>
     <requirements>new color codes</requirements>
     <inProgress>false</inProgress>
-    <done>false</done>
+    <done>true</done>
     <error>false</error>
     <errorMessage></errorMessage>
     <commit>false</commit>
     <build>false</build>
     <release>false</release>
-    <notes></notes>
-    <filesChanged></filesChanged>
+    <notes>Added pale, washed-out Bug (purple #F1ECF8) and Done (green #EAF3EC) surface/border/text brushes alongside the existing pale Error red, in Theme/Styles.xaml. Task rows now colour-code via Style triggers: done -&gt; green, unfinished error -&gt; red, unfinished bug -&gt; purple (bug wins over error). Section dividers match: "Bugs" purple, "Needs attention" red, "Completed" green.</notes>
+    <filesChanged>src/PromptQueue.App/Theme/Styles.xaml; src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
   </task>
   <task id="ZP-25">
     <prompt>add displays from the main view for bug,error,commit,build,and release so i can see at a glance</prompt>
     <requirements>new display tags</requirements>
     <inProgress>false</inProgress>
-    <done>false</done>
+    <done>true</done>
     <error>false</error>
     <errorMessage></errorMessage>
     <commit>false</commit>
     <build>false</build>
     <release>false</release>
-    <notes></notes>
-    <filesChanged></filesChanged>
+    <notes>Each task row now shows a compact row of status chips (new StatusChip / StatusChipText styles) directly under the prompt/requirements: BUG (purple), ERROR (red), COMMIT, BUILD (neutral) and RELEASE (accent). Each chip is shown only when its flag is set; the whole strip is hidden when none are, via an AllEmpty MultiBinding. Verified the sections + row tints render (Bugs / Needs attention / Active / Completed).</notes>
+    <filesChanged>src/PromptQueue.App/Theme/Styles.xaml; src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
   </task>
   <task id="ZP-26">
     <prompt>right next to add task, add a text field for comma seperated tags, keep track (per project) of each tag and autocomplete exisiting ones as they are typed. color code each tag a random color, again this is for easy identification, these tags will also be saved to the xml (text only) so the agent cant tell what it is</prompt>
     <requirements>added tags</requirements>
     <inProgress>false</inProgress>
-    <done>false</done>
+    <done>true</done>
     <error>false</error>
     <errorMessage></errorMessage>
     <commit>true</commit>
     <build>true</build>
     <release>true</release>
-    <notes></notes>
-    <filesChanged></filesChanged>
+    <notes>Tasks carry TaskItem.TagText (comma-separated, stored verbatim in a &lt;tags&gt; xml element so it is opaque to an agent) and a parsed Tags list. Next to "Add Task" there is an editable, text-search ComboBox whose dropdown is the project's KnownTags (every distinct tag in the project, recomputed on any change) — typing autocompletes existing tags; its value pre-fills the Tags field of the next new task. The edit pop-up has a "Tags (comma separated)" field with a live preview of colour chips. Each tag renders as a chip whose colour is derived deterministically from the tag text (FNV hash -&gt; hue -&gt; pale HSL) via TagColorConverter, so the same tag is always the same washed-out colour for easy identification, on both the row and the pop-up. Built to builds/debug and builds/release and committed.</notes>
+    <filesChanged>src/PromptQueue.Core/Models/TaskItem.cs; src/PromptQueue.Core/Serialization/TaskXmlSerializer.cs; src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/ViewModels/TaskFormViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/Converters.cs</filesChanged>
   </task>
   <task id="ZP-28">
     <prompt>add save current to only save the open project</prompt>
     <requirements>save current added</requirements>
     <inProgress>false</inProgress>
-    <done>false</done>
+    <done>true</done>
     <error>false</error>
     <errorMessage></errorMessage>
     <commit>false</commit>
     <build>false</build>
     <release>false</release>
-    <notes></notes>
-    <filesChanged></filesChanged>
+    <notes>Added "File &gt; Save Current Project" (MainViewModel.SaveCurrentCommand -&gt; SaveCurrentProject). It writes only the selected project's files (tasks.xml + local design/instructions/prompt via ProjectStore.Save) and refreshes data.cfg, without touching any other project — unlike "Save All".</notes>
+    <filesChanged>src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/ViewModels/MainViewModel.cs</filesChanged>
   </task>
 </tasks>
