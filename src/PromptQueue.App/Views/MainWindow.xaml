@@ -350,9 +350,13 @@
                                 <Border Width="1" Background="{StaticResource BorderBrush}" Margin="10,2"/>
                                 <Button Content="Reload" Style="{StaticResource ToolbarButton}"
                                         Command="{Binding DataContext.ReloadProjectCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                                <Button Content="Archive done" Style="{StaticResource ToolbarButton}" Margin="4,0,0,0"
-                                        ToolTip="Move every completed task to the Archived section — an agent then ignores them"
-                                        Command="{Binding DataContext.ArchiveDoneCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                <Border Width="1" Background="{StaticResource BorderBrush}" Margin="10,2"/>
+                                <Button Content="Collapse all" Style="{StaticResource ToolbarButton}"
+                                        ToolTip="Collapse every task card"
+                                        Command="{Binding DataContext.CollapseAllCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                <Button Content="Expand all" Style="{StaticResource ToolbarButton}" Margin="4,0,0,0"
+                                        ToolTip="Expand every task card"
+                                        Command="{Binding DataContext.ExpandAllCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
                             </StackPanel>
                             <Border Style="{StaticResource HSeparatorBorder}" Margin="0,12,0,0"/>
                             <Grid Margin="0,0,0,0">
@@ -541,6 +545,12 @@
                                                         <TextBlock Text="Error" FontWeight="SemiBold"
                                                                    Foreground="#B03030"/>
                                                         <TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap"/>
+                                                    </StackPanel>
+
+                                                    <StackPanel Margin="0,4,0,0"
+                                                                Visibility="{Binding LockKey, Converter={StaticResource StrVis}}">
+                                                        <TextBlock Text="Owned by agent (lock key set)" FontWeight="SemiBold"
+                                                                   Foreground="{StaticResource SecondaryTextBrush}"/>
                                                     </StackPanel>
 
                                                     <StackPanel Margin="0,4,0,0"

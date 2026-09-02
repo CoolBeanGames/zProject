@@ -71,7 +71,8 @@ public sealed class MainViewModel : Observable
         ToggleTaskDoneCommand = new RelayCommand(p => ToggleDone(p as TaskItem));
         ToggleTaskLockCommand = new RelayCommand(p => ToggleLock(p as TaskItem));
         ToggleTaskCollapsedCommand = new RelayCommand(p => ToggleCollapsed(p as TaskItem));
-        ArchiveDoneCommand = new RelayCommand(ArchiveDone, () => SelectedProject?.Tasks.Any(t => t.Done && !t.Archived) == true);
+        CollapseAllCommand = new RelayCommand(() => SetAllCollapsed(true), HasProject);
+        ExpandAllCommand = new RelayCommand(() => SetAllCollapsed(false), HasProject);
         ToggleCompletedCollapsedCommand = new RelayCommand(() => CompletedCollapsed = !CompletedCollapsed);
 
         if (Workspace.Projects.Count > 0)
@@ -202,7 +203,8 @@ public sealed class MainViewModel : Observable
     public RelayCommand ToggleTaskDoneCommand { get; }
     public RelayCommand ToggleTaskLockCommand { get; }
     public RelayCommand ToggleTaskCollapsedCommand { get; }
-    public RelayCommand ArchiveDoneCommand { get; }
+    public RelayCommand CollapseAllCommand { get; }
+    public RelayCommand ExpandAllCommand { get; }
 
     // ---- Projects ------------------------------------------------------
 
@@ -258,6 +260,7 @@ public sealed class MainViewModel : Observable
         Workspace.Save();
         foreach (var project in Workspace.Projects)
             ProjectStore.Save(project);
+        RebuildTasksView();   // completed tasks may have been auto-archived (ZP-47)
         StatusText = $"Saved workspace and {Workspace.Projects.Count} project(s)";
     }
 
@@ -354,6 +357,7 @@ public sealed class MainViewModel : Observable
             return;
         ProjectStore.Save(SelectedProject);
         Workspace.SaveDataCfg();
+        RebuildTasksView();   // completed tasks may have been auto-archived (ZP-47)
         StatusText = $"Saved project \"{SelectedProject.Name}\"";
     }
 
@@ -441,12 +445,12 @@ public sealed class MainViewModel : Observable
     {
         if (SelectedProject == null)
             return;
+        ProjectStore.AutoArchiveCompleted(SelectedProject);   // ZP-47: automatic on save
         SortIntoSections(SelectedProject);
         ResolveBlockedByNames();
         RecomputeBlockedLayout();
         _tasksView?.Refresh();
         RefreshKnownTags();
-        ArchiveDoneCommand.RaiseCanExecuteChanged();
         SaveCurrent();
         Workspace.Save();
     }
@@ -654,22 +658,15 @@ public sealed class MainViewModel : Observable
         task.Collapsed = !task.Collapsed;
     }
 
-    private void ArchiveDone()
+    /// <summary>Collapses or expands every card in the selected project (ZP-50).</summary>
+    private void SetAllCollapsed(bool collapsed)
     {
         var project = SelectedProject;
         if (project == null)
             return;
-        int n = 0;
-        foreach (var t in project.Tasks.Where(t => t.Done && !t.Archived))
-        {
-            t.Archived = true;
-            n++;
-        }
-        if (n == 0)
-            return;
-        AfterTasksChanged();
-        RefreshCommandStates();
-        StatusText = $"Archived {n} completed task(s)";
+        foreach (var t in project.Tasks)
+            t.Collapsed = collapsed;
+        StatusText = collapsed ? "Collapsed all cards" : "Expanded all cards";
     }
 
     /// <summary>Called by the view after a checkbox binding flips Done/InProgress.</summary>
@@ -690,7 +687,8 @@ public sealed class MainViewModel : Observable
         ReloadProjectCommand.RaiseCanExecuteChanged();
         SaveCurrentCommand.RaiseCanExecuteChanged();
         AddTaskCommand.RaiseCanExecuteChanged();
-        ArchiveDoneCommand.RaiseCanExecuteChanged();
+        CollapseAllCommand.RaiseCanExecuteChanged();
+        ExpandAllCommand.RaiseCanExecuteChanged();
         EditLocalDesignCommand.RaiseCanExecuteChanged();
         EditLocalInstructionsCommand.RaiseCanExecuteChanged();
         EditLocalPromptCommand.RaiseCanExecuteChanged();

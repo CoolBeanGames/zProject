@@ -21,6 +21,7 @@ public sealed class TaskItem : Observable
     private bool _bug;
     private bool _error;
     private string _errorMessage = "";
+    private string _lockKey = "";
     private bool _locked;
     private bool _archived;
     private string _blockedBy = "";
@@ -228,6 +229,19 @@ public sealed class TaskItem : Observable
         set => Set(ref _errorMessage, value);
     }
 
+    /// <summary>
+    /// Ownership key for an in-progress task (ZP-49). An agent writes a private
+    /// random key here when it starts a task and clears it when it finishes. If
+    /// it is interrupted and resumes, a matching key means it owns the task and
+    /// continues; a different, non-empty key means another agent/thread has it,
+    /// so this agent leaves the task alone. Serialized as &lt;lockKey&gt;.
+    /// </summary>
+    public string LockKey
+    {
+        get => _lockKey;
+        set => Set(ref _lockKey, value);
+    }
+
     /// <summary>When set, the project is committed and pushed once this task is done.</summary>
     public bool Commit
     {
@@ -388,6 +402,7 @@ public sealed class TaskItem : Observable
             Bug = Bug,
             Error = Error,
             ErrorMessage = ErrorMessage,
+            LockKey = LockKey,
             Locked = Locked,
             Archived = Archived,
             BlockedBy = BlockedBy,
@@ -417,6 +432,7 @@ public sealed class TaskItem : Observable
         Bug = other.Bug;
         Error = other.Error;
         ErrorMessage = other.ErrorMessage;
+        LockKey = other.LockKey;
         Locked = other.Locked;
         Archived = other.Archived;
         BlockedBy = other.BlockedBy;

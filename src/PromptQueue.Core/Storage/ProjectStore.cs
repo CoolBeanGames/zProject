@@ -53,6 +53,7 @@ public static class ProjectStore
     {
         System.IO.Directory.CreateDirectory(project.Directory);
 
+        AutoArchiveCompleted(project);
         Normalize(project);
 
         File.WriteAllText(
@@ -85,6 +86,26 @@ public static class ProjectStore
         project.LocalDesign = ReadTextOrEmpty(Path.Combine(project.Directory, DesignFile));
         project.LocalInstructions = ReadTextOrEmpty(Path.Combine(project.Directory, InstructionsFile));
         project.LocalPrompt = ReadTextOrEmpty(Path.Combine(project.Directory, PromptFile));
+    }
+
+    /// <summary>
+    /// Archiving completed tasks is automatic on every save (ZP-47): any task
+    /// that is <see cref="TaskItem.Done"/> and not yet <see cref="TaskItem.Archived"/>
+    /// is moved to the archive, after which an agent ignores it entirely.
+    /// Returns true when at least one task was archived.
+    /// </summary>
+    public static bool AutoArchiveCompleted(Project project)
+    {
+        bool changed = false;
+        foreach (var t in project.Tasks)
+        {
+            if (t.Done && !t.Archived)
+            {
+                t.Archived = true;
+                changed = true;
+            }
+        }
+        return changed;
     }
 
     /// <summary>

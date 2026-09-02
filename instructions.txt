@@ -1,3 +1,80 @@
+=== MARKING PROGRESS (do this - it is being skipped) ===
+
+For EVERY task, before you touch any file:
+  1. set that task's <inProgress>true</inProgress> in tasks.xml and SAVE.
+This is not optional and it is not a batch step at the end - do it as the first
+action on the task, so anyone watching the queue can see which task is live.
+When the task is finished set <done>true</done> AND <inProgress>false</inProgress>
+and SAVE. If a task has subtasks, tick each <subtask> the moment it is done and
+SAVE again. Never leave a task you are working on with <inProgress>false</inProgress>.
+
+=== END MARKING PROGRESS ===
+
+=== BUG REPORTS & TODO CHECK-OFF ===
+
+When you discover a bug while working (whether or not it relates to the task in
+hand), file a bug report BEFORE you fix it. The report is the record; never
+silently fix a bug without one.
+
+1. Open tasks.xml and read the nextIndex attribute on the root <tasks> element
+   (e.g. nextIndex="53"). That number is the id for your new task: prefix + number,
+   e.g. id="ZP-53". Increment nextIndex by one and save.
+2. Add a new <task> element near the TOP of the file (the app re-sorts bugs to the
+   top on the next save anyway, but keep the file readable). Fill EVERY field that
+   a normal task has. The minimum:
+     <task id="ZP-53">
+       <name>short bug title</name>
+       <prompt>what is wrong, how to reproduce, expected result vs actual result</prompt>
+       <requirements>what must be true for this bug to count as fixed</requirements>
+       <inProgress>false</inProgress>
+       <done>false</done>
+       <bug>true</bug>
+       <error>false</error>
+       <errorMessage></errorMessage>
+       <locked>false</locked>
+       <archived>false</archived>
+       <blockedBy></blockedBy>
+       <dateStarted></dateStarted>
+       <dueDate></dueDate>
+       <commit>false</commit>
+       <build>false</build>
+       <release>false</release>
+       <tags></tags>
+       <notes></notes>
+       <filesChanged></filesChanged>
+     </task>
+   <bug>true</bug> is what marks it as a bug report.
+3. If the fix has more than one step, add a <subtasks> block just before </task>
+   with one <subtask done="false">step</subtask> per step.
+4. Save tasks.xml.
+
+Only once the report exists do you start the fix: set its <inProgress>true</inProgress>
+and save, do the work, and check items off AS you finish them - flip each
+<subtask done="false"> to done="true" the moment that step is done and save
+again, never in a batch at the end. When the bug is fixed set <done>true</done>,
+<inProgress>false</inProgress>, write <notes> and <filesChanged>, and save.
+
+=== END BUG REPORTS ===
+
+=== TASK OWNERSHIP LOCK KEY ===
+
+Before you start a task, invent a random ownership key - a short random string
+only you know (8+ random characters). The moment you mark a task
+<inProgress>true</inProgress>, also write your key into its <lockKey> element and
+save. Keep the same key for the whole session.
+
+If you are interrupted and later resume a task that is already
+<inProgress>true</inProgress>, check its <lockKey> before doing anything:
+  - empty, or equal to your key  -> it is yours: continue where you left off.
+  - a different, non-empty value  -> another agent or thread owns it: do NOT
+    touch it. Leave inProgress, done and lockKey exactly as they are and move on
+    to the next task.
+
+When you finish a task, clear <lockKey> (set it back to empty) at the same time
+you set <done>true</done> and <inProgress>false</inProgress>, then save.
+
+=== END TASK OWNERSHIP LOCK KEY ===
+
 read through tasks.xml and complete tasks in the order they are presented. work through the list until reaching the end or you run out of usage. as you finish a task update the xml to mark it as done, as you begin mark it as in-progress. save the xml every time you make a change.
 
 if a task has the tag commit set to true then commit the project and push to github with a meaningful message of all the changes made. Add notes about the changes you made, log all files, and move on to the next task.
