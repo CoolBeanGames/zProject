@@ -44,6 +44,8 @@ public sealed class MainViewModel : Observable
 
         DeployCodexCommand = new RelayCommand(() => DeployAgent("codex"), HasProject);
         DeployClaudeCommand = new RelayCommand(() => DeployAgent("claude"), HasProject);
+        RunTaskWithCodexCommand = new RelayCommand(p => DeployAgentForTask("codex", p as TaskItem));
+        RunTaskWithClaudeCommand = new RelayCommand(p => DeployAgentForTask("claude", p as TaskItem));
 
         EditGlobalDesignCommand = new RelayCommand(() => EditText(
             "Global Design", "Default design requirements for every project",
@@ -188,6 +190,8 @@ public sealed class MainViewModel : Observable
     public RelayCommand InstallBothCliCommand { get; }
     public RelayCommand DeployCodexCommand { get; }
     public RelayCommand DeployClaudeCommand { get; }
+    public RelayCommand RunTaskWithCodexCommand { get; }
+    public RelayCommand RunTaskWithClaudeCommand { get; }
 
     public RelayCommand EditGlobalDesignCommand { get; }
     public RelayCommand EditGlobalInstructionsCommand { get; }
@@ -320,6 +324,25 @@ public sealed class MainViewModel : Observable
     /// pointed at its prompt.txt so it works the task queue (ZP-42).
     /// </summary>
     private void DeployAgent(string agent)
+        => LaunchAgent(agent,
+            "Read prompt.txt in this directory and follow it exactly, then work the task queue.",
+            p => $"Deployed {agent} to \"{p.Name}\"");
+
+    /// <summary>
+    /// "Run only this with Codex / Claude Code" from a task's right-click menu
+    /// (ZP-52): points the agent at prompt.txt for one task id only.
+    /// </summary>
+    private void DeployAgentForTask(string agent, TaskItem? task)
+    {
+        if (task == null)
+            return;
+        LaunchAgent(agent,
+            $"Read prompt.txt in this directory and follow it exactly for task {task.Id} only. " +
+            $"Complete ONLY task {task.Id}, then stop.",
+            _ => $"Running {agent} on {task.Id} only");
+    }
+
+    private void LaunchAgent(string agent, string boot, Func<Project, string> status)
     {
         var project = SelectedProject;
         if (project == null)
@@ -331,7 +354,6 @@ public sealed class MainViewModel : Observable
             return;
         }
 
-        var boot = "Read prompt.txt in this directory and follow it exactly, then work the task queue.";
         try
         {
             Process.Start(new ProcessStartInfo
@@ -341,7 +363,7 @@ public sealed class MainViewModel : Observable
                 UseShellExecute = true,
                 WorkingDirectory = project.Directory,
             });
-            StatusText = $"Deployed {agent} to \"{project.Name}\"";
+            StatusText = status(project);
         }
         catch (Exception ex)
         {

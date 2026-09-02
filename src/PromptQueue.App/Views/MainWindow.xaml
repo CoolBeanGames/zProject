@@ -492,8 +492,19 @@
                                 <DataTemplate>
                                     <Border BorderThickness="1" CornerRadius="2" Padding="6,5"
                                             Margin="{Binding IndentLevel, Converter={StaticResource Indent}}"
+                                            Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}"
                                             ToolTipService.ShowDuration="30000"
                                             ToolTipService.InitialShowDelay="500">
+                                        <Border.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="Run only this with Codex"
+                                                          Command="{Binding PlacementTarget.Tag.RunTaskWithCodexCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                          CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                                <MenuItem Header="Run only this with Claude Code"
+                                                          Command="{Binding PlacementTarget.Tag.RunTaskWithClaudeCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                          CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                            </ContextMenu>
+                                        </Border.ContextMenu>
                                         <Border.Style>
                                             <Style TargetType="Border">
                                                 <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
