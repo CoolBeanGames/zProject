@@ -6,403 +6,500 @@
 <meta name="color-scheme" content="light">
 <title>zProject</title>
 <style>
+  /* ---- design tokens ------------------------------------------------
+     Restrained native-utility look (design.txt): light neutral ground,
+     one muted blue accent, hairline borders, square corners, system UI
+     type. The one deliberate device is the 3px left rail on each queue
+     row, which encodes the task's state — it is information, not trim. */
   :root{
-    --bg:#f3f3f3; --surface:#fff; --surface2:#ececec; --border:#d6d6d6;
-    --text:#1e1e1e; --text2:#6a6a6a; --accent:#4b6ea8; --accent-d:#3c5988; --sel:#e4eaf4;
-    --bug-s:#f1ecf8; --bug-b:#b6a6d2; --bug-t:#5e4791;
-    --err-s:#fbeaea; --err-b:#c98b8b; --err-t:#9e2a2a;
-    --done-s:#eaf3ec; --done-b:#a7c9b0; --done-t:#3c7a4e;
-    --lock-s:#e6e6e6; --lock-b:#c4c4c4;
+    --bg:#f2f2f0; --surface:#ffffff; --surface-2:#ececeb;
+    --line:#d7d7d5; --line-strong:#c2c2bf;
+    --ink:#1c1c1c; --ink-2:#6b6b6b; --ink-3:#9a9a97;
+    --accent:#4b6ea8; --accent-ink:#33507d; --accent-wash:#e6ecf4;
+    --st-active:#4b6ea8;
+    --st-bug:#6b4fa0;   --st-bug-wash:#efeaf7;
+    --st-err:#a23b3b;   --st-err-wash:#f6e9e9;
+    --st-done:#3c7a4e;
+    --st-hold:#9a9a97;
+    --radius:3px;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
   html,body{margin:0}
   body{
-    background:var(--bg); color:var(--text);
-    font:14px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif;
+    background:var(--bg); color:var(--ink);
+    font:15px/1.5 "Segoe UI", system-ui, -apple-system, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing:antialiased;
     padding-bottom:env(safe-area-inset-bottom);
   }
-  header{
-    position:sticky; top:0; z-index:5;
-    background:var(--bg); border-bottom:1px solid var(--border);
-    padding:calc(8px + env(safe-area-inset-top)) 12px 8px;
-    display:flex; align-items:center; gap:10px;
-  }
-  header .title{font-weight:600; font-size:15px; white-space:nowrap}
-  header .crumb{color:var(--text2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1}
-  header a{color:var(--accent); text-decoration:none}
-  main{max-width:760px; margin:0 auto; padding:10px 12px 40px}
-  .muted{color:var(--text2)}
-  .err-banner{background:var(--err-s); border:1px solid var(--err-b); color:var(--err-t);
-    padding:8px 10px; border-radius:3px; margin:8px 0; font-size:13px}
+  a{color:var(--accent-ink); text-decoration:none}
+  .muted{color:var(--ink-2)}
 
-  button, .btn{
-    font:inherit; font-size:14px; min-height:40px; padding:8px 12px;
-    border:1px solid var(--border); border-radius:3px; background:var(--surface);
-    color:var(--text); cursor:pointer;
+  /* ---- top bar ---- */
+  .bar{
+    position:sticky; top:0; z-index:10;
+    background:var(--bg); border-bottom:1px solid var(--line-strong);
+    display:flex; align-items:center; gap:12px;
+    padding:calc(10px + env(safe-area-inset-top)) 14px 10px;
+    min-height:52px;
   }
-  button:active,.btn:active{background:var(--surface2)}
-  .btn-accent{background:var(--accent); border-color:var(--accent-d); color:#fff; font-weight:600}
-  .btn-accent:active{background:var(--accent-d)}
-  .btn-row{display:flex; flex-wrap:wrap; gap:6px; margin:8px 0}
-  .btn-sm{min-height:34px; padding:5px 10px; font-size:13px}
-  .full{width:100%}
+  .bar .lead{
+    font:inherit; background:none; border:0; padding:0; cursor:pointer;
+    color:var(--accent-ink); font-size:15px; display:flex; align-items:center; gap:4px;
+  }
+  .bar h1{font-size:16px; font-weight:600; margin:0; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .bar .act{
+    font:inherit; font-size:14px; font-weight:600; cursor:pointer;
+    border:1px solid var(--line-strong); background:var(--surface);
+    color:var(--ink); border-radius:var(--radius); padding:7px 13px; min-height:36px;
+  }
+  .bar .act.primary{background:var(--accent); border-color:var(--accent-ink); color:#fff}
+  .bar .act:disabled{opacity:.5}
 
-  /* project picker */
-  .plist{border:1px solid var(--border); border-radius:3px; background:var(--surface); overflow:hidden}
-  .prow{
-    display:block; padding:12px 14px; border-bottom:1px solid var(--border);
-    cursor:pointer; text-decoration:none; color:inherit;
-  }
+  main{max-width:720px; margin:0 auto}
+  .pad{padding:14px}
+
+  /* ---- project picker ---- */
+  .plist{background:var(--surface); border-top:1px solid var(--line); border-bottom:1px solid var(--line)}
+  .prow{display:block; padding:13px 14px; border-bottom:1px solid var(--line); color:inherit}
   .prow:last-child{border-bottom:0}
-  .prow:active{background:var(--sel)}
-  .prow .pname{font-weight:600; font-size:15px}
-  .prow .pdir{color:var(--text2); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-  .prow .pcount{color:var(--text2); font-size:12px; margin-top:2px}
+  .prow:active{background:var(--surface-2)}
+  .prow .nm{font-weight:600}
+  .prow .sub{color:var(--ink-2); font-size:12.5px; margin-top:2px}
+  .prow .sub .n{color:var(--ink)}
 
-  /* sections + cards */
-  .section-h{
-    font-size:12px; font-weight:700; letter-spacing:.03em; color:var(--text2);
-    padding:8px 4px 4px; margin-top:14px; border-top:1px solid var(--border); text-transform:uppercase;
+  /* ---- queue list ---- */
+  .grp{
+    font-size:12.5px; font-weight:600; color:var(--ink-2);
+    padding:16px 14px 5px;
   }
-  .section-h.bugs{color:var(--bug-t); background:var(--bug-s); border-top:2px solid var(--bug-b); border-bottom:1px solid var(--bug-b); padding-left:8px}
-  .section-h.err{color:var(--err-t); background:var(--err-s); border-top:2px solid var(--err-b); border-bottom:1px solid var(--err-b); padding-left:8px}
-  .section-h.done{color:var(--done-t); background:var(--done-s); border-bottom:1px solid var(--done-b); padding-left:8px}
-  .section-h.arch{color:var(--text2); background:var(--lock-s); border-bottom:1px solid var(--lock-b); padding-left:8px}
-
-  .card{
-    border:1px solid var(--border); border-radius:3px; background:var(--surface);
-    margin:6px 0; overflow:hidden;
+  .grp .c{color:var(--ink-3); font-weight:400}
+  .queue{background:var(--surface); border-top:1px solid var(--line); border-bottom:1px solid var(--line)}
+  .q{
+    display:flex; align-items:center; gap:10px;
+    padding:11px 14px 11px 11px; border-bottom:1px solid var(--line);
+    border-left:3px solid var(--st-active); cursor:pointer; min-height:44px;
   }
-  .card.done{background:var(--done-s); border-color:var(--done-b)}
-  .card.err{background:var(--err-s); border-color:var(--err-b)}
-  .card.bug{background:var(--bug-s); border-color:var(--bug-b)}
-  .card.locked,.card.archived{background:var(--lock-s); border-color:var(--lock-b)}
-  .card .head{
-    display:flex; gap:8px; align-items:baseline; padding:10px 12px; cursor:pointer;
-  }
-  .card .head .name{font-weight:600; flex:1}
-  .card.done .head .name, .card.archived .head .name{text-decoration:line-through}
-  .card .head .meta{color:var(--text2); font-size:11.5px; white-space:nowrap}
-  .card .head .ip{color:var(--accent); font-weight:600}
+  .q:last-child{border-bottom:0}
+  .q:active{background:var(--surface-2)}
+  .q.s-bug{border-left-color:var(--st-bug); background:var(--st-bug-wash)}
+  .q.s-err{border-left-color:var(--st-err); background:var(--st-err-wash)}
+  .q.s-done{border-left-color:var(--st-done)}
+  .q.s-hold{border-left-color:var(--st-hold)}
+  .q .nm{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .q.s-done .nm, .q.s-arch .nm{text-decoration:line-through; color:var(--ink-2)}
+  .q .rt{font-size:12px; color:var(--ink-2); white-space:nowrap; display:flex; align-items:center; gap:8px}
+  .q .state{color:var(--st-active)}
+  .q.s-bug .state{color:var(--st-bug)} .q.s-err .state{color:var(--st-err)}
+  .q.s-done .state{color:var(--st-done)} .q.s-hold .state{color:var(--st-hold)}
+  .q .prog{font-variant-numeric:tabular-nums}
+  .empty{padding:24px 14px; color:var(--ink-2)}
 
-  .detail{padding:0 12px 12px; display:none}
-  .detail.open{display:block}
-  .detail .prompt{white-space:pre-wrap}
-  .detail .req{color:var(--text2); margin-top:4px; white-space:pre-wrap}
-  .detail .blocked{color:var(--text2); font-style:italic; margin-top:4px}
-  .detail .dates{color:var(--text2); margin-top:4px; font-size:12.5px}
-
-  .chips{display:flex; flex-wrap:wrap; gap:4px; margin-top:6px}
-  .chip{border:1px solid var(--border); border-radius:2px; padding:1px 5px; font-size:10.5px; font-weight:700; color:var(--text2)}
-  .chip.bug{background:var(--bug-s); border-color:var(--bug-b); color:var(--bug-t)}
-  .chip.err{background:var(--err-s); border-color:var(--err-b); color:var(--err-t)}
-  .chip.rel{border-color:var(--accent); color:var(--accent)}
-
-  .subs{margin-top:6px}
-  .subs .sub{font-size:13px; padding:2px 0}
-  .subs .sub.done{color:var(--text2); text-decoration:line-through}
-  .agent{margin-top:8px; border-top:1px dashed var(--border); padding-top:6px; color:var(--text2); font-size:12.5px}
-  .agent b{color:var(--text)}
-
-  /* forms / overlay */
-  .overlay{
-    position:fixed; inset:0; z-index:20; background:var(--bg);
-    overflow-y:auto; padding:calc(10px + env(safe-area-inset-top)) 12px 40px;
-  }
-  .overlay h2{font-size:16px; margin:4px 0 12px}
-  .field{margin:10px 0}
-  .field label{display:block; font-size:12px; font-weight:600; color:var(--text2); margin-bottom:3px; text-transform:uppercase; letter-spacing:.02em}
+  /* ---- task page ---- */
+  .field{padding:12px 14px 0}
+  .field label{display:block; font-size:12.5px; font-weight:600; color:var(--ink-2); margin-bottom:5px}
   .field input[type=text], .field textarea{
-    width:100%; font:inherit; font-size:16px; padding:9px 10px;
-    border:1px solid var(--border); border-radius:3px; background:var(--surface); color:var(--text);
+    width:100%; font:inherit; font-size:16px; color:var(--ink);
+    background:var(--surface); border:1px solid var(--line-strong); border-radius:var(--radius);
+    padding:9px 10px;
   }
-  .field textarea{min-height:80px; resize:vertical}
-  .checks{display:flex; flex-wrap:wrap; gap:10px 16px; margin:12px 0}
-  .checks label{display:flex; align-items:center; gap:6px; font-size:14px}
-  .checks input{width:20px; height:20px}
-  .form-actions{display:flex; gap:8px; margin-top:16px; position:sticky; bottom:0;
-    background:var(--bg); padding:10px 0 calc(10px + env(safe-area-inset-bottom))}
-  .form-actions button{flex:1}
+  .field input:focus, .field textarea:focus{outline:2px solid var(--accent-wash); border-color:var(--accent); outline-offset:-1px}
+  .field textarea{min-height:78px; resize:vertical; line-height:1.45}
+  .field.big textarea{min-height:120px}
+  .two{display:flex; gap:10px}
+  .two .field{flex:1; padding-left:0; padding-right:0}
+  .two{padding:12px 14px 0}
 
-  footer{max-width:760px; margin:20px auto 30px; padding:0 12px; color:var(--text2); font-size:12px}
-  @media (min-width:700px){ .card .head .meta{font-size:12px} }
+  .flags{display:flex; flex-wrap:wrap; gap:7px; padding:14px 14px 4px}
+  .flag{
+    font:inherit; font-size:13px; cursor:pointer;
+    border:1px solid var(--line-strong); background:var(--surface); color:var(--ink-2);
+    border-radius:var(--radius); padding:7px 11px; min-height:34px;
+  }
+  .flag[aria-pressed=true]{background:var(--accent-wash); border-color:var(--accent); color:var(--accent-ink); font-weight:600}
+  .flag.warn[aria-pressed=true]{background:var(--st-err-wash); border-color:var(--st-err); color:var(--st-err)}
+  .flag.bug[aria-pressed=true]{background:var(--st-bug-wash); border-color:var(--st-bug); color:var(--st-bug)}
+
+  .subhead{font-size:12.5px; font-weight:600; color:var(--ink-2); padding:18px 14px 0}
+  .subs{padding:6px 14px 0}
+  .sub{display:flex; align-items:center; gap:9px; padding:5px 0}
+  .sub input[type=checkbox]{width:20px; height:20px; flex:none}
+  .sub .tx{flex:1}
+  .sub .tx.done{text-decoration:line-through; color:var(--ink-2)}
+  .sub-add{display:flex; gap:8px; padding:8px 14px 0}
+  .sub-add input{flex:1; font:inherit; font-size:16px; padding:8px 10px; border:1px solid var(--line-strong); border-radius:var(--radius); background:var(--surface)}
+  .sub-add button{font:inherit; border:1px solid var(--line-strong); background:var(--surface); border-radius:var(--radius); padding:0 14px; cursor:pointer}
+
+  .disclose{font:inherit; font-size:13px; color:var(--accent-ink); background:none; border:0; padding:14px; cursor:pointer}
+  .danger{font:inherit; font-size:13px; color:var(--st-err); background:none; border:0; padding:18px 14px; cursor:pointer}
+
+  .actionbar{
+    position:sticky; bottom:0; margin-top:20px;
+    background:var(--bg); border-top:1px solid var(--line-strong);
+    display:flex; gap:10px; padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+  }
+  .actionbar button{
+    flex:1; font:inherit; font-size:15px; font-weight:600; min-height:44px;
+    border:1px solid var(--line-strong); border-radius:var(--radius); background:var(--surface); color:var(--ink); cursor:pointer;
+  }
+  .actionbar .save{background:var(--accent); border-color:var(--accent-ink); color:#fff; flex:2}
+  .actionbar button:disabled{opacity:.55}
+
+  /* one deliberate motion: the list <-> task slide */
+  .view{animation:slide .16s ease-out}
+  @keyframes slide{from{opacity:.4; transform:translateY(6px)} to{opacity:1; transform:none}}
+  @media (prefers-reduced-motion:reduce){ .view{animation:none} }
+
+  .toast{
+    position:fixed; left:50%; bottom:24px; transform:translateX(-50%);
+    background:var(--ink); color:#fff; font-size:13px; padding:9px 14px; border-radius:var(--radius);
+    z-index:30; max-width:90%;
+  }
+  .toast.err{background:var(--st-err)}
+
+  footer{max-width:720px; margin:22px auto 34px; padding:0 14px; color:var(--ink-3); font-size:12px}
 </style>
 </head>
 <body>
-<header>
-  <span class="title">zProject</span>
-  <span class="crumb" id="crumb"></span>
-</header>
-<main id="main"><p class="muted">Loading…</p></main>
+<div id="app"></div>
 <footer id="foot"></footer>
-<div id="overlay"></div>
 
 <script>
-const $main = document.getElementById('main');
-const $crumb = document.getElementById('crumb');
-const $foot = document.getElementById('foot');
-const $overlay = document.getElementById('overlay');
-let currentProject = null;          // index or null (picker)
-let projectName = '';               // name of the open project (for operator calls)
-let reloadSeconds = 120;
-const collapsed = new Set();         // task ids collapsed in this session
+"use strict";
+const app = document.getElementById('app');
+const foot = document.getElementById('foot');
+let cache = { pi: -1, data: null };   // last-loaded project payload
 let busy = false;
 
-function esc(s){ return (s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-function attr(s){ return esc(s).replace(/'/g,'&#39;'); }
+const esc = s => (s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const av  = s => esc(s).replace(/'/g,'&#39;');
 
+/* deterministic pale tag colour (mirrors the desktop app) */
 function tagColor(tag){
   let h = 2166136261 >>> 0;
   for (const ch of tag.toLowerCase()) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
   const hue = h % 360;
-  return { bg:`hsl(${hue} 45% 90%)`, bd:`hsl(${hue} 40% 72%)`, fg:`hsl(${hue} 55% 32%)` };
+  return `hsl(${hue} 42% 88%)`;
 }
 
-/* ---- operator calls ---- */
+/* ---- routing: #  |  #<pi>  |  #<pi>/<taskId|new> ---- */
+function route(){
+  const raw = location.hash.replace(/^#\/?/, '');
+  if (!raw) return { view:'picker' };
+  const [pi, tid] = raw.split('/');
+  if (!/^\d+$/.test(pi)) return { view:'picker' };
+  return tid ? { view:'task', pi:+pi, tid } : { view:'list', pi:+pi };
+}
+function goPicker(){ location.hash = ''; }
+function goList(pi){ location.hash = '#' + pi; }
+function goTask(pi, tid){ location.hash = '#' + pi + '/' + tid; }
+window.addEventListener('hashchange', render);
+
+/* ---- operator ---- */
 async function op(command, ...args){
-  if (busy) return { ok:false, message:'busy' };
+  if (busy) return { ok:false, message:'one change at a time' };
   busy = true;
   try{
-    const res = await fetch('/api/op', {
+    const r = await fetch('/api/op', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ command, args: args.map(String) }),
     });
-    const j = await res.json().catch(() => ({ ok:false, message:'bad response' }));
-    if (!j.ok) flash(j.message || 'operation failed');
+    const j = await r.json().catch(() => ({ ok:false, message:'no response' }));
     return j;
   }catch(e){
-    flash(e.message); return { ok:false, message:e.message };
-  }finally{
-    busy = false;
-  }
+    return { ok:false, message:e.message };
+  }finally{ busy = false; }
 }
-function flash(msg){
-  const b = document.createElement('div');
-  b.className = 'err-banner'; b.textContent = 'operator: ' + msg;
-  $main.prepend(b);
-  setTimeout(() => b.remove(), 4000);
+function toast(msg, isErr){
+  const t = document.createElement('div');
+  t.className = 'toast' + (isErr ? ' err' : '');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), isErr ? 4500 : 1800);
 }
 
-function syncHash(){
-  const h = location.hash.replace('#','');
-  currentProject = /^\d+$/.test(h) ? +h : null;
+async function getProject(pi){
+  if (cache.pi === pi && cache.data) return cache.data;
+  const data = await (await fetch('/api/project/' + pi)).json();
+  cache = { pi, data };
+  return data;
 }
-window.addEventListener('hashchange', () => { syncHash(); closeOverlay(); load(); });
 
-async function load(){
+/* ---- render ---- */
+async function render(){
+  const r = route();
   try{
-    if (currentProject === null) await renderPicker();
-    else await renderProject(currentProject);
+    if (r.view === 'picker') return renderPicker();
+    if (r.view === 'list')   return renderList(r.pi);
+    if (r.view === 'task')   return renderTask(r.pi, r.tid);
   }catch(e){
-    $main.innerHTML = `<p class="muted">Could not load: ${esc(e.message)}</p>`;
+    app.innerHTML = `<div class="pad muted">Could not load. ${esc(e.message)}</div>`;
   }
 }
 
-/* ---- project picker ---- */
 async function renderPicker(){
   const data = await (await fetch('/api/projects')).json();
-  reloadSeconds = data.reloadSeconds || 120;
-  $crumb.textContent = '';
-  let rows = data.projects.map(p => `
+  const rows = data.projects.map(p => `
     <a class="prow" href="#${p.index}">
-      <span class="pname">${esc(p.name)}</span>
-      <div class="pdir">${esc(p.directory)}</div>
-      <div class="pcount">${p.open} open · ${p.done} done · ${p.total} total</div>
-    </a>`).join('');
-  if (!rows) rows = '<div class="prow muted">No projects yet.</div>';
-  $main.innerHTML = `
-    <div class="btn-row"><button class="btn-accent full" id="newProj">+ New Project</button></div>
-    <div class="plist">${rows}</div>`;
-  document.getElementById('newProj').onclick = newProject;
-  $foot.textContent = `${data.projects.length} project(s) · auto-reloads every ${reloadSeconds}s`;
+      <div class="nm">${esc(p.name)}</div>
+      <div class="sub"><span class="n">${p.open}</span> open · ${p.done} done · ${p.total} total</div>
+    </a>`).join('') || '<div class="empty">No projects yet. Add one below.</div>';
+  app.innerHTML = `
+    <div class="bar"><h1>zProject</h1>
+      <button class="act primary" id="np">New project</button></div>
+    <main class="view">
+      <div class="plist">${rows}</div>
+      <div class="pad"><button class="act" id="nl">New local list</button></div>
+    </main>`;
+  document.getElementById('np').onclick = newProject;
+  document.getElementById('nl').onclick = () => newProject(true);
+  foot.textContent = `${data.projects.length} project(s)`;
 }
 
-async function newProject(){
-  const name = (prompt('New project name:') || '').trim();
+async function newProject(local){
+  const name = (prompt(local ? 'Name for the local to-do list:' : 'New project name:') || '').trim();
   if (!name) return;
-  const r = await op('new_project', name);
-  if (r.ok) load();
+  const r = await op(local ? 'new_local_project' : 'new_project', name);
+  r.ok ? render() : toast(r.message, true);
 }
 
-/* ---- project view ---- */
-const SECTION_CLASS = { 'Bugs':'bugs', 'Needs attention':'err', 'Completed':'done', 'Archived':'arch', 'Active':'' };
+const SECTIONS = [
+  ['Bugs','s-bug'], ['Needs attention','s-err'], ['Active','s-active'],
+  ['Completed','s-done'], ['Archived','s-arch'],
+];
+const SECT_CLASS = { 'Bugs':'s-bug','Needs attention':'s-err','Completed':'s-done','Archived':'s-arch' };
 
-async function renderProject(i){
-  const data = await (await fetch('/api/project/' + i)).json();
-  projectName = data.name;
-  $crumb.innerHTML = `<a href="#">‹ projects</a> &nbsp;/&nbsp; ${esc(data.name)}`;
-
+async function renderList(pi){
+  const data = await getProject(pi);
   const groups = new Map();
   for (const t of data.tasks){
-    if (!groups.has(t.sectionKey)) groups.set(t.sectionKey, []);
-    groups.get(t.sectionKey).push(t);
+    (groups.get(t.sectionKey) || groups.set(t.sectionKey, []).get(t.sectionKey)).push(t);
   }
-  const order = [...groups.keys()].sort((a,b) =>
-    groups.get(a)[0].sectionRank - groups.get(b)[0].sectionRank);
-
-  let html = `<div class="btn-row"><button class="btn-accent full" id="newTask">+ New Task</button></div>`;
-  for (const key of order){
-    html += `<div class="section-h ${SECTION_CLASS[key] ?? ''}">${esc(key)} (${groups.get(key).length})</div>`;
-    for (const t of groups.get(key)) html += card(t);
+  let body = '';
+  for (const [key] of SECTIONS){
+    const items = groups.get(key);
+    if (!items || !items.length) continue;
+    body += `<div class="grp">${esc(key)} <span class="c">${items.length}</span></div><div class="queue">`;
+    for (const t of items) body += row(pi, t);
+    body += `</div>`;
   }
-  if (!data.tasks.length) html += '<p class="muted">No tasks yet — add one above.</p>';
-  $main.innerHTML = html;
+  if (!data.tasks.length) body = '<div class="empty">No tasks yet. Add the first one.</div>';
 
-  document.getElementById('newTask').onclick = () => taskForm(null);
-  $main.querySelectorAll('.card').forEach(el => {
-    const t = data.tasks.find(x => x.id === el.dataset.id);
-    el.querySelector('.head').onclick = () => {
-      collapsed.has(t.id) ? collapsed.delete(t.id) : collapsed.add(t.id);
-      el.querySelector('.detail').classList.toggle('open');
-    };
-    el.querySelectorAll('[data-act]').forEach(btn => btn.onclick = e => {
-      e.stopPropagation();
-      doAction(btn.dataset.act, t);
-    });
-  });
-  $foot.textContent = `${esc(data.directory)} · ${data.tasks.length} task(s) · auto-reloads every ${reloadSeconds}s`;
+  app.innerHTML = `
+    <div class="bar">
+      <button class="lead" onclick="goPicker()">‹ Projects</button>
+      <h1>${esc(data.name)}</h1>
+      <button class="act primary" id="nt">New task</button>
+    </div>
+    <main class="view">${body}</main>`;
+  document.getElementById('nt').onclick = () => goTask(pi, 'new');
+  app.querySelectorAll('.q').forEach(el => el.onclick = () => goTask(pi, el.dataset.id));
+  foot.textContent = `${esc(data.directory)} · ${data.tasks.length} task(s)`;
 }
 
-async function doAction(act, t){
-  if (act === 'done')   { const r = await op('sync', t.id, 'done', String(!t.done));
-                          if (r.ok && !t.done) await op('sync', t.id, 'inProgress', 'false'); load(); }
-  if (act === 'lock')   { const r = await op('sync', t.id, 'locked', String(!t.locked)); if (r.ok) load(); }
-  if (act === 'edit')   taskForm(t);
-  if (act === 'delete') { if (confirm('Delete ' + t.id + '?')){ const r = await op('delete', t.id); if (r.ok) load(); } }
-}
-
-function card(t){
-  const cls = ['card'];
-  if (t.archived) cls.push('archived');
-  else if (t.locked) cls.push('locked');
-  else if (t.done) cls.push('done');
-  else if (t.bug) cls.push('bug');
-  else if (t.error) cls.push('err');
-
-  const isOpen = !collapsed.has(t.id);
-
-  const chips = [];
-  if (t.bug) chips.push('<span class="chip bug">BUG</span>');
-  if (t.error) chips.push('<span class="chip err">ERROR</span>');
-  if (t.commit) chips.push('<span class="chip">COMMIT</span>');
-  if (t.build) chips.push('<span class="chip">BUILD</span>');
-  if (t.release) chips.push('<span class="chip rel">RELEASE</span>');
-  for (const tag of t.tags || []){
-    const c = tagColor(tag);
-    chips.push(`<span class="chip" style="background:${c.bg};border-color:${c.bd};color:${c.fg}">${esc(tag)}</span>`);
-  }
-
-  const subs = (t.subtasks || []).map(s =>
-    `<div class="sub ${s.done?'done':''}">${s.done?'☑':'☐'} ${esc(s.text)}</div>`).join('');
-  const subCount = t.subtasks && t.subtasks.length
-    ? ` · ☑ ${t.subtasks.filter(s=>s.done).length}/${t.subtasks.length}` : '';
-
-  const dates = [];
-  if (t.dateStarted) dates.push('Started ' + esc(t.dateStarted));
-  if (t.dueDate) dates.push('Due ' + esc(t.dueDate));
-
-  const agent = [];
-  if (t.errorMessage) agent.push(`<div><b>Error:</b> ${esc(t.errorMessage)}</div>`);
-  if (t.notes) agent.push(`<div><b>Notes:</b> ${esc(t.notes)}</div>`);
-  if (t.filesChanged) agent.push(`<div><b>Files changed:</b> ${esc(t.filesChanged)}</div>`);
-
-  return `<div class="${cls.join(' ')}" data-id="${attr(t.id)}">
-    <div class="head">
-      <span class="name">${esc(t.displayName)}</span>
-      <span class="meta">${t.name ? esc(t.id)+' · ' : ''}${t.inProgress ? '<span class="ip">in progress</span>' : esc(t.statusText)}${subCount}</span>
-    </div>
-    <div class="detail ${isOpen ? 'open' : ''}">
-      <div class="prompt">${esc(t.prompt) || '<span class="muted">(no prompt)</span>'}</div>
-      ${t.requirements ? `<div class="req">${esc(t.requirements)}</div>` : ''}
-      ${t.blockedBy ? `<div class="blocked">⛔ blocked by ${esc(t.blockedBy)}</div>` : ''}
-      ${dates.length ? `<div class="dates">${dates.join('  •  ')}</div>` : ''}
-      ${chips.length ? `<div class="chips">${chips.join('')}</div>` : ''}
-      ${subs ? `<div class="subs">${subs}</div>` : ''}
-      ${agent.length ? `<div class="agent">${agent.join('')}</div>` : ''}
-      <div class="btn-row">
-        <button class="btn-sm" data-act="done">${t.done ? '↺ Reopen' : '✓ Done'}</button>
-        <button class="btn-sm" data-act="lock">${t.locked ? '🔓 Unlock' : '🔒 Lock'}</button>
-        <button class="btn-sm" data-act="edit">✎ Edit</button>
-        <button class="btn-sm" data-act="delete">🗑 Delete</button>
-      </div>
-    </div>
+function row(pi, t){
+  const sc = SECT_CLASS[t.sectionKey] || 's-active';
+  const state = t.inProgress ? 'in progress' : t.statusText.toLowerCase();
+  const prog = (t.subtasks && t.subtasks.length)
+    ? `<span class="prog">${t.subtasks.filter(s=>s.done).length}/${t.subtasks.length}</span>` : '';
+  return `<div class="q ${sc}" data-id="${av(t.id)}">
+    <span class="nm">${esc(t.displayName)}</span>
+    <span class="rt">${prog}<span class="state">${esc(state)}</span></span>
   </div>`;
 }
 
-/* ---- task create / edit form ---- */
-function taskForm(t){
-  const isNew = !t;
-  t = t || {};
-  const v = k => attr(t[k] ?? '');
-  const ck = k => t[k] ? 'checked' : '';
-  $overlay.innerHTML = `
-    <div class="overlay">
-      <h2>${isNew ? 'New Task' : 'Edit ' + esc(t.id)}</h2>
-      <div class="field"><label>Name</label><input type="text" id="f_name" value="${v('name')}"></div>
-      <div class="field"><label>Prompt</label><textarea id="f_prompt">${esc(t.prompt ?? '')}</textarea></div>
-      <div class="field"><label>Requirements</label><textarea id="f_requirements">${esc(t.requirements ?? '')}</textarea></div>
-      <div class="field"><label>Tags (comma separated)</label><input type="text" id="f_tags" value="${isNew ? '' : (t.tags||[]).join(', ')}"></div>
-      <div class="field"><label>Blocked by (task id)</label><input type="text" id="f_blockedBy" value="${v('blockedBy')}"></div>
-      <div class="field"><label>Due date (YYYY-MM-DD HH:mm)</label><input type="text" id="f_dueDate" value="${v('dueDate')}"></div>
-      ${isNew ? '' : `<div class="field"><label>Notes</label><textarea id="f_notes">${esc(t.notes ?? '')}</textarea></div>`}
-      <div class="checks">
-        <label><input type="checkbox" id="f_bug" ${ck('bug')}> Bug</label>
-        <label><input type="checkbox" id="f_commit" ${ck('commit')}> Commit</label>
-        <label><input type="checkbox" id="f_build" ${ck('build')}> Build</label>
-        <label><input type="checkbox" id="f_release" ${ck('release')}> Release</label>
-        <label><input type="checkbox" id="f_locked" ${ck('locked')}> Locked</label>
-        ${isNew ? '' : `<label><input type="checkbox" id="f_done" ${ck('done')}> Done</label>`}
-        ${isNew ? '' : `<label><input type="checkbox" id="f_inProgress" ${ck('inProgress')}> In progress</label>`}
-      </div>
-      <div class="form-actions">
-        <button id="f_cancel">Cancel</button>
-        <button class="btn-accent" id="f_save">${isNew ? 'Create' : 'Save'}</button>
-      </div>
-    </div>`;
-  document.getElementById('f_cancel').onclick = closeOverlay;
-  document.getElementById('f_save').onclick = () => saveTaskForm(isNew, t);
-  document.getElementById('f_name').focus();
-}
-function closeOverlay(){ $overlay.innerHTML = ''; }
+/* ---- task page ---- */
+const BLANK = { id:'', name:'', prompt:'', requirements:'', tags:[], blockedBy:'',
+  dateStarted:'', dueDate:'', notes:'', filesChanged:'', errorMessage:'',
+  bug:false, done:false, inProgress:false, locked:false, error:false, archived:false,
+  commit:false, build:false, release:false, subtasks:[] };
 
-async function saveTaskForm(isNew, t){
+async function renderTask(pi, tid){
+  const isNew = tid === 'new';
+  let t = JSON.parse(JSON.stringify(BLANK)), pname = '';
+  const data = await getProject(pi).catch(() => null);
+  if (data) pname = data.name;
+  if (!isNew){
+    const found = data && data.tasks.find(x => x.id === tid);
+    if (!found){ app.innerHTML = '<div class="pad muted">That task is gone. <a href="#' + pi + '">Back to the list</a></div>'; return; }
+    t = JSON.parse(JSON.stringify(found));   // edit a copy — the list cache stays clean until Save
+  }
+  const orig = JSON.parse(JSON.stringify(t));
+  const flag = (k,label,cls='') =>
+    `<button class="flag ${cls}" data-f="${k}" aria-pressed="${!!t[k]}">${label}</button>`;
+  const agentOpen = t.notes || t.filesChanged || t.errorMessage;
+
+  app.innerHTML = `
+    <div class="bar">
+      <button class="lead" id="back">‹ ${isNew ? 'Cancel' : esc(data ? data.name : 'Back')}</button>
+      <h1>${isNew ? 'New task' : esc(t.id)}</h1>
+    </div>
+    <main class="view">
+      <div class="field"><label for="f_name">Name</label>
+        <input type="text" id="f_name" value="${av(t.name)}" placeholder="Short title"></div>
+      <div class="field big"><label for="f_prompt">Prompt</label>
+        <textarea id="f_prompt" placeholder="What the agent should do">${esc(t.prompt)}</textarea></div>
+      <div class="field"><label for="f_requirements">Requirements</label>
+        <textarea id="f_requirements" placeholder="What must be true when it's done">${esc(t.requirements)}</textarea></div>
+      <div class="field"><label for="f_tags">Tags</label>
+        <input type="text" id="f_tags" value="${av((t.tags||[]).join(', '))}" placeholder="comma, separated"></div>
+      <div class="two">
+        <div class="field" style="padding-top:0"><label for="f_blockedBy">Blocked by</label>
+          <input type="text" id="f_blockedBy" value="${av(t.blockedBy)}" placeholder="task id"></div>
+        <div class="field" style="padding-top:0"><label for="f_dueDate">Due</label>
+          <input type="text" id="f_dueDate" value="${av(t.dueDate)}" placeholder="YYYY-MM-DD HH:mm"></div>
+      </div>
+
+      <div class="flags">
+        ${flag('bug','Bug','bug')}
+        ${flag('inProgress','In progress')}
+        ${flag('done','Done')}
+        ${flag('locked','Locked')}
+        ${flag('commit','Commit')}
+        ${flag('build','Build')}
+        ${flag('release','Release')}
+        ${flag('error','Error','warn')}
+        ${flag('archived','Archived')}
+      </div>
+
+      <div class="subhead">Subtasks</div>
+      <div class="subs" id="subs">
+        ${(t.subtasks||[]).map((s,i) => `
+          <div class="sub" data-i="${i}">
+            <input type="checkbox" ${s.done ? 'checked' : ''}>
+            <span class="tx ${s.done ? 'done' : ''}">${esc(s.text)}</span>
+          </div>`).join('') || '<div class="muted" style="padding:2px 0">None yet.</div>'}
+      </div>
+      <div class="sub-add">
+        <input type="text" id="f_newsub" placeholder="Add a subtask">
+        <button id="addsub">Add</button>
+      </div>
+
+      <button class="disclose" id="agentToggle">${agentOpen ? 'Hide' : 'Show'} agent output &amp; dates</button>
+      <div id="agent" ${agentOpen ? '' : 'hidden'}>
+        <div class="field" style="padding-top:0"><label for="f_dateStarted">Date started</label>
+          <input type="text" id="f_dateStarted" value="${av(t.dateStarted)}" placeholder="YYYY-MM-DD HH:mm"></div>
+        <div class="field"><label for="f_notes">Notes</label>
+          <textarea id="f_notes">${esc(t.notes)}</textarea></div>
+        <div class="field"><label for="f_filesChanged">Files changed</label>
+          <textarea id="f_filesChanged">${esc(t.filesChanged)}</textarea></div>
+        <div class="field"><label for="f_errorMessage">Error message</label>
+          <input type="text" id="f_errorMessage" value="${av(t.errorMessage)}"></div>
+      </div>
+
+      ${isNew ? '' : '<button class="danger" id="del">Delete this task</button>'}
+
+      <div class="actionbar">
+        <button id="cancel">Cancel</button>
+        <button class="save" id="save">${isNew ? 'Create task' : 'Save'}</button>
+      </div>
+    </main>`;
+
+  const nav = () => isNew ? goList(pi) : goList(pi);
+  document.getElementById('back').onclick = nav;
+  document.getElementById('cancel').onclick = nav;
+
+  app.querySelectorAll('.flag').forEach(b => b.onclick = () => {
+    const on = b.getAttribute('aria-pressed') === 'true';
+    b.setAttribute('aria-pressed', String(!on));
+    t[b.dataset.f] = !on;
+  });
+  document.getElementById('agentToggle').onclick = e => {
+    const box = document.getElementById('agent');
+    box.hidden = !box.hidden;
+    e.target.textContent = (box.hidden ? 'Show' : 'Hide') + ' agent output & dates';
+  };
+  app.querySelectorAll('#subs .sub input').forEach(cb => cb.onchange = () => {
+    cb.nextElementSibling.classList.toggle('done', cb.checked);
+  });
+  document.getElementById('addsub').onclick = () => {
+    const inp = document.getElementById('f_newsub');
+    const v = inp.value.trim();
+    if (!v) return;
+    const wrap = document.getElementById('subs');
+    if (wrap.querySelector('.muted')) wrap.innerHTML = '';
+    const d = document.createElement('div');
+    d.className = 'sub'; d.dataset.new = '1';
+    d.innerHTML = `<input type="checkbox" disabled><span class="tx">${esc(v)}</span>`;
+    wrap.appendChild(d);
+    inp.value = '';
+  };
+  if (!isNew) document.getElementById('del').onclick = async () => {
+    if (!confirm('Delete ' + t.id + '?')) return;
+    const r = await op('delete', t.id);
+    if (r.ok){ cache.data = null; toast('Deleted ' + t.id); goList(pi); }
+    else toast(r.message, true);
+  };
+  document.getElementById('save').onclick = () => saveTask(pi, pname, isNew, t, orig);
+  if (isNew) document.getElementById('f_name').focus();
+}
+
+async function saveTask(pi, pname, isNew, t, orig){
   const g = id => document.getElementById(id);
-  const txt = { name:g('f_name').value, prompt:g('f_prompt').value, requirements:g('f_requirements').value,
-                tags:g('f_tags').value, blockedBy:g('f_blockedBy').value, dueDate:g('f_dueDate').value };
-  const bools = { bug:g('f_bug').checked, commit:g('f_commit').checked, build:g('f_build').checked,
-                  release:g('f_release').checked, locked:g('f_locked').checked };
-  if (!isNew){ bools.done = g('f_done').checked; bools.inProgress = g('f_inProgress').checked; txt.notes = g('f_notes').value; }
+  const val = id => g(id) ? g(id).value.trim() : '';
+  const text = {
+    name: val('f_name'), prompt: g('f_prompt').value, requirements: g('f_requirements').value,
+    tags: val('f_tags').split(',').map(s=>s.trim()).filter(Boolean).join(', '),
+    blockedBy: val('f_blockedBy'), dueDate: val('f_dueDate'),
+    dateStarted: val('f_dateStarted'), notes: g('f_notes') ? g('f_notes').value : orig.notes,
+    filesChanged: g('f_filesChanged') ? g('f_filesChanged').value : orig.filesChanged,
+    errorMessage: g('f_errorMessage') ? val('f_errorMessage') : orig.errorMessage,
+  };
+  const BOOLS = ['bug','inProgress','done','locked','commit','build','release','error','archived'];
+
+  const btn = g('save'); btn.disabled = true; btn.textContent = 'Saving…';
 
   let id = t.id;
   if (isNew){
-    const r = await op('new_task', projectName, txt.name || '(new task)', txt.prompt || '');
-    if (!r.ok) return;
+    const r = await op('new_task', pname, text.name || '(new task)', text.prompt || '');
+    if (!r.ok){ toast(r.message, true); btn.disabled = false; btn.textContent = 'Create task'; return; }
     id = (r.output || '').trim();
   }
 
-  const fields = [];
-  const push = (k,val) => { fields.push(k); fields.push(String(val)); };
-  if (!isNew){ push('name', txt.name); push('prompt', txt.prompt); }
-  push('requirements', txt.requirements);
-  push('tags', txt.tags.split(',').map(s=>s.trim()).filter(Boolean).join(', '));
-  push('blockedBy', txt.blockedBy.trim());
-  push('dueDate', txt.dueDate.trim());
-  if (!isNew) push('notes', txt.notes);
-  for (const [k,val] of Object.entries(bools)) push(k, val);
+  const pairs = [];
+  const put = (k,v) => { pairs.push(k, String(v)); };
+  if (!isNew){ put('name', text.name); put('prompt', text.prompt); }
+  put('requirements', text.requirements);
+  put('tags', text.tags);
+  put('blockedBy', text.blockedBy);
+  put('dueDate', text.dueDate);
+  put('dateStarted', text.dateStarted);
+  put('notes', text.notes);
+  put('filesChanged', text.filesChanged);
+  put('errorMessage', text.errorMessage);
+  for (const k of BOOLS) put(k, !!t[k]);
 
-  const r2 = await op('sync_many', id, ...fields);
-  if (r2.ok || isNew){ closeOverlay(); load(); }
+  const r2 = await op('sync_many', id, ...pairs);
+  if (!r2.ok && !isNew){ toast(r2.message, true); btn.disabled = false; btn.textContent = 'Save'; return; }
+
+  /* subtasks: toggled dones + newly added rows */
+  const rows = [...document.querySelectorAll('#subs .sub')];
+  for (let i = 0; i < rows.length; i++){
+    const el = rows[i];
+    if (el.dataset.new){
+      await op('new_subtask', id, el.querySelector('.tx').textContent);
+    } else {
+      const nowDone = el.querySelector('input').checked;
+      if (orig.subtasks[i] && orig.subtasks[i].done !== nowDone)
+        await op('subtask_done', id, i, nowDone);
+    }
+  }
+
+  cache.data = null;
+  toast(isNew ? 'Task created' : 'Saved');
+  goList(pi);
 }
 
-/* ---- live updates ---- */
+/* ---- live updates: refresh the list view only when idle ---- */
 try{
   const ev = new EventSource('/events');
-  ev.addEventListener('reload', () => { if (!$overlay.innerHTML) load(); });
-}catch(e){ /* SSE unsupported */ }
-setInterval(() => { if (!$overlay.innerHTML) load(); }, 120000);
+  ev.addEventListener('reload', () => {
+    cache.data = null;
+    if (route().view !== 'task') render();
+  });
+}catch(e){ /* no SSE */ }
+setInterval(() => { if (route().view !== 'task'){ cache.data = null; render(); } }, 120000);
 
-syncHash();
-load();
+render();
 </script>
 </body>
 </html>

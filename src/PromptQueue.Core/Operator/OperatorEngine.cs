@@ -83,6 +83,10 @@ public static class OperatorEngine
     public static OperatorResult NewProject(string name, string? directory = null)
         => Enqueue(new OperatorJob("new_project", name, directory ?? ""));
 
+    /// <summary>Queues creation of a "local project" (ZP-70) — a personal to-do list, no path.</summary>
+    public static OperatorResult NewLocalProject(string name)
+        => Enqueue(new OperatorJob("new_local_project", name));
+
     /// <summary>Queues several field overrides on one task in a single job.</summary>
     public static OperatorResult SyncMany(string taskId, IEnumerable<KeyValuePair<string, string>> fields)
     {
@@ -212,6 +216,15 @@ public static class OperatorEngine
                     dir = Path.Combine(Workspace.DefaultRootDirectory, "projects", SanitizeName(name));
                 var project = ws.AddProject(dir);   // creates dir, registers, seeds globals, saves
                 return OperatorResult.Pass($"Project \"{project.Name}\" at {project.Directory}", project.Directory);
+            }
+
+            case "new_local_project":
+            {
+                var name = job.Arg(0).Trim();
+                if (name.Length == 0)
+                    return OperatorResult.Fail("A name is required.");
+                var project = ws.AddLocalProject(name);
+                return OperatorResult.Pass($"Local project \"{project.Name}\"", project.Directory);
             }
 
             case "new_task":

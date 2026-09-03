@@ -63,8 +63,10 @@ internal static class Program
         "sync" when a.Length >= 3 => OperatorEngine.Sync(a[0], a[1], string.Join(' ', a.Skip(2))),
         "new_task" when a.Length >= 2 => OperatorEngine.NewTask(a[0], a[1], a.Length > 2 ? string.Join(' ', a.Skip(2)) : ""),
         "new_project" when a.Length >= 1 => OperatorEngine.NewProject(a[0], a.Length > 1 ? a[1] : null),
+        "new_local_project" when a.Length >= 1 => OperatorEngine.NewLocalProject(a[0]),
         "sync_many" when a.Length >= 3 => OperatorEngine.SyncMany(a[0], Pairs(a.Skip(1))),
         "new_subtask" when a.Length >= 2 => OperatorEngine.NewSubtask(a[0], string.Join(' ', a.Skip(1))),
+        "subtask_done" when a.Length >= 3 && int.TryParse(a[1], out var sdi) => OperatorEngine.SetSubtaskDone(a[0], sdi, a[2] is "true" or "1"),
         "delete" when a.Length >= 1 => OperatorEngine.Delete(a[0]),
         "move" when a.Length >= 2 && int.TryParse(a[1], out var i) => OperatorEngine.Move(a[0], i),
         "move" => OperatorResult.Fail("move needs: <task_id> <index>"),
@@ -87,6 +89,7 @@ internal static class Program
           operator new_task   <project> <name> [prompt]
           operator new_project <name> [directory]
           operator new_subtask <task_id> <text...>
+          operator subtask_done <task_id> <index> <true|false>
           operator sync_many  <task_id> <field> <value> [<field> <value> ...]
           operator delete     <task_id>
           operator move       <task_id> <index>
