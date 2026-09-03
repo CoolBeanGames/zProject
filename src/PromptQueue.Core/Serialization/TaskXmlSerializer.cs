@@ -24,10 +24,17 @@ public static class TaskXmlSerializer
 {
     public const string FileName = "tasks.xml";
 
+    /// <summary>Sibling of <see cref="FileName"/> that holds archived tasks only (ZP-71).</summary>
+    public const string ArchiveFileName = "archive.xml";
+
     public sealed record Document(string ProjectName, int NextIndex, List<TaskItem> Tasks);
 
     /// <summary>Builds the <c>&lt;tasks&gt;</c> element for a project (also reused inside data.cfg).</summary>
     public static XElement ToElement(Project project)
+        => ToElement(project, project.Tasks);
+
+    /// <summary>Builds the <c>&lt;tasks&gt;</c> element for an explicit task list (ZP-71: split active / archive).</summary>
+    public static XElement ToElement(Project project, IEnumerable<TaskItem> tasks)
     {
         var root = new XElement("tasks",
             new XAttribute("project", project.Name),
@@ -35,7 +42,7 @@ public static class TaskXmlSerializer
 
         // Bugs are written first regardless of their position in the list (ZP-23),
         // otherwise on-disk order follows the queue order.
-        foreach (var task in project.Tasks
+        foreach (var task in tasks
                      .OrderByDescending(t => t.Bug)
                      .ThenBy(t => t.Order))
         {
@@ -83,8 +90,11 @@ public static class TaskXmlSerializer
     }
 
     public static string Serialize(Project project)
+        => Serialize(project, project.Tasks);
+
+    public static string Serialize(Project project, IEnumerable<TaskItem> tasks)
     {
-        var doc = new XDocument(new XDeclaration("1.0", "utf-8", null), ToElement(project));
+        var doc = new XDocument(new XDeclaration("1.0", "utf-8", null), ToElement(project, tasks));
         using var sw = new Utf8StringWriter();
         using (var xw = XmlWriter.Create(sw, new XmlWriterSettings
         {

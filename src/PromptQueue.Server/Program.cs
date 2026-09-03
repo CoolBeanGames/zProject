@@ -502,7 +502,7 @@ internal static class Program
         {
             name = project.Name,
             directory = project.Directory,
-            tasks = project.Tasks.OrderBy(t => t.Order).Select(t => new
+            tasks = project.Tasks.OrderBy(t => t.SectionRank).ThenBy(t => t.Order).Select(t => new
             {
                 id = t.Id,
                 name = t.Name,
