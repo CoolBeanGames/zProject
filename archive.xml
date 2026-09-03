@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<tasks project="zProject" nextIndex="80">
+<tasks project="zProject" nextIndex="81">
   <task id="ZP-78">
     <name>mobile server 503</name>
     <prompt>After ZP-68/69 the task server starts (Tailscale prompts for elevation) but opening the Funnel URL returns "HTTP error 503 Service Unavailable". Repro: Server menu -&gt; Start Mobile Server, approve the Tailscale UAC prompt, open the https://*.ts.net URL on a phone or browser. Expected: the task page loads. Actual: 503. Likely cause: HttpListener is bound to http://localhost:{port}/ only, so a request that Tailscale Funnel forwards with Host: &lt;node&gt;.&lt;tailnet&gt;.ts.net matches no prefix and HttpListener answers 503. (The first request can also 503 briefly while Tailscale provisions the HTTPS cert.)</prompt>
@@ -224,6 +224,195 @@
     <tags>control,bug</tags>
     <notes>Root cause: ProjectStore.Normalize renumbered Order by sorting on the OLD Order values (OrderBy(t =&gt; t.Order)) instead of taking the collection's physical position as authoritative. After a drag moved a task in Project.Tasks, Normalize sorted by the stale Order and put everything back, so the reorder was silently undone before saving. Fixed Normalize to set Order = physical index (0..n-1). Verified with an automated drag: dragging Delta above Alpha now persists as DT-4, DT-1, DT-2, DT-3 in tasks.xml.</notes>
     <filesChanged>src/PromptQueue.Core/Storage/ProjectStore.cs</filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-79">
+    <name>redesign the mobile web page</name>
+    <prompt>I don't like the current mobile web page - the task cards take up way too much space. Redesign it:
+- The task list should be a compact list (one short row per task: name/id + status, minimal height), not big expandable cards.
+- Tapping a task opens it as its OWN page/view with a Back button (not an inline expand and not a modal overlay). Use hash routing so Back works.
+- The task page shows all the task's fields as editable inputs plus a Save button. Editing does NOT touch anything until Save is pressed.
+- On Save, and only then, call the operator (POST /api/op: sync_many for edits, new_task for a brand-new task) to persist, then go Back to the list.
+- Keep: "+ New Project", "+ New Task" (New Task opens the same task page in create mode), per-task quick actions can live on the task page (done / lock / delete).
+- Use the frontend-design skill for the visual direction - make it feel intentional and clean, not a generic template, but still readable and fast on a phone. Match zProject's restrained neutral palette (see design.txt).
+- Must stay a single self-contained zProject_webView.html (no external assets/CDNs - the server serves just this one file).</prompt>
+    <requirements>compact list view; each task opens as its own back-navigable page; edits only persist via the operator when Save is pressed; new task uses the same page in create mode; single self-contained html; mobile-optimised; visual direction from the frontend-design skill</requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>true</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>true</commit>
+    <build>true</build>
+    <release>true</release>
+    <tags>webserver,ui,mobile,redesign</tags>
+    <notes>zProject_webView.html rewritten from scratch (still one self-contained file, no external assets). Design direction via the frontend-design skill: restrained native-utility look from design.txt - light neutral ground (#f2f2f0), one muted blue accent, hairline borders, square corners, single system-UI type family, hierarchy by weight/size only. The one deliberate device is a 3px coloured left rail on each queue row that encodes state (bug=purple, needs-attention=red, active=blue, done=green, archived/held=grey) - information, not decoration; no cards, no all-caps eyebrows, no middle-dot meta strings.
+
+Structure: hash router (# = project picker, #&lt;i&gt; = that project's queue, #&lt;i&gt;/&lt;taskId&gt; or #&lt;i&gt;/new = a task page). The queue is a compact one-line-per-task list grouped by section; tapping a row navigates to the task's own page (real Back button + browser back both work). The task page shows every field as an editable input (name, prompt, requirements, tags, blocked-by, due, a 9-flag toggle grid, subtasks with add + done, and a collapsible agent-output/dates block) plus a sticky Save/Cancel bar and a quiet Delete. Nothing is sent until Save - it edits a deep copy so the list cache stays clean on Cancel. Save calls the operator: new_task then sync_many for a new task, sync_many for edits, plus new_subtask / subtask_done for subtask changes, then returns to the list with a toast. New Task opens the same page in create mode.
+
+Operator/server: added new_local_project, and wired subtask_done into /api/op and the operator exe (both existed in the engine but weren't exposed). Server treats any new_*project command as a workspace reload.
+
+Verified end to end via curl on a scratch target (new_task/sync_many/new_subtask/subtask_done/new_local_project/delete all ok); page serves and contains the routing + save wiring. Headless screenshots didn't work in this environment so the visual pass is by code review against the plan - to be eyeballed on a phone. Built app+server+operator to builds/debug + builds/release; release zipped. Committed + pushed.</notes>
+    <filesChanged>src/PromptQueue.Server/zProject_webView.html; src/PromptQueue.Server/Program.cs; src/PromptQueue.Core/Operator/OperatorEngine.cs; src/PromptQueue.Operator/Program.cs</filesChanged>
+    <image></image>
+    <subtasks>
+      <subtask done="true">compact one-row-per-task list view</subtask>
+      <subtask done="true">task detail as its own hash-routed page with a Back button</subtask>
+      <subtask done="true">editable fields on the task page + Save button; edits are local until Save</subtask>
+      <subtask done="true">Save calls the operator (sync_many / new_task), then returns to the list</subtask>
+      <subtask done="true">New Task opens the same page in create mode</subtask>
+      <subtask done="true">visual pass with the frontend-design skill, matching design.txt palette</subtask>
+    </subtasks>
+  </task>
+  <task id="ZP-71">
+    <name>archive changes</name>
+    <prompt>when a task is archived, instead of storing it in tasks.xml create a new archive.xml in the project directory and move it there to keep tasks small. this should be done by the operator. the program can still display the archives</prompt>
+    <requirements>archives implemented</requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>true</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <tags>operator,tasks,archive</tags>
+    <notes>Archived tasks now live in a separate archive.xml in the project directory, keeping tasks.xml small. TaskXmlSerializer gained ArchiveFileName + Serialize/ToElement overloads that take an explicit task list. ProjectStore.Save partitions project.Tasks: not-archived -&gt; tasks.xml, archived -&gt; archive.xml (deleted when empty), Order renumbered within each file, both writes under the operator mutex. New private ReadTasksInto() reads BOTH files back into project.Tasks (archive.xml entries forced Archived=true); Load and ReloadTasks use it. Legacy migration: if tasks.xml still has archived tasks inline, Load/ReloadTasks re-save immediately to split them - so opening the app or any operator call migrates a project once, automatically. A broken archive.xml flags the project like a broken tasks.xml (Save won't clobber it). The app still shows the Archived section (archived tasks are in project.Tasks as before); the server orders tasks by section then Order. zProject itself migrated on the first operator run this session: tasks.xml 71 tasks -&gt; 7 active, archive.xml -&gt; 64 archived, no loss. Verified on a scratch project: archive moves a task tasks.xml-&gt;archive.xml, unarchive moves it back and removes the empty archive.xml, read works throughout; app launches against the split files. The explicit `archive`/`get_archive` operator verbs are ZP-72.</notes>
+    <filesChanged>src/PromptQueue.Core/Serialization/TaskXmlSerializer.cs; src/PromptQueue.Core/Storage/ProjectStore.cs; src/PromptQueue.Server/Program.cs; tasks.xml (migrated); archive.xml (new)</filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-72">
+    <name>new operator commands</name>
+    <prompt>just some more operator stuff</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>true</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>true</commit>
+    <build>true</build>
+    <release>false</release>
+    <tags>operator, tags, archive</tags>
+    <notes>Five new operator commands, wired into the operator exe and the server's /api/op: get_archive &lt;project&gt; (read-only, returns the whole archive.xml, or an empty &lt;tasks/&gt; when there is none); get_tag &lt;task_id&gt; &lt;field&gt; (read-only, returns one field's value via new TaskFields.Read + Getters map, fails on an unknown field); archive &lt;task_id&gt; (queued: clears inProgress/lockKey, sets done + archived, so ProjectStore.Save moves it into archive.xml); agent_lock &lt;task_id&gt; &lt;key&gt; (queued: sets lockKey + inProgress when the task is free or already holds that key, fails if another key owns it); agent_unlock &lt;task_id&gt; &lt;key&gt; (queued: clears lockKey when the key matches or is empty, fails otherwise). All verified on a scratch project. Built to builds/debug.</notes>
+    <filesChanged>src/PromptQueue.Core/Operator/OperatorEngine.cs; src/PromptQueue.Core/Operator/TaskFields.cs; src/PromptQueue.Operator/Program.cs; src/PromptQueue.Server/Program.cs</filesChanged>
+    <image></image>
+    <subtasks>
+      <subtask done="true">read archive "get_archive" returns the whole archive</subtask>
+      <subtask done="true">move to archive "archive task_id" marks a task as not in project, done, and archived and moves it to the archive</subtask>
+      <subtask done="true">ai lock "agent_lock task_id key" locks the task by an agent</subtask>
+      <subtask done="true">ai unlock "agent_unlock task_id key" unlocks a task if the id matches</subtask>
+      <subtask done="true">get tag "get_tag task_id tag" returns the value of the requested tag if it exists</subtask>
+    </subtasks>
+  </task>
+  <task id="ZP-73">
+    <name>deploy claude and codex buttons</name>
+    <prompt>change them to run in full authority mode, id dont ask for permissions so alter the launch commands for them.</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>true</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <tags>agents,ui,commands</tags>
+    <notes>MainViewModel.LaunchAgent (the DEPLOY -&gt; Codex / Claude toolbar buttons and the task right-click "Run only this with ..." items) now launches the agent in full-authority mode with no permission/approval prompts: claude gets --dangerously-skip-permissions, codex gets --dangerously-bypass-approvals-and-sandbox. The flag is inserted between the agent name and the boot prompt in the PowerShell command. Build succeeds.</notes>
+    <filesChanged>src/PromptQueue.App/ViewModels/MainViewModel.cs</filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-74">
+    <name>add an open directory button</name>
+    <prompt>to both the tool bar, menu bar, and right click menu for projects</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>true</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>true</commit>
+    <build>true</build>
+    <release>true</release>
+    <tags>ui,navigation</tags>
+    <notes>New MainViewModel.OpenProjectDirectoryCommand opens a project's folder in File Explorer (Process.Start on the dir with UseShellExecute). It takes an optional Project parameter and falls back to SelectedProject, so it drives all three entry points: the project toolbar ("Open folder" button next to Reload), the File menu ("Open Project Folder"), and the sidebar right-click menu ("Open Folder", above Remove Project). Disabled when no project applies. Warns if the directory is missing. App builds and launches with the new markup.</notes>
+    <filesChanged>src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-75">
+    <name>buttons for tasks</name>
+    <prompt>add checkboxes to fulley extended tasks for commit build release and bug tags</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>true</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>true</commit>
+    <build>true</build>
+    <release>true</release>
+    <tags>ui,tasks</tags>
+    <notes>An expanded task card now has a row of editable checkboxes for bug / commit / build / release (below the at-a-glance chips), two-way bound to the task. They use the Click event (not Checked/Unchecked) so binding-driven changes during card materialisation never fire a write - only real user clicks do. New MainWindow.TaskFlag_Click -&gt; MainViewModel.PersistTaskFieldChange(task, field, value), which routes the change through the operator (OperatorEngine.Sync) like every other card mutation and reloads. Ticking "bug" re-sorts the card to the Bugs section as expected. Built to builds/debug + builds/release; release zipped.</notes>
+    <filesChanged>src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/Views/MainWindow.xaml.cs; src/PromptQueue.App/ViewModels/MainViewModel.cs</filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-76">
+    <name>global instructions</name>
+    <prompt>re-write the global instructions to include how to deal with the operator so agents know what to do</prompt>
+    <requirements>global instructions updated</requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>true</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <tags></tags>
+    <notes>Rewrote the global instructions (%LOCALAPPDATA%/PromptQueue/global.instructions.txt) and the repo's instructions.txt to teach agents the operator. New "=== THE OPERATOR ===" section: what it is (zProject_operator.exe, background, no window), the full command list (read/get_archive/get_tag/list; new_task/new_project/new_local_project/sync/sync_many/new_subtask/subtask_done/move/delete/archive/agent_lock/agent_unlock), how &lt;project&gt;/&lt;task_id&gt;/&lt;field&gt; resolve, and WHEN to use it - always for creating a task (no nextIndex race, no wrong-element patch like ZP-61), always for touching a task that is not the one you are working; plain inProgress/done/lockKey/subtask bookkeeping on your own task may still be hand-edited. New "=== ARCHIVE ===" section: archived tasks now live in archive.xml, use `operator archive` / `get_archive`, still never process an archived task. Reworked TASK OWNERSHIP LOCK KEY to use `operator agent_lock/agent_unlock` and MARKING PROGRESS / BUG REPORTS to create + fill the report via the operator. Global file is the repo instructions.txt trimmed of the three zProject-only trailing lines. Not propagated to zEngine/htunes/launcher instructions.txt (separate repos with running agents) - the user can sync global-&gt;local there when ready.</notes>
+    <filesChanged>instructions.txt; (external) %LOCALAPPDATA%/PromptQueue/global.instructions.txt</filesChanged>
     <image></image>
   </task>
   <task id="ZP-64">
