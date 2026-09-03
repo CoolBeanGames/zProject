@@ -171,7 +171,7 @@ Verified end to end via curl on a scratch target (new_task/sync_many/new_subtask
     <prompt>re-write the global instructions to include how to deal with the operator so agents know what to do</prompt>
     <requirements>global instructions updated</requirements>
     <inProgress>false</inProgress>
-    <done>false</done>
+    <done>true</done>
     <bug>false</bug>
     <error>false</error>
     <errorMessage></errorMessage>
@@ -185,8 +185,8 @@ Verified end to end via curl on a scratch target (new_task/sync_many/new_subtask
     <build>false</build>
     <release>false</release>
     <tags></tags>
-    <notes></notes>
-    <filesChanged></filesChanged>
+    <notes>Rewrote the global instructions (%LOCALAPPDATA%/PromptQueue/global.instructions.txt) and the repo's instructions.txt to teach agents the operator. New "=== THE OPERATOR ===" section: what it is (zProject_operator.exe, background, no window), the full command list (read/get_archive/get_tag/list; new_task/new_project/new_local_project/sync/sync_many/new_subtask/subtask_done/move/delete/archive/agent_lock/agent_unlock), how &lt;project&gt;/&lt;task_id&gt;/&lt;field&gt; resolve, and WHEN to use it - always for creating a task (no nextIndex race, no wrong-element patch like ZP-61), always for touching a task that is not the one you are working; plain inProgress/done/lockKey/subtask bookkeeping on your own task may still be hand-edited. New "=== ARCHIVE ===" section: archived tasks now live in archive.xml, use `operator archive` / `get_archive`, still never process an archived task. Reworked TASK OWNERSHIP LOCK KEY to use `operator agent_lock/agent_unlock` and MARKING PROGRESS / BUG REPORTS to create + fill the report via the operator. Global file is the repo instructions.txt trimmed of the three zProject-only trailing lines. Not propagated to zEngine/htunes/launcher instructions.txt (separate repos with running agents) - the user can sync global-&gt;local there when ready.</notes>
+    <filesChanged>instructions.txt; (external) %LOCALAPPDATA%/PromptQueue/global.instructions.txt</filesChanged>
     <image></image>
   </task>
 </tasks>
