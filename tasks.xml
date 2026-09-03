@@ -102,7 +102,7 @@ Verified end to end via curl on a scratch target (new_task/sync_many/new_subtask
     <prompt>change them to run in full authority mode, id dont ask for permissions so alter the launch commands for them.</prompt>
     <requirements></requirements>
     <inProgress>false</inProgress>
-    <done>false</done>
+    <done>true</done>
     <bug>false</bug>
     <error>false</error>
     <errorMessage></errorMessage>
@@ -116,8 +116,8 @@ Verified end to end via curl on a scratch target (new_task/sync_many/new_subtask
     <build>false</build>
     <release>false</release>
     <tags>agents,ui,commands</tags>
-    <notes></notes>
-    <filesChanged></filesChanged>
+    <notes>MainViewModel.LaunchAgent (the DEPLOY -&gt; Codex / Claude toolbar buttons and the task right-click "Run only this with ..." items) now launches the agent in full-authority mode with no permission/approval prompts: claude gets --dangerously-skip-permissions, codex gets --dangerously-bypass-approvals-and-sandbox. The flag is inserted between the agent name and the boot prompt in the PowerShell command. Build succeeds.</notes>
+    <filesChanged>src/PromptQueue.App/ViewModels/MainViewModel.cs</filesChanged>
     <image></image>
   </task>
   <task id="ZP-74">
@@ -125,7 +125,7 @@ Verified end to end via curl on a scratch target (new_task/sync_many/new_subtask
     <prompt>to both the tool bar, menu bar, and right click menu for projects</prompt>
     <requirements></requirements>
     <inProgress>false</inProgress>
-    <done>false</done>
+    <done>true</done>
     <bug>false</bug>
     <error>false</error>
     <errorMessage></errorMessage>
@@ -139,8 +139,8 @@ Verified end to end via curl on a scratch target (new_task/sync_many/new_subtask
     <build>true</build>
     <release>true</release>
     <tags>ui,navigation</tags>
-    <notes></notes>
-    <filesChanged></filesChanged>
+    <notes>New MainViewModel.OpenProjectDirectoryCommand opens a project's folder in File Explorer (Process.Start on the dir with UseShellExecute). It takes an optional Project parameter and falls back to SelectedProject, so it drives all three entry points: the project toolbar ("Open folder" button next to Reload), the File menu ("Open Project Folder"), and the sidebar right-click menu ("Open Folder", above Remove Project). Disabled when no project applies. Warns if the directory is missing. App builds and launches with the new markup.</notes>
+    <filesChanged>src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
     <image></image>
   </task>
   <task id="ZP-75">

@@ -36,6 +36,9 @@ public sealed class MainViewModel : Observable
         NewProjectCommand = new RelayCommand(NewProject);
         NewLocalProjectCommand = new RelayCommand(NewLocalProject);
         RemoveProjectCommand = new RelayCommand(p => RemoveProject(p as Project ?? SelectedProject));
+        OpenProjectDirectoryCommand = new RelayCommand(
+            p => OpenProjectDirectory(p as Project ?? SelectedProject),
+            p => (p as Project ?? SelectedProject) != null);
         SaveAllCommand = new RelayCommand(SaveAll);
         SaveCurrentCommand = new RelayCommand(SaveCurrentProject, () => SelectedProject != null);
         ReloadProjectCommand = new RelayCommand(ReloadProject, () => SelectedProject != null);
@@ -277,6 +280,7 @@ public sealed class MainViewModel : Observable
     public RelayCommand NewProjectCommand { get; }
     public RelayCommand NewLocalProjectCommand { get; }
     public RelayCommand RemoveProjectCommand { get; }
+    public RelayCommand OpenProjectDirectoryCommand { get; }
     public RelayCommand SaveAllCommand { get; }
     public RelayCommand SaveCurrentCommand { get; }
     public RelayCommand ReloadProjectCommand { get; }
@@ -352,6 +356,32 @@ public sealed class MainViewModel : Observable
 
     /// <summary>Agents can be deployed to a real project, but never to a local to-do list (ZP-70).</summary>
     private bool CanDeployAgent() => SelectedProject is { IsLocal: false };
+
+    /// <summary>Opens a project's folder in File Explorer (ZP-74). Toolbar, File menu and right-click.</summary>
+    private void OpenProjectDirectory(Project? project)
+    {
+        if (project == null)
+            return;
+        if (!Directory.Exists(project.Directory))
+        {
+            MessageBox.Show($"The project directory does not exist:\n{project.Directory}",
+                "zProject", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = project.Directory,
+                UseShellExecute = true,
+            });
+            StatusText = $"Opened {project.Directory}";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "zProject", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
 
     /// <summary>
     /// Right-click &gt; Remove Project (ZP-67): unregisters the project from the
@@ -512,7 +542,11 @@ public sealed class MainViewModel : Observable
             // ZP-56: deploy the agent through PowerShell instead of cmd.exe.
             var dir = project.Directory.Replace("'", "''");
             var bootArg = boot.Replace("'", "''");
-            var psCommand = $"Set-Location -LiteralPath '{dir}'; & {agent} '{bootArg}'";
+            // ZP-73: run with full authority — no permission / approval prompts.
+            var authority = agent == "claude"
+                ? "--dangerously-skip-permissions"
+                : "--dangerously-bypass-approvals-and-sandbox";
+            var psCommand = $"Set-Location -LiteralPath '{dir}'; & {agent} {authority} '{bootArg}'";
 
             Process.Start(new ProcessStartInfo
             {
@@ -942,6 +976,7 @@ public sealed class MainViewModel : Observable
         AddTaskCommand.RaiseCanExecuteChanged();
         DeployCodexCommand.RaiseCanExecuteChanged();
         DeployClaudeCommand.RaiseCanExecuteChanged();
+        OpenProjectDirectoryCommand.RaiseCanExecuteChanged();
         CollapseAllCommand.RaiseCanExecuteChanged();
         ExpandAllCommand.RaiseCanExecuteChanged();
         EditLocalDesignCommand.RaiseCanExecuteChanged();

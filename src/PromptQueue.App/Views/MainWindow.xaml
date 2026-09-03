@@ -247,6 +247,7 @@
                 <MenuItem Header="Save _Current Project" Command="{Binding SaveCurrentCommand}"/>
                 <MenuItem Header="_Save All" Command="{Binding SaveAllCommand}"/>
                 <MenuItem Header="_Reload Project from Disk" Command="{Binding ReloadProjectCommand}"/>
+                <MenuItem Header="_Open Project Folder" Command="{Binding OpenProjectDirectoryCommand}"/>
                 <Separator/>
                 <MenuItem Header="Install _AI CLI">
                     <MenuItem Header="Install ChatGPT / Codex CLI" Command="{Binding InstallCodexCliCommand}"
@@ -313,6 +314,10 @@
                                 <StackPanel Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}">
                                     <StackPanel.ContextMenu>
                                         <ContextMenu>
+                                            <MenuItem Header="Open Folder"
+                                                      Command="{Binding PlacementTarget.Tag.OpenProjectDirectoryCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                            <Separator/>
                                             <MenuItem Header="Remove Project…"
                                                       Command="{Binding PlacementTarget.Tag.RemoveProjectCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                                       CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
@@ -385,6 +390,9 @@
                                 <Border Width="1" Background="{StaticResource BorderBrush}" Margin="10,2"/>
                                 <Button Content="Reload" Style="{StaticResource ToolbarButton}"
                                         Command="{Binding DataContext.ReloadProjectCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                <Button Content="Open folder" Style="{StaticResource ToolbarButton}" Margin="4,0,0,0"
+                                        ToolTip="Open this project's folder in File Explorer"
+                                        Command="{Binding DataContext.OpenProjectDirectoryCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
                                 <Border Width="1" Background="{StaticResource BorderBrush}" Margin="10,2"/>
                                 <Button Content="Collapse all" Style="{StaticResource ToolbarButton}"
                                         ToolTip="Collapse every task card"
