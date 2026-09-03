@@ -1,9 +1,44 @@
 using System.Globalization;
+using System.IO;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace PromptQueue.App;
+
+/// <summary>
+/// Absolute file path → a fully-loaded <see cref="BitmapImage"/> (ZP-59). Loads
+/// with <see cref="BitmapCacheOption.OnLoad"/> so the file is not locked, and
+/// returns null (no image) when the path is empty or unreadable.
+/// </summary>
+public sealed class PathToImageConverter : IValueConverter
+{
+    public object? Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        var path = value as string;
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            return null;
+        try
+        {
+            var bmp = new BitmapImage();
+            bmp.BeginInit();
+            bmp.CacheOption = BitmapCacheOption.OnLoad;
+            bmp.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+            bmp.UriSource = new Uri(path, UriKind.Absolute);
+            bmp.EndInit();
+            bmp.Freeze();
+            return bmp;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => Binding.DoNothing;
+}
 
 /// <summary>
 /// Visible when every bound value is empty/false, otherwise collapsed. Used for

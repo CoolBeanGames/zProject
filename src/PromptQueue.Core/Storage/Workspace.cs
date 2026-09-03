@@ -120,6 +120,12 @@ public sealed class Workspace : Observable
         var projects = new XElement("projects");
         foreach (var p in Projects)
         {
+            // A project whose tasks.xml failed to load has an empty in-memory
+            // task list; mirroring that into data.cfg could later hydrate it as
+            // a real (empty) project. Skip it — the on-disk tasks.xml is intact.
+            if (p.HasLoadError)
+                continue;
+
             projects.Add(new XElement("project",
                 new XAttribute("name", p.Name),
                 new XAttribute("directory", p.Directory),

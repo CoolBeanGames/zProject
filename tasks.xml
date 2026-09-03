@@ -1,5 +1,101 @@
 <?xml version="1.0" encoding="utf-8"?>
-<tasks project="zProject" nextIndex="53">
+<tasks project="zProject" nextIndex="78">
+  <task id="ZP-62">
+    <name>in progress bug</name>
+    <prompt>when a task is in progress it says in progress twice</prompt>
+    <requirements>fix it</requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <bug>true</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>true</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <tags></tags>
+    <notes>Root cause: an in-progress task rendered its status twice - once from TaskItem.StatusText (which returned "In progress") and once from the dedicated accent-coloured "in progress" TextBlock below it in the card template. Fix: removed the `InProgress ? "In progress"` branch from StatusText, and hid the plain StatusText line while InProgress is true so only the accent "in progress" line shows. Build succeeds.</notes>
+    <filesChanged>src/PromptQueue.Core/Models/TaskItem.cs; src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-61">
+    <name>Incorrect task claimed by XML patch</name>
+    <prompt>An XML patch intended to claim ZP-60 matched the first generic inProgress and lockKey fields in tasks.xml, changing archived completed task ZP-55 instead. Expected: only ZP-60 is claimed. Actual: ZP-55 was marked in progress and assigned the current ownership key.</prompt>
+    <requirements>Restore ZP-55 inProgress to false and clear its lockKey; claim ZP-60 with the current ownership key; keep all other task state unchanged.</requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <bug>true</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>true</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <tags>tasks.xml, bookkeeping</tags>
+    <notes>Restored archived task ZP-55 to its original completed, not-in-progress state with an empty lock key. Claimed ZP-60 using a task-scoped patch and verified both subtasks.</notes>
+    <filesChanged>tasks.xml</filesChanged>
+    <image></image>
+    <subtasks>
+      <subtask done="true">Restore the state of ZP-55</subtask>
+      <subtask done="true">Claim ZP-60 with an ownership key</subtask>
+    </subtasks>
+  </task>
+  <task id="ZP-55">
+    <name>two processes open</name>
+    <prompt>ensure that if zProject is already running, instead of opening a new one just launch the old one.</prompt>
+    <requirements>only 1 process can run at a time</requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <bug>true</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>true</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <tags></tags>
+    <notes>Single-instance enforcement added. App.OnStartup takes a named Mutex ("zProject.SingleInstance.{GUID}"); if it is not the first instance it opens the named EventWaitHandle "zProject.Activate.{GUID}", Set()s it, and Shutdown()s before any window is created - so a second launch never runs. The first instance owns that EventWaitHandle and runs a background listener thread; when signalled it marshals to the dispatcher and calls MainWindow.RestoreFromExternalRequest() (== RestoreFromTray: Show, ShowInTaskbar=true, WindowState=Normal, Activate, Topmost toggle, ReloadAllProjects), so re-launching zProject surfaces the existing window even when it is hidden in the tray or minimised. Mutex/handle/thread are torn down in App.OnExit. Verified: Debug build succeeds.</notes>
+    <filesChanged>src/PromptQueue.App/App.xaml.cs; src/PromptQueue.App/Views/MainWindow.xaml.cs</filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-56">
+    <name>powershell over comand</name>
+    <prompt>the deply AI buttons use command prompt, switch them to powershell</prompt>
+    <requirements>powerhsell used instead</requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <bug>true</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>true</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <tags></tags>
+    <notes>MainViewModel.LaunchAgent (used by the DEPLOY -&gt; Codex / Claude toolbar buttons and the task right-click "Run only this with ..." items) now spawns powershell.exe instead of cmd.exe: `powershell.exe -NoExit -ExecutionPolicy Bypass -Command "Set-Location -LiteralPath '&lt;dir&gt;'; &amp; &lt;agent&gt; '&lt;boot&gt;'"`. Directory and boot text single-quotes are doubled for safety. The npm-install buttons (RunInTerminal) were left on cmd.exe as they are not the deploy buttons. Build succeeds.</notes>
+    <filesChanged>src/PromptQueue.App/ViewModels/MainViewModel.cs</filesChanged>
+    <image></image>
+  </task>
   <task id="ZP-39">
     <name>webserver</name>
     <prompt>webserver works, but only on the same machine its not accessable by my phone even on the same network</prompt>
@@ -11,7 +107,7 @@
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -21,6 +117,7 @@
     <tags>bug,webserver</tags>
     <notes>Root cause: the server bound "http://localhost:{port}/", which only listens on loopback. Now it binds "http://+:{port}/" (all interfaces). Windows requires a one-time URL reservation for that; when it is missing the server prompts "Add the reservation now? [Y/n]" and, on Y, self-elevates (one UAC) to run `netsh http add urlacl` plus a `netsh advfirewall` inbound TCP allow rule, then retries — after which phones on the same wifi can connect. On N (or failure) it falls back to localhost-only and prints the exact commands to run manually. The console banner now lists the phone URL(s), e.g. http://10.0.0.38:{port}/, derived from the machine's non-loopback IPv4 addresses (LocalUrls). FindFreePort still picks an open port.</notes>
     <filesChanged>src/PromptQueue.Server/Program.cs</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-40">
     <name>icons</name>
@@ -33,7 +130,7 @@
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -43,6 +140,7 @@
     <tags>view,icons,bug</tags>
     <notes>The squares were missing "Segoe MDL2 Assets" glyphs. Replaced all of them with real vector line icons drawn as WPF Path geometry (new IconPath style + ChevronDownGeo / ChevronRightGeo / LockClosedGeo / LockOpenGeo in Theme/Styles.xaml) — a padlock (shackle down = locked, shackle open = unlocked) and a caret chevron (down = expanded, right = collapsed). Used on the per-row lock button, the card collapse button and the tags show/hide toggle. Font-glyph converters are no longer used for these. Verified on screen: real padlock + chevron icons render, no tofu boxes.</notes>
     <filesChanged>src/PromptQueue.App/Theme/Styles.xaml; src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
+    <image></image>
     <subtasks>
       <subtask done="true">lock icon</subtask>
       <subtask done="true">expand icon</subtask>
@@ -60,7 +158,7 @@
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -70,6 +168,7 @@
     <tags></tags>
     <notes>Changed close-behaviour from "minimise to taskbar" to "hide to the notification area (system tray)". Enabled WinForms in the App csproj just for System.Windows.Forms.NotifyIcon (with &lt;Using Remove&gt; so System.Windows.* stays unambiguous). On the window's [X]: e.Cancel, Hide(), ShowInTaskbar=false — the taskbar button disappears and the app keeps running with a tray icon (the app.ico). The tray icon has a right-click context menu with "Open" (restore + ReloadAllProjects) and "Close" (real exit, disposes the icon); double-click also opens. Verified: WM_CLOSE hides the window (gone from the automation tree / taskbar) while the process stays alive, and the tray icon appears. (Windows 11 may keep the icon in the hidden-icons overflow until pinned.) All three subtasks complete.</notes>
     <filesChanged>src/PromptQueue.App/PromptQueue.App.csproj; src/PromptQueue.App/Views/MainWindow.xaml.cs</filesChanged>
+    <image></image>
     <subtasks>
       <subtask done="true">removed from taskbar</subtask>
       <subtask done="true">added to toolbar</subtask>
@@ -87,7 +186,7 @@
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -97,6 +196,465 @@
     <tags>control,bug</tags>
     <notes>Root cause: ProjectStore.Normalize renumbered Order by sorting on the OLD Order values (OrderBy(t =&gt; t.Order)) instead of taking the collection's physical position as authoritative. After a drag moved a task in Project.Tasks, Normalize sorted by the stale Order and put everything back, so the reorder was silently undone before saving. Fixed Normalize to set Order = physical index (0..n-1). Verified with an automated drag: dragging Delta above Alpha now persists as DT-4, DT-1, DT-2, DT-3 in tasks.xml.</notes>
     <filesChanged>src/PromptQueue.Core/Storage/ProjectStore.cs</filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-64">
+    <name>drag glitchyness</name>
+    <prompt>dragging to re-order is very glitchy, the positions kind of mess up and its just overall not very smooth, lets have tasks gradually move out of the way rather than snap and make the whole thing a lot more pleasing</prompt>
+    <requirements>dragging is less glitchy and more appealing</requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>true</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <tags>visuals,ui,control,dragging,tasks</tags>
+    <notes>Two causes of the glitchiness in the row-reorder drag: (1) the insert-index maths read the mid-flight animated TranslateTransform value (`GetTranslateY(c) &gt; 0`) to guess a row's rest position, so while rows were still animating the computed midpoints flickered and the gap jumped back and forth; (2) the dragged row was removed with an instant Visibility=Collapsed and rows below snapped up, and on drop every row had its transform cleared instantly. Fixes: track the intended offset per row in a `_targetOffset` dictionary and subtract THAT (never the live transform) when computing midpoints, so the insert index is stable; animate the source row's height+opacity to zero over 140ms (new CollapseRow/RestoreRow) instead of snapping; lengthen the move animation to 200ms with EaseInOut and always re-target so a change of direction is followed smoothly. VisibleContainers now excludes the dragged row explicitly. Build succeeds, 0 warnings.</notes>
+    <filesChanged>src/PromptQueue.App/Views/MainWindow.xaml.cs</filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-65">
+    <name>dispatcher</name>
+    <prompt>I was thinking about how to deal with adding/editing tasks while an agent is running and i came up with the idea for the "operator" a cli tool that facilitates everything. basically this app, the agents, and the webserver will interact with the operator. the operator can do the tasks below and will keep the program state accurate.
+
+the operator runs a file called "queue" that stores a list of job (what project, what task, what job) and it pushes the queue as items arrive and then it removes them.
+
+if you can think of any other skills the operator needs to keep this all in sync then goahead and add the ability.
+
+calls to the operator should run in the background and NOT open a new window</prompt>
+    <requirements>operator in place with all subtasks working</requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>true</commit>
+    <build>true</build>
+    <release>true</release>
+    <tags>operator, feature</tags>
+    <notes>Built the "operator" - the single choke-point through which the app, the AI agents and the web server mutate a project's tasks.xml, so writes never interleave while an agent is running.
+
+CORE (new PromptQueue.Core/Operator/): OperatorEngine (queue + apply + save), OperatorJob (a queued change: command + string args + optional XML payload), OperatorResult, CrossProcessLock (system-wide named mutex "Global\zProject.Operator", abandoned-mutex tolerant), TaskFields (field-name -> TaskItem setter map with aliases). Every mutating call becomes a job appended to a persistent queue file at %LOCALAPPDATA%/PromptQueue/operator/queue.xml, then the whole queue is drained under the mutex; a job is removed only after it is applied and the affected project saved via ProjectStore.Save, so a crash mid-drain just retries. Read calls (read/list) skip the queue. ProjectStore.Save now also takes that same mutex around the tasks.xml write, so the app and the operator serialise against each other.
+
+Commands: read &lt;project&gt;, list, sync &lt;task_id&gt; &lt;field&gt; &lt;value&gt;, new_task &lt;project&gt; &lt;name&gt; [prompt] (prints new id), new_subtask &lt;task_id&gt; &lt;text&gt;, delete &lt;task_id&gt;, move &lt;task_id&gt; &lt;index&gt;. Extra skills added to keep state in sync: list, subtask_done (toggle a subtask by index), upsert (full task replace/add - used by the app's task editor). &lt;project&gt; resolves by name, id-prefix or directory path; &lt;task_id&gt; is looked up across all registered projects.
+
+EXE (new PromptQueue.Operator, AssemblyName zProject_operator): thin arg-parser over OperatorEngine. Console app, exits when done, never opens its own window (callers launch it hidden). Added to PromptQueue.slnx; built into builds/debug + builds/release next to zProject.exe.
+
+APP (subtask 9 - "switched to interacting with the operator"): MainViewModel routes every task mutation through OperatorEngine in-process (same mutex + queue as the exe) via a new ApplyViaOperator helper that runs the op then re-reads the project from disk (carrying card-collapse state across the reload) so the UI shows exactly what was persisted. Re-routed: quick-add, Add/Edit task form (mint id via new_task then upsert), delete, drag-move, done toggle (row + card checkbox), lock toggle, subtask checkbox. Removed the now-dead AfterTasksChanged/SaveCurrent. Whole solution builds clean, 0 warnings; operator CLI round-trip verified (new_task/sync/new_subtask/move/delete, queue drains to empty).</notes>
+    <filesChanged>src/PromptQueue.Core/Operator/OperatorEngine.cs (new); src/PromptQueue.Core/Operator/OperatorJob.cs (new); src/PromptQueue.Core/Operator/OperatorResult.cs (new); src/PromptQueue.Core/Operator/CrossProcessLock.cs (new); src/PromptQueue.Core/Operator/TaskFields.cs (new); src/PromptQueue.Operator/PromptQueue.Operator.csproj (new); src/PromptQueue.Operator/Program.cs (new); PromptQueue.slnx; src/PromptQueue.Core/Storage/ProjectStore.cs; src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml.cs</filesChanged>
+    <image></image>
+    <subtasks>
+      <subtask done="true">sync changes, command is "sync task_id value" this creates a push task that overrides the value for the task</subtask>
+      <subtask done="true">new_task "new name prompt" creates a new task</subtask>
+      <subtask done="true">new subtask "sub task_id subtask"</subtask>
+      <subtask done="true">read "read" returns a copy of the entire xml file</subtask>
+      <subtask done="true">delete "delete task_id" removes a task</subtask>
+      <subtask done="true">move "move task_id index" moves the task to the position in index</subtask>
+      <subtask done="true">operator CLI made</subtask>
+      <subtask done="true">operator queue made</subtask>
+      <subtask done="true">this program switched to interacting with the operator</subtask>
+    </subtasks>
+  </task>
+  <task id="ZP-66">
+    <name>autocomplete</name>
+    <prompt>the labels were supposed to have autocomplete for all existing tags, that is not in place. press tab to accept autocomplete as soon as it can figure out a tag that fits it should try to autocomplete with slightly greyed out text</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-67">
+    <name>right click</name>
+    <prompt>add a right click menu for deleting projects. get right of global buttons they can live in the globals section of the menu bar</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <tags>UI, buttons</tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-68">
+    <name>Webserver</name>
+    <prompt>The webserver never worked, we are going to instead move to using a service called tailscale funnel
+
+basically
+phone connects to tailscale -&gt; interacts with operator -&gt; view and adjust the tasks and projects</prompt>
+    <requirements>tailscale implemented</requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <tags>webserver,tailscale, operator</tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-69">
+    <name>webserver expansion</name>
+    <prompt>I decided I do want to be able to make new tasks, projects, and edit tasks from the mobile webserver. be sure to optimize the webpage for mobile!</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>true</commit>
+    <build>true</build>
+    <release>true</release>
+    <tags>webserver</tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-70">
+    <name>local projects</name>
+    <prompt>local projects are mainly for me to use as a to-do list, they are stored in the zProject directory and dont need a path, and the AI agents wont work on them</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <tags>projects</tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-71">
+    <name>archive changes</name>
+    <prompt>when a task is archived, instead of storing it in tasks.xml create a new archive.xml in the project directory and move it there to keep tasks small. this should be done by the operator. the program can still display the archives</prompt>
+    <requirements>archives implemented</requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <tags>operator,tasks,archive</tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-72">
+    <name>new operator commands</name>
+    <prompt>just some more operator stuff</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>true</commit>
+    <build>true</build>
+    <release>false</release>
+    <tags>operator, tags, archive</tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+    <subtasks>
+      <subtask done="false">read archive "get_archive" returns the whole archive</subtask>
+      <subtask done="false">move to archive "archive task_id" marks a task as not in project, done, and archived and moves it to the archive</subtask>
+      <subtask done="false">ai lock "agent_lock task_id key" locks the task by an agent</subtask>
+      <subtask done="false">ai unlock "agent_unlock task_id key" unlocks a task if the id matches</subtask>
+      <subtask done="false">get tag "get_tag task_id tag" returns the value of the requested tag if it exists</subtask>
+    </subtasks>
+  </task>
+  <task id="ZP-73">
+    <name>deploy claude and codex buttons</name>
+    <prompt>change them to run in full authority mode, id dont ask for permissions so alter the launch commands for them.</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <tags>agents,ui,commands</tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-74">
+    <name>add an open directory button</name>
+    <prompt>to both the tool bar, menu bar, and right click menu for projects</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>true</commit>
+    <build>true</build>
+    <release>true</release>
+    <tags>ui,navigation</tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-75">
+    <name>buttons for tasks</name>
+    <prompt>add checkboxes to fulley extended tasks for commit build release and bug tags</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>true</commit>
+    <build>true</build>
+    <release>true</release>
+    <tags>ui,tasks</tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-76">
+    <name>global instructions</name>
+    <prompt>re-write the global instructions to include how to deal with the operator so agents know what to do</prompt>
+    <requirements>global instructions updated</requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-59">
+    <name>add support for uploading images</name>
+    <prompt>add a box to upload an image for a task, when uploaded it is sent to a subfloder called task_images
+add details to the instructions (global, and all current local) to refer to that folder with a path
+should be written to tasks with a "image" tag, that gives the file_name to the image for that task</prompt>
+    <requirements>images are now supported</requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>true</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <tags></tags>
+    <notes>Task images are now supported. New TaskItem.Image (file name only) serialized as an &lt;image&gt; element by TaskXmlSerializer (write + read, trimmed), carried through Clone/CopyFrom; plus a runtime-only TaskItem.ImagePath resolved by the app. The Add/Edit task pop-up has an "Image" section: "Choose image…" opens a file picker, copies the picked file into &lt;projectDir&gt;/task_images/ as &lt;taskId&gt;&lt;ext&gt; (replacing any previous image of a different extension), and records the file name on the task; "Remove" clears it; a live preview (max 200px) shows below. Each task card shows a small thumbnail (PathToImageConverter loads the bitmap with OnLoad caching so the file is not locked, returns null when missing) and the row tooltip lists "task_images/&lt;name&gt;". MainViewModel passes project.Directory to the form and resolves ImagePath in RebuildTasksView / AfterTasksChanged. Instructions: added a "TASK IMAGES" section (and &lt;image&gt;&lt;/image&gt; to the bug-report template) to instructions.txt and to the global instructions + zEngine/htunes local instructions, describing task_images/ and the &lt;image&gt; element. App + server build clean; app launches without error.</notes>
+    <filesChanged>src/PromptQueue.Core/Models/TaskItem.cs; src/PromptQueue.Core/Serialization/TaskXmlSerializer.cs; src/PromptQueue.App/ViewModels/TaskFormViewModel.cs; src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/Converters.cs; src/PromptQueue.App/Views/MainWindow.xaml; instructions.txt; (external) %LOCALAPPDATA%/PromptQueue/global.instructions.txt; (external) ../zEngine/instructions.txt; (external) ../htunes/instructions.txt</filesChanged>
+    <image></image>
+    <subtasks>
+      <subtask done="true">model + serializer: &lt;image&gt; element on tasks</subtask>
+      <subtask done="true">task editor: choose/preview/remove image, copy into task_images/</subtask>
+      <subtask done="true">show the image thumbnail on the task card</subtask>
+      <subtask done="true">instructions updated (local + global + all current locals)</subtask>
+      <subtask done="true">build succeeds</subtask>
+    </subtasks>
+  </task>
+  <task id="ZP-53">
+    <name>collapsable archive</name>
+    <prompt>the archived list needs to be collapsable</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>true</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <tags></tags>
+    <notes>The "Archived" section now has the same Show/Hide toggle the "Completed" section has. New MainViewModel.ArchivedCollapsed (defaults to true, so the archived list starts collapsed) + ToggleArchivedCollapsedCommand. In the GroupStyle ControlTemplate the shared CollapseBtn is now also made visible for the "Archived" group, with its Command/Content re-bound to the Archived toggle; a new MultiDataTrigger (Name=Archived AND ArchivedCollapsed) collapses that group's ItemsPresenter. Build succeeds.</notes>
+    <filesChanged>src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-54">
+    <name>hide done in blocked by list</name>
+    <prompt>hide all done tasks, archived tasks, and tasks without names in the blocked by list</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>true</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <tags></tags>
+    <notes>TaskFormViewModel.BlockCandidates (the "Blocked by" autocomplete list in the task pop-up) now filters out any peer task that is Done, Archived, or has no Name - so only live, named tasks are offered as blockers. Since unnamed tasks are excluded, the "ID — name" projection no longer needs the bare-Id fallback. Build succeeds.</notes>
+    <filesChanged>src/PromptQueue.App/ViewModels/TaskFormViewModel.cs</filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-57">
+    <name>space bar</name>
+    <prompt>when i press space i want it to start creating a new task, I DONT want it to open the full editor, just allow me to start typing the name for the new task IMMEDIATLY and when i press enter save it as a new task with no prompt or requirements or anything, so i can rapidly setup tasks. have it set to locked by default.</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>true</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <tags></tags>
+    <notes>Space bar quick-add. New MainViewModel.QuickAddActive / QuickAddText + BeginQuickAddCommand / CommitQuickAddCommand / CancelQuickAddCommand. MainWindow.Window_PreviewKeyDown: pressing Space while a project is selected, no overlay is open, and focus is not in a text box / editable combo opens an inline "NEW TASK NAME" bar under the toolbar and focuses it. Typing the name and pressing Enter (QuickAdd_KeyDown) creates a new TaskItem with only that Name set, Locked=true, everything else blank/default, saves, clears the box and stays open so more can be added rapidly. Esc closes the bar. Build succeeds.</notes>
+    <filesChanged>src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/Views/MainWindow.xaml.cs</filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-58">
+    <name>escape while editing a task</name>
+    <prompt>if i am editing a task i want the escape key to close the window applying any changes</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>true</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <tags></tags>
+    <notes>MainWindow.Window_PreviewKeyDown now handles Escape: when the open overlay is a TaskFormViewModel (the Add/Edit Task pop-up) it executes SaveCommand, which applies the form to the task and closes the overlay - so Esc = "close applying any changes". Tunneling PreviewKeyDown so it works regardless of which field has focus. Other overlays (text editors) are unaffected. Build succeeds.</notes>
+    <filesChanged>src/PromptQueue.App/Views/MainWindow.xaml.cs</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-47">
     <name>archive done</name>
@@ -109,7 +667,7 @@
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -119,6 +677,7 @@
     <tags>data</tags>
     <notes>Archiving completed tasks is now automatic on every save, and the "Archive done" toolbar button is gone. New ProjectStore.AutoArchiveCompleted(project) sets Archived=true on every Done, not-yet-Archived task; ProjectStore.Save calls it before Normalize, so it fires for "Save Current Project", "Save All" and any AfterTasksChanged (add/edit/toggle/drag). MainViewModel.AfterTasksChanged also calls it up-front so the card jumps to the Archived section immediately, and SaveAll / SaveCurrentProject rebuild the grouped view afterwards. Removed ArchiveDoneCommand + ArchiveDone() and their RaiseCanExecuteChanged calls. Verified: build succeeds.</notes>
     <filesChanged>src/PromptQueue.Core/Storage/ProjectStore.cs; src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-48">
     <name>bug reporting</name>
@@ -131,7 +690,7 @@
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -139,8 +698,9 @@
     <build>false</build>
     <release>false</release>
     <tags>bugs,data</tags>
-    <notes>Infrastructure was already in place: the &lt;bug&gt; flag (ZP-23, sorts bug tasks to the top of the file + list), &lt;subtasks&gt; with per-item done="..." (ZP-22, the check-off list), and the nextIndex attribute on &lt;tasks&gt; for minting ids. So no new code was needed. Wrote a "BUG REPORTS &amp; TODO CHECK-OFF" section and inserted it at the very TOP of instructions.txt: file a bug report as a new &lt;task&gt; with &lt;bug&gt;true&lt;/bug&gt; (all fields, near the top, bump nextIndex) BEFORE fixing it, add &lt;subtask&gt; steps if multi-step, then set inProgress, fix, and flip each subtask done="false"->done="true" AS it is finished (saving each time), never batched. Inserted the same block into the global instructions (%LOCALAPPDATA%/PromptQueue/global.instructions.txt) and into the local instructions.txt of the other two currently-registered projects (zEngine, htunes).</notes>
+    <notes>Infrastructure was already in place: the &lt;bug&gt; flag (ZP-23, sorts bug tasks to the top of the file + list), &lt;subtasks&gt; with per-item done="..." (ZP-22, the check-off list), and the nextIndex attribute on &lt;tasks&gt; for minting ids. So no new code was needed. Wrote a "BUG REPORTS &amp; TODO CHECK-OFF" section and inserted it at the very TOP of instructions.txt: file a bug report as a new &lt;task&gt; with &lt;bug&gt;true&lt;/bug&gt; (all fields, near the top, bump nextIndex) BEFORE fixing it, add &lt;subtask&gt; steps if multi-step, then set inProgress, fix, and flip each subtask done="false"-&gt;done="true" AS it is finished (saving each time), never batched. Inserted the same block into the global instructions (%LOCALAPPDATA%/PromptQueue/global.instructions.txt) and into the local instructions.txt of the other two currently-registered projects (zEngine, htunes).</notes>
     <filesChanged>instructions.txt; (external) %LOCALAPPDATA%/PromptQueue/global.instructions.txt; (external) ../zEngine/instructions.txt; (external) ../htunes/instructions.txt</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-49">
     <name>lock key</name>
@@ -153,7 +713,7 @@
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -163,6 +723,7 @@
     <tags>data,security,stability</tags>
     <notes>Infrastructure: new TaskItem.LockKey (string) serialized as a &lt;lockKey&gt; element by TaskXmlSerializer (write + read, trimmed), carried through Clone/CopyFrom, and added to every existing task in this file. It is a data field (not user-editable, like &lt;archived&gt;); the row tooltip shows "Owned by agent (lock key set)" when it is non-empty. Instructions: added a "TASK OWNERSHIP LOCK KEY" section to instructions.txt (and to the global instructions + zEngine/htunes local instructions) — the agent invents a private random key, writes it to &lt;lockKey&gt; when it sets &lt;inProgress&gt;true, and on resume of an in-progress task continues only if the key is empty or matches, otherwise leaves the task untouched and skips it; the key is cleared when the task is finished. Build succeeds.</notes>
     <filesChanged>src/PromptQueue.Core/Models/TaskItem.cs; src/PromptQueue.Core/Serialization/TaskXmlSerializer.cs; src/PromptQueue.App/Views/MainWindow.xaml; instructions.txt; tasks.xml; (external) %LOCALAPPDATA%/PromptQueue/global.instructions.txt; (external) ../zEngine/instructions.txt; (external) ../htunes/instructions.txt</filesChanged>
+    <image></image>
     <subtasks>
       <subtask done="true">infrastructure fo lock keys in</subtask>
       <subtask done="true">instructions inserted into instructions.txt (global and all current locals)</subtask>
@@ -179,7 +740,7 @@
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -187,8 +748,9 @@
     <build>false</build>
     <release>false</release>
     <tags>input,features</tags>
-    <notes>Added "Collapse all" / "Expand all" buttons to the project toolbar (after Reload, behind a divider). They run MainViewModel.CollapseAllCommand / ExpandAllCommand -> SetAllCollapsed(bool), which sets TaskItem.Collapsed on every task in the selected project (the same runtime-only flag the per-card chevron toggles), and update the status bar. Both are disabled when no project is selected. Build succeeds.</notes>
+    <notes>Added "Collapse all" / "Expand all" buttons to the project toolbar (after Reload, behind a divider). They run MainViewModel.CollapseAllCommand / ExpandAllCommand -&gt; SetAllCollapsed(bool), which sets TaskItem.Collapsed on every task in the selected project (the same runtime-only flag the per-card chevron toggles), and update the status bar. Both are disabled when no project is selected. Build succeeds.</notes>
     <filesChanged>src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-51">
     <name>in-progress</name>
@@ -201,7 +763,7 @@
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -211,6 +773,7 @@
     <tags></tags>
     <notes>This whole run marked each task &lt;inProgress&gt;true&lt;/inProgress&gt; and saved before touching any file, then flipped to &lt;done&gt;true&lt;/done&gt; + &lt;inProgress&gt;false&lt;/inProgress&gt; on completion (ZP-47..ZP-52). For clarity, added a prominent "MARKING PROGRESS (do this - it is being skipped)" block to the TOP of instructions.txt and to the global instructions + zEngine/htunes local instructions: set inProgress + save as the FIRST action on every task, never batched, and never leave a task being worked on with inProgress false. Built both projects to builds/debug and committed/pushed per the commit+build flags.</notes>
     <filesChanged>instructions.txt; (external) %LOCALAPPDATA%/PromptQueue/global.instructions.txt; (external) ../zEngine/instructions.txt; (external) ../htunes/instructions.txt</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-52">
     <name>run only this</name>
@@ -223,7 +786,7 @@
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -233,6 +796,7 @@
     <tags></tags>
     <notes>Every task card now has a right-click context menu with "Run only this with Codex" and "Run only this with Claude Code" (Border.ContextMenu in the row template; the Border carries Tag = the window DataContext so the MenuItems reach MainViewModel via PlacementTarget.Tag, with PlacementTarget.DataContext as the TaskItem parameter). Both run MainViewModel.DeployAgentForTask, which calls the shared LaunchAgent helper to open a terminal (cmd /k) in the project directory and start codex/claude with the boot text "Read prompt.txt in this directory and follow it exactly for task ID only. Complete ONLY task ID, then stop." — prompt.txt already handles the single-task case. Refactored the existing DeployAgent onto the same LaunchAgent helper. Built app + server to builds/debug and builds/release; app launches clean. Committed/pushed per commit+build+release.</notes>
     <filesChanged>src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-3">
     <name></name>
@@ -245,7 +809,7 @@
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -255,6 +819,7 @@
     <tags></tags>
     <notes>Task identified by id ZP-3. Marked in-progress and saved tasks.xml, then completed and saved again.</notes>
     <filesChanged>tasks.xml</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-4">
     <name></name>
@@ -267,7 +832,7 @@
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -277,6 +842,7 @@
     <tags></tags>
     <notes>Added a ToolTip to every task row in MainWindow.xaml. It shows an Error section (when errorMessage is set), a Notes section (when notes are set) and a Files changed section (when filesChanged is set); each section is hidden when its field is empty, with a fallback line when nothing is recorded. Added AllEmptyToVisibilityConverter (IMultiValueConverter) to support the fallback. Also added Error/ErrorMessage/Commit/Build/Release to the TaskItem model and to TaskXmlSerializer so the tooltip has data to bind to.</notes>
     <filesChanged>src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/Converters.cs; src/PromptQueue.Core/Models/TaskItem.cs; src/PromptQueue.Core/Serialization/TaskXmlSerializer.cs</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-5">
     <name></name>
@@ -289,7 +855,7 @@
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -299,6 +865,7 @@
     <tags></tags>
     <notes>The &lt;error&gt; boolean tag and the &lt;errorMessage&gt; text tag are now written and read for every task by TaskXmlSerializer, and are present on every task in this file. Backed by TaskItem.Error / TaskItem.ErrorMessage. ParseBool defaults &lt;error&gt; to false when the element is absent, so older files still load.</notes>
     <filesChanged>src/PromptQueue.Core/Serialization/TaskXmlSerializer.cs; src/PromptQueue.Core/Models/TaskItem.cs; tasks.xml</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-6">
     <name></name>
@@ -311,7 +878,7 @@
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -321,6 +888,7 @@
     <tags></tags>
     <notes>The task edit pop-up now shows an Error section (error flag + error message), a Notes section, and a Files changed section, each rendered ONLY when that field was already populated when the pop-up opened. Visibility is latched in TaskFormViewModel (HasError / HasNotes / HasFilesChanged) so editing the text does not make a section disappear. Replaced the old ShowAgentFields gate.</notes>
     <filesChanged>src/PromptQueue.App/ViewModels/TaskFormViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-7">
     <name></name>
@@ -333,7 +901,7 @@
     <errorMessage>error message posed</errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -343,6 +911,7 @@
     <tags></tags>
     <notes>error message posed. This error was posted deliberately per the ZP-7 prompt to exercise the error-display path (row tooltip, pop-up editor Error section, and the red row background added by ZP-9). The task requirement "the error was posted" is met, so execution continues to the next task rather than halting (the halt rule applies only to tasks that are impossible to complete).</notes>
     <filesChanged>tasks.xml</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-8">
     <name></name>
@@ -355,7 +924,7 @@
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -365,6 +934,7 @@
     <tags></tags>
     <notes>Set AcceptsTab="False" on the Prompt and Requirements text boxes in the task pop-up (overriding the EditorTextBox style, which keeps AcceptsTab for the full-page design/instruction editor). Tab now moves focus Prompt -&gt; Requirements -&gt; the In progress / Done checkboxes, and Shift+Tab moves backwards, using WPF's standard focus traversal.</notes>
     <filesChanged>src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-9">
     <name></name>
@@ -377,7 +947,7 @@
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -387,6 +957,7 @@
     <tags></tags>
     <notes>Task rows now use a Style with a DataTrigger on Error=True that swaps the row background to a restrained low-saturation red (ErrorSurfaceBrush #FBEAEA) and the border to ErrorBorderBrush. Added ErrorSurface/ErrorBorder/ErrorText brushes to Theme/Styles.xaml. ZP-7 is flagged as an error and now renders red.</notes>
     <filesChanged>src/PromptQueue.App/Theme/Styles.xaml; src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-11">
     <name></name>
@@ -399,7 +970,7 @@
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -409,6 +980,7 @@
     <tags></tags>
     <notes>Added a "Commit" checkbox to the top-right of the task pop-up (header restructured into a Grid: title/ID on the left, checkbox row on the right). Bound to TaskFormViewModel.Commit -&gt; TaskItem.Commit. The &lt;commit&gt; XML tag is written and read by TaskXmlSerializer and is present on every task in this file. Per instructions.txt, a task with commit=true triggers a project commit + push once it is done.</notes>
     <filesChanged>src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/ViewModels/TaskFormViewModel.cs; src/PromptQueue.Core/Serialization/TaskXmlSerializer.cs; src/PromptQueue.Core/Models/TaskItem.cs</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-12">
     <name></name>
@@ -421,7 +993,7 @@
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -431,6 +1003,7 @@
     <tags></tags>
     <notes>Removed the up/down arrow buttons from each task row and the ORDER column. Reordering is now click-and-drag: press on a row and drag it onto another row to drop it there (handled by TaskItem_PreviewMouseLeftButtonDown / MouseMove / Drop in MainWindow.xaml.cs via DragDrop.DoDragDrop; MainViewModel.MoveTask persists the new order and normalizes). Added a grip glyph and "drag to reorder" affordance in the first column and header. Removed the now-unused MoveTaskUp/Down commands and MoveTaskBy from MainViewModel.</notes>
     <filesChanged>src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/ViewModels/MainViewModel.cs</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-13">
     <name></name>
@@ -443,7 +1016,7 @@
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -453,6 +1026,7 @@
     <tags></tags>
     <notes>Added a "Build" checkbox next to "Commit" in the task pop-up top-right, bound to TaskFormViewModel.Build -&gt; TaskItem.Build. The &lt;build&gt; XML tag is written/read by TaskXmlSerializer and present on every task. Per instructions.txt, build=true means the project is built to builds/debug once the task is done (builds/test for test builds, builds/release when release is also set).</notes>
     <filesChanged>src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/ViewModels/TaskFormViewModel.cs; src/PromptQueue.Core/Serialization/TaskXmlSerializer.cs; src/PromptQueue.Core/Models/TaskItem.cs</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-14">
     <name></name>
@@ -465,7 +1039,7 @@
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -475,6 +1049,7 @@
     <tags></tags>
     <notes>Added a "Release" checkbox next to Commit and Build in the task pop-up top-right, bound to TaskFormViewModel.Release -&gt; TaskItem.Release. The &lt;release&gt; XML tag is written/read by TaskXmlSerializer and present on every task. Per instructions.txt, release=true means a release build is produced to builds/release once the task is done.</notes>
     <filesChanged>src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/ViewModels/TaskFormViewModel.cs; src/PromptQueue.Core/Serialization/TaskXmlSerializer.cs; src/PromptQueue.Core/Models/TaskItem.cs</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-15">
     <name></name>
@@ -487,7 +1062,7 @@
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -497,6 +1072,7 @@
     <tags></tags>
     <notes>Replaced OLE drag-and-drop with a manual drag. On drag start the row is snapshotted to a RenderTargetBitmap and shown as a semi-transparent "ghost" (RowDragAdorner) that follows the mouse; the real row is collapsed so the list closes up behind it. As the pointer passes each row's midpoint an insertion index is computed and every row at/after it animates down by the row height (120ms CubicEase) to open a gap; moving away animates the gap closed. On mouse-up the task is moved to that index via MainViewModel.MoveTaskToIndex and the order is persisted. ListBox switched to a non-virtualizing StackPanel items host so container transforms are stable. Built to builds/debug and committed per the commit/build flags.</notes>
     <filesChanged>src/PromptQueue.App/Controls/RowDragAdorner.cs (new); src/PromptQueue.App/Views/MainWindow.xaml.cs; src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/ViewModels/MainViewModel.cs; tasks.xml</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-16">
     <name></name>
@@ -509,7 +1085,7 @@
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -519,6 +1095,7 @@
     <tags></tags>
     <notes>The task list is now grouped into sections via a grouped ICollectionView (MainViewModel.TasksView) with a PropertyGroupDescription on TaskItem.SectionKey. Project.Tasks is kept physically stable-sorted by SectionRank (SortIntoSections, called from AfterTasksChanged on every add/edit/toggle/reorder) so drag-reorder stays index-based. Sections render in order: "Needs attention", "Active", "Completed". Each section has a clear divider (thin rule + small caps label + count) from a GroupStyle.ContainerStyle template. The "Completed" section (all done tasks, at the bottom) has a Show/Hide button that toggles MainViewModel.CompletedCollapsed; a MultiDataTrigger collapses that group's ItemsPresenter when set. Verified visually.</notes>
     <filesChanged>src/PromptQueue.Core/Models/TaskItem.cs; src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/Converters.cs</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-17">
     <name></name>
@@ -531,7 +1108,7 @@
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -541,6 +1118,7 @@
     <tags></tags>
     <notes>Unfinished error tasks (TaskItem.SectionRank 0) already sort to the top as the "Needs attention" group from ZP-16. Made that divider unmistakable: the section header bar gets a pale-red background (ErrorSurfaceBrush), a red top/bottom rule (ErrorBorderBrush, 2px top / 1px bottom) and red small-caps label text, via DataTriggers on the group name in the GroupItem template. Confirmed in the grouped-list screenshot: "Needs attention (1)" sits above "Active" and "Completed".</notes>
     <filesChanged>src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-18">
     <name></name>
@@ -553,7 +1131,7 @@
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -563,6 +1141,7 @@
     <tags></tags>
     <notes>Workspace now writes data.cfg next to the executable (AppContext.BaseDirectory) on load and on every Save(). It is an XML "promptQueueData" database holding every project (name + directory path + its full task queue via TaskXmlSerializer.ToElement) plus verbatim CDATA copies of the global design / instructions / prompt. If the executable directory is read-only the write is skipped silently. On startup, when there is no per-user workspace.xml, the workspace hydrates projects + globals from data.cfg instead. New projects with no local design/instructions/prompt are now seeded with copies of the globals ("that then just get copied"). Built to builds/debug and builds/release and committed per the build/release/commit flags.</notes>
     <filesChanged>src/PromptQueue.Core/Storage/Workspace.cs; src/PromptQueue.Core/Serialization/TaskXmlSerializer.cs; tasks.xml</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-19">
     <name></name>
@@ -575,7 +1154,7 @@
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -585,6 +1164,7 @@
     <tags></tags>
     <notes>Designed a restrained checklist mark in the app's own palette (off-white rounded tile with a thin #C7C7C7 border, charcoal #282828 marks, one muted-blue #4B6EA8 accent checkbox with a white tick, three task bars of decreasing weight). Generated a real multi-resolution icon (16/24/32/48/64/128/256, PNG-compressed frames) at src/PromptQueue.App/Assets/app.ico via a System.Drawing generator script. Wired it up: &lt;ApplicationIcon&gt; in the csproj (shell / taskbar / exe) and Window.Icon="pack://application:,,,/Assets/app.ico" (title bar). Verified the icon shows in the title bar and taskbar.</notes>
     <filesChanged>src/PromptQueue.App/Assets/app.ico (new); src/PromptQueue.App/PromptQueue.App.csproj; src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-20">
     <name></name>
@@ -597,7 +1177,7 @@
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -607,6 +1187,7 @@
     <tags></tags>
     <notes>Pressing the window's close [X] now cancels the close and minimises to the taskbar instead (MainWindow.OnClosing). Restoring from minimised (MainWindow.OnStateChanged, _wasMinimized latch) calls MainViewModel.ReloadAllProjects(), which re-reads tasks.xml and the local design/instructions/prompt for every known project via the new ProjectStore.ReloadInto and rebuilds the grouped view. Real quit is still available via File &gt; Exit, which raises MainViewModel.ExitRequested; the window sets an _allowClose flag and closes for real.</notes>
     <filesChanged>src/PromptQueue.App/Views/MainWindow.xaml.cs; src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.Core/Storage/ProjectStore.cs</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-21">
     <name></name>
@@ -619,7 +1200,7 @@
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -629,6 +1210,7 @@
     <tags></tags>
     <notes>Renamed the application to "zProject": csproj now sets AssemblyName/Product/AssemblyTitle=zProject so the build output is zProject.exe; the window Title is "zProject"; the two MessageBox captions (delete-task confirm, unhandled-exception) say "zProject". Verified: title bar and taskbar show "zProject" with the new icon, and builds/*/zProject.exe is produced. Built to builds/debug and builds/release and committed per the flags.</notes>
     <filesChanged>src/PromptQueue.App/PromptQueue.App.csproj; src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/App.xaml.cs</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-22">
     <name></name>
@@ -641,7 +1223,7 @@
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -651,6 +1233,7 @@
     <tags></tags>
     <notes>New Subtask model (Text + Done) and TaskItem.Subtasks (ObservableCollection). Serialized inside &lt;task&gt; as &lt;subtasks&gt;&lt;subtask done="false"&gt;text&lt;/subtask&gt;...&lt;/subtasks&gt; (read + write); flows into data.cfg too. The Add/Edit task pop-up has a Subtasks section: each existing subtask is one line (checkbox + editable text + remove button) and a "new subtask" box (Enter or Add). Each task row shows a "checkbox n/m" progress badge and an inline checklist whose checkboxes toggle Subtask.Done and persist immediately; the tooltip also lists them. TaskItem re-raises SubtaskProgress when a subtask's Done changes. Verified: SD-1 shows "2/4" and its checklist renders.</notes>
     <filesChanged>src/PromptQueue.Core/Models/Subtask.cs (new); src/PromptQueue.Core/Models/TaskItem.cs; src/PromptQueue.Core/Serialization/TaskXmlSerializer.cs; src/PromptQueue.App/ViewModels/TaskFormViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/Views/MainWindow.xaml.cs; src/PromptQueue.App/Converters.cs</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-23">
     <name></name>
@@ -663,7 +1246,7 @@
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -673,6 +1256,7 @@
     <tags></tags>
     <notes>Added a "Bug" checkbox to the task pop-up (next to In progress / Done), bound to TaskFormViewModel.Bug -&gt; TaskItem.Bug. New &lt;bug&gt; tag read/written by TaskXmlSerializer. When serializing, tasks are ordered OrderByDescending(Bug).ThenBy(Order), so every bug is written at the TOP of tasks.xml regardless of its position in the list. In the app, an unfinished bug also sorts into a top "Bugs" section (TaskItem.SectionRank 0) ahead of "Needs attention" / "Active" / "Completed".</notes>
     <filesChanged>src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/ViewModels/TaskFormViewModel.cs; src/PromptQueue.Core/Models/TaskItem.cs; src/PromptQueue.Core/Serialization/TaskXmlSerializer.cs</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-24">
     <name></name>
@@ -690,7 +1274,7 @@ all colors should be kind of pale and washed out</prompt>
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -700,6 +1284,7 @@ all colors should be kind of pale and washed out</prompt>
     <tags></tags>
     <notes>Added pale, washed-out Bug (purple #F1ECF8) and Done (green #EAF3EC) surface/border/text brushes alongside the existing pale Error red, in Theme/Styles.xaml. Task rows now colour-code via Style triggers: done -&gt; green, unfinished error -&gt; red, unfinished bug -&gt; purple (bug wins over error). Section dividers match: "Bugs" purple, "Needs attention" red, "Completed" green.</notes>
     <filesChanged>src/PromptQueue.App/Theme/Styles.xaml; src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-25">
     <name></name>
@@ -712,7 +1297,7 @@ all colors should be kind of pale and washed out</prompt>
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -722,6 +1307,7 @@ all colors should be kind of pale and washed out</prompt>
     <tags></tags>
     <notes>Each task row now shows a compact row of status chips (new StatusChip / StatusChipText styles) directly under the prompt/requirements: BUG (purple), ERROR (red), COMMIT, BUILD (neutral) and RELEASE (accent). Each chip is shown only when its flag is set; the whole strip is hidden when none are, via an AllEmpty MultiBinding. Verified the sections + row tints render (Bugs / Needs attention / Active / Completed).</notes>
     <filesChanged>src/PromptQueue.App/Theme/Styles.xaml; src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-26">
     <name></name>
@@ -734,7 +1320,7 @@ all colors should be kind of pale and washed out</prompt>
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -744,6 +1330,7 @@ all colors should be kind of pale and washed out</prompt>
     <tags></tags>
     <notes>Tasks carry TaskItem.TagText (comma-separated, stored verbatim in a &lt;tags&gt; xml element so it is opaque to an agent) and a parsed Tags list. Next to "Add Task" there is an editable, text-search ComboBox whose dropdown is the project's KnownTags (every distinct tag in the project, recomputed on any change) — typing autocompletes existing tags; its value pre-fills the Tags field of the next new task. The edit pop-up has a "Tags (comma separated)" field with a live preview of colour chips. Each tag renders as a chip whose colour is derived deterministically from the tag text (FNV hash -&gt; hue -&gt; pale HSL) via TagColorConverter, so the same tag is always the same washed-out colour for easy identification, on both the row and the pop-up. Built to builds/debug and builds/release and committed.</notes>
     <filesChanged>src/PromptQueue.Core/Models/TaskItem.cs; src/PromptQueue.Core/Serialization/TaskXmlSerializer.cs; src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/ViewModels/TaskFormViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/Converters.cs</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-28">
     <name></name>
@@ -756,7 +1343,7 @@ all colors should be kind of pale and washed out</prompt>
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -766,6 +1353,7 @@ all colors should be kind of pale and washed out</prompt>
     <tags></tags>
     <notes>Added "File &gt; Save Current Project" (MainViewModel.SaveCurrentCommand -&gt; SaveCurrentProject). It writes only the selected project's files (tasks.xml + local design/instructions/prompt via ProjectStore.Save) and refreshes data.cfg, without touching any other project — unlike "Save All".</notes>
     <filesChanged>src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/ViewModels/MainViewModel.cs</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-30">
     <name></name>
@@ -778,7 +1366,7 @@ all colors should be kind of pale and washed out</prompt>
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -788,6 +1376,7 @@ all colors should be kind of pale and washed out</prompt>
     <tags>AI</tags>
     <notes>Every task row has a padlock toggle button (Segoe MDL2 Assets glyphs — open padlock when unlocked, closed padlock when locked) via LockGlyphConverter and MainViewModel.ToggleTaskLockCommand. Locking sets TaskItem.Locked, serialized as the &lt;locked&gt; xml tag, and a DataTrigger greys the whole card (LockedSurfaceBrush #E6E6E6, wins over all colour-coding). The task pop-up also has a Locked checkbox. instructions.txt now has a SKIP RULES section telling an agent to skip any task with &lt;locked&gt;true&lt;/locked&gt;. All four subtasks complete.</notes>
     <filesChanged>src/PromptQueue.Core/Models/TaskItem.cs; src/PromptQueue.Core/Serialization/TaskXmlSerializer.cs; src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/ViewModels/TaskFormViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/Converters.cs; src/PromptQueue.App/Theme/Styles.xaml; instructions.txt</filesChanged>
+    <image></image>
     <subtasks>
       <subtask done="true">locked icon</subtask>
       <subtask done="true">unlocked icon</subtask>
@@ -806,7 +1395,7 @@ all colors should be kind of pale and washed out</prompt>
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -816,6 +1405,7 @@ all colors should be kind of pale and washed out</prompt>
     <tags>ai</tags>
     <notes>TaskItem.BlockedBy (task id) with the &lt;blockedBy&gt; xml tag. The pop-up has an editable, text-search "Blocked by" ComboBox whose candidates are the project's other tasks shown as "ID — name"; on save the leading id is extracted. The app resolves the blocker's name (MainViewModel.ResolveBlockedByNames) into TaskItem.BlockedByLabel, and the preview card shows "⛔ blocked by ID — name" when set. instructions.txt SKIP RULES: an agent completes the blocker first, and if it cannot (blocker locked/archived/missing/impossible) it skips both.</notes>
     <filesChanged>src/PromptQueue.Core/Models/TaskItem.cs; src/PromptQueue.Core/Serialization/TaskXmlSerializer.cs; src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/ViewModels/TaskFormViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml; instructions.txt</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-32">
     <name></name>
@@ -828,7 +1418,7 @@ all colors should be kind of pale and washed out</prompt>
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -838,6 +1428,7 @@ all colors should be kind of pale and washed out</prompt>
     <tags>managment, human</tags>
     <notes>TaskItem.DateStarted and TaskItem.DueDate (nullable DateTime). The pop-up has a WPF DatePicker calendar picker for each, with a small "HH:mm" time box beside it; TaskFormViewModel splits/recombines the date and time parts. Serialized as &lt;dateStarted&gt; / &lt;dueDate&gt; in "yyyy-MM-dd HH:mm" (invariant, 24h). The preview card shows a formatted "Started 2026-09-01 09:30  •  Due 2026-09-05 17:00" line (TaskItem.DatesSummary) when either is set. Built to builds/debug and builds/release and committed.</notes>
     <filesChanged>src/PromptQueue.Core/Models/TaskItem.cs; src/PromptQueue.Core/Serialization/TaskXmlSerializer.cs; src/PromptQueue.App/ViewModels/TaskFormViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-33">
     <name></name>
@@ -850,7 +1441,7 @@ all colors should be kind of pale and washed out</prompt>
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -860,6 +1451,7 @@ all colors should be kind of pale and washed out</prompt>
     <tags>view</tags>
     <notes>Every card has a chevron toggle (ChevronGlyphConverter, Segoe MDL2) bound to a runtime-only TaskItem.Collapsed via MainViewModel.ToggleTaskCollapsedCommand. Collapsed cards show only: the name (TaskItem.DisplayName), the single-word status (TaskItem.StatusText), the ID, and the colour-coded background/border (which still applies). The detail block (prompt/requirements/blocked-by/dates/chips/subtasks) is hidden via a Visibility bound to Expanded. Tags are separately collapsable on an expanded card via a small ToggleButton bound to TaskItem.TagsCollapsed (new ToolbarToggle style). All five subtasks complete.</notes>
     <filesChanged>src/PromptQueue.Core/Models/TaskItem.cs; src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/Converters.cs; src/PromptQueue.App/Theme/Styles.xaml</filesChanged>
+    <image></image>
     <subtasks>
       <subtask done="true">name</subtask>
       <subtask done="true">status</subtask>
@@ -879,7 +1471,7 @@ all colors should be kind of pale and washed out</prompt>
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -889,6 +1481,7 @@ all colors should be kind of pale and washed out</prompt>
     <tags>view</tags>
     <notes>TaskItem.Name (optional) with the &lt;name&gt; xml tag; TaskItem.DisplayName returns Name when set, otherwise the Id. The task pop-up has a "Name (optional — defaults to the ID)" field at the top. Cards show DisplayName as the primary label, with the Id shown as a small secondary line only when a distinct Name is set (TaskItem.HasName). The Blocked-by autocomplete and its card label also use "ID — name".</notes>
     <filesChanged>src/PromptQueue.Core/Models/TaskItem.cs; src/PromptQueue.Core/Serialization/TaskXmlSerializer.cs; src/PromptQueue.App/ViewModels/TaskFormViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-35">
     <name></name>
@@ -901,7 +1494,7 @@ all colors should be kind of pale and washed out</prompt>
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -911,6 +1504,7 @@ all colors should be kind of pale and washed out</prompt>
     <tags></tags>
     <notes>Verified and tightened: the Reload button and "File &gt; Reload Project from Disk" both call MainViewModel.ReloadProject, which re-reads ONLY SelectedProject via ProjectStore.ReloadInto (tasks.xml + local design/instructions/prompt) and rebuilds just that project's grouped view; no other open project is read or written. Status now reads "Reloaded only \"X\" from disk". (Reloading every project is a separate path, ReloadAllProjects, used only on window-restore per ZP-20.) Built to builds/debug; the Release build is deferred because an app instance is currently running from builds/release — Release config compiles clean and will be emitted there once it is closed.</notes>
     <filesChanged>src/PromptQueue.App/ViewModels/MainViewModel.cs</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-36">
     <name></name>
@@ -923,7 +1517,7 @@ all colors should be kind of pale and washed out</prompt>
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -933,6 +1527,7 @@ all colors should be kind of pale and washed out</prompt>
     <tags></tags>
     <notes>TaskItem.Archived + &lt;archived&gt; xml tag (kept as a dedicated flag, like &lt;locked&gt;, rather than a visible text tag so it actually signals an agent). New "Archive done" button in the project header runs MainViewModel.ArchiveDoneCommand, which sets Archived on every done, not-yet-archived task. Archived tasks still show in the app in their own bottom "Archived" section (SectionRank 4) with a grey divider and grey card background. instructions.txt SKIP RULES: an agent skips any &lt;archived&gt;true&lt;/archived&gt; task entirely.</notes>
     <filesChanged>src/PromptQueue.Core/Models/TaskItem.cs; src/PromptQueue.Core/Serialization/TaskXmlSerializer.cs; src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml; instructions.txt</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-37">
     <name></name>
@@ -945,7 +1540,7 @@ all colors should be kind of pale and washed out</prompt>
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -955,6 +1550,7 @@ all colors should be kind of pale and washed out</prompt>
     <tags>control</tags>
     <notes>Blocked cards are repositioned in the list view only — the xml Order is never touched, so an unblocked card snaps straight back to its real position. MainViewModel.RecomputeBlockedLayout gives each task a runtime DisplayOrder (= Order, but nudged to blocker.DisplayOrder + tiny epsilon when blocked, a few passes for short chains) and an IndentLevel (blocker.IndentLevel + 1). The grouped ListCollectionView uses a CustomSort by (SectionRank, DisplayOrder), and the card's left Margin is bound to IndentLevel via IndentConverter (18px per level). Verified: "Wire the API" (blocked by BK-1) sits directly under "Set up database", indented. Built to builds/debug; Release build deferred while an app instance runs from builds/release.</notes>
     <filesChanged>src/PromptQueue.Core/Models/TaskItem.cs; src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/Converters.cs</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-38">
     <name></name>
@@ -967,7 +1563,7 @@ all colors should be kind of pale and washed out</prompt>
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -977,6 +1573,7 @@ all colors should be kind of pale and washed out</prompt>
     <tags>server, view</tags>
     <notes>New console project src/PromptQueue.Server (AssemblyName zProject_server) built on HttpListener, referencing PromptQueue.Core so it reads the exact same workspace/tasks.xml as the app. It is strictly read-only — no write endpoints. Single-page zProject_webView.html: a project picker (all projects with open/done/total counts) and a per-project task view that mirrors the app's rules (Bugs/Needs attention/Active/Completed/Archived sections, pale colour-coding, BUG/ERROR/COMMIT/BUILD/RELEASE + deterministic tag chips, collapsible cards, subtask checklist, blocked-by line, locked/archived greying). Console: prints a banner with the address+port, logs every request with client IP and timing, logs SSE client connect/disconnect with an active count, and every 120s (and on each client connect) re-reads all projects from disk and pushes a "reload" event so open pages refresh; the page also polls every 120s as a fallback. Each /api/project/{i} call re-reads that project's tasks.xml, so switching projects always shows fresh data. The app's new "Server &gt; Start Web View Server" menu launches zProject_server.exe (a console app, so it opens its own window). A build now means building BOTH projects into the same folder (documented in instructions.txt); zProject.exe, zProject_server.exe and zProject_webView.html are co-located in builds/test, builds/debug and builds/release. Verified end to end: picker + task view render correctly (headless screenshots), API returns all projects/tasks, console logs address/requests/connect/disconnect.</notes>
     <filesChanged>src/PromptQueue.Server/PromptQueue.Server.csproj (new); src/PromptQueue.Server/Program.cs (new); src/PromptQueue.Server/zProject_webView.html (new); src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml; PromptQueue.slnx; instructions.txt</filesChanged>
+    <image></image>
     <subtasks>
       <subtask done="true">html project picker done</subtask>
       <subtask done="true">html task view done (with same rules as main app)</subtask>
@@ -1000,7 +1597,7 @@ all colors should be kind of pale and washed out</prompt>
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -1010,6 +1607,7 @@ all colors should be kind of pale and washed out</prompt>
     <tags>AI,agents,file_menu,automation</tags>
     <notes>File &gt; "Install AI CLI" submenu with three items: "Install ChatGPT / Codex CLI" (npm install -g @openai/codex), "Install Claude Code" (npm install -g @anthropic-ai/claude-code), and "Install both". Each opens a new cmd window (cmd /k) that runs the npm install so the user sees the output and any errors. MainViewModel.RunInTerminal.</notes>
     <filesChanged>src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-42">
     <name>deploy AI buttons</name>
@@ -1022,7 +1620,7 @@ all colors should be kind of pale and washed out</prompt>
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -1032,6 +1630,7 @@ all colors should be kind of pale and washed out</prompt>
     <tags>AI, automation, tools</tags>
     <notes>Added a "DEPLOY  ▶ Codex  ▶ Claude" group to the top toolbar of the project view. Each button (MainViewModel.DeployAgent) opens a new terminal: `cmd /k cd /d "&lt;project dir&gt;" &amp;&amp; &lt;agent&gt; "Read prompt.txt in this directory and follow it exactly, then work the task queue."` — so the agent lands in the project's working directory and is pointed at prompt.txt (which bootstraps the whole instructions.txt / tasks.xml loop). Kept the launch to plain interactive `codex` / `claude` (no skip-permission flags) so the user stays in the loop; they can add autonomy flags themselves. Disabled when no project is selected. Both subtasks complete.</notes>
     <filesChanged>src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
+    <image></image>
     <subtasks>
       <subtask done="true">ChatGPT button</subtask>
       <subtask done="true">Claude Button</subtask>
@@ -1048,7 +1647,7 @@ all colors should be kind of pale and washed out</prompt>
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -1058,6 +1657,7 @@ all colors should be kind of pale and washed out</prompt>
     <tags></tags>
     <notes>MainViewModel now runs a 120s DispatcherTimer that re-reads the currently selected project from disk (ProjectStore.ReloadInto + RebuildTasksView) and updates the status bar. It skips the tick while a text-editor / task-form overlay is open so in-progress edits are never discarded. Built to builds/debug and builds/release and committed.</notes>
     <filesChanged>src/PromptQueue.App/ViewModels/MainViewModel.cs</filesChanged>
+    <image></image>
   </task>
   <task id="ZP-45">
     <name>double click to open</name>
@@ -1070,7 +1670,7 @@ all colors should be kind of pale and washed out</prompt>
     <errorMessage></errorMessage>
     <lockKey></lockKey>
     <locked>false</locked>
-    <archived>false</archived>
+    <archived>true</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
@@ -1080,5 +1680,6 @@ all colors should be kind of pale and washed out</prompt>
     <tags>control</tags>
     <notes>Switched the row's double-click handler from the bubbling MouseDoubleClick to the tunneling PreviewMouseDoubleClick on the ListBoxItem, so it fires no matter which descendant was hit (name, status, prompt, requirements, chips, blank space, collapsed or expanded). It opens the full Edit Task view. A click that lands on an actual control (Edit/Delete/lock buttons, checkboxes, text boxes, the tags combo — detected by walking the visual tree in IsInteractive) is left to that control. Verified: double-clicking the prompt text of a collapsed card opens "Edit Task".</notes>
     <filesChanged>src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/Views/MainWindow.xaml.cs</filesChanged>
+    <image></image>
   </task>
 </tasks>

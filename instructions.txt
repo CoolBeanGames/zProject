@@ -42,6 +42,7 @@ silently fix a bug without one.
        <tags></tags>
        <notes></notes>
        <filesChanged></filesChanged>
+       <image></image>
      </task>
    <bug>true</bug> is what marks it as a bug report.
 3. If the fix has more than one step, add a <subtasks> block just before </task>
@@ -75,6 +76,30 @@ you set <done>true</done> and <inProgress>false</inProgress>, then save.
 
 === END TASK OWNERSHIP LOCK KEY ===
 
+=== TASK IMAGES ===
+
+A task may carry an attached image. It lives in the project's task_images folder
+(a sub-folder of the project root - the same folder as tasks.xml, prompt.txt and
+this file) and is recorded on the task as an <image> element holding only the
+file name, e.g. <image>ZP-59.png</image>. When a task's <image> is non-empty,
+look at task_images/<that file name> - it is the screenshot, mockup or reference
+that belongs with the task. If a task asks you to create or update its image,
+write the file into task_images/ and set the task's <image> element to that file
+name.
+
+=== END TASK IMAGES ===
+
+=== ADDING & REFINING TASKS ===
+
+You have full access to add and create new tasks as needed, to split an existing
+task into separate tasks, and to add subtasks and detail to existing tasks. The
+only rules:
+  - Do NOT change the order of the tasks I put in the list.
+  - Do NOT add brand-new features. Only add tasks that aid the architecture and
+    implementation of features that are already planned.
+
+=== END ADDING & REFINING TASKS ===
+
 read through tasks.xml and complete tasks in the order they are presented. work through the list until reaching the end or you run out of usage. as you finish a task update the xml to mark it as done, as you begin mark it as in-progress. save the xml every time you make a change.
 
 if a task has the tag commit set to true then commit the project and push to github with a meaningful message of all the changes made. Add notes about the changes you made, log all files, and move on to the next task.
@@ -83,16 +108,18 @@ the task is NOT complete unless the requirements have been met, if a task is imp
 
 if the task has a build tag set to true, the project should be built to project_root/builds/debug, if you need to test build to project_root/builds/test, if it has a release tag set use project_root/builds/release
 
-a build = BOTH the app and the read-only web server, into the same folder:
-  dotnet build src/PromptQueue.App/PromptQueue.App.csproj    -c <cfg> -o builds/<dir>
-  dotnet build src/PromptQueue.Server/PromptQueue.Server.csproj -c <cfg> -o builds/<dir>
-this puts zProject.exe, zProject_server.exe and zProject_webView.html together.
-"Server > Start Web View Server" in the app launches zProject_server.exe.
+if a task has subtasks it is NOT complete until all subtasks are, check them off as you complete them saving after each one.
 
-SKIP RULES (a task the agent must not work on):
-- if <locked>true</locked> the task is locked: skip it entirely, do not change it.
-- if <archived>true</archived> the task is archived: skip it entirely, do not change it.
-- if <blockedBy> names a task id: complete that blocking task first, then come
-  back to this one. if the blocking task cannot be completed (or is locked /
-  archived / missing), skip BOTH this task and its blocker and move on.
-skipped tasks do not count as done and do not stop execution.
+if a task is a bug, it takes top priority.
+
+if a task is blocked by another task, finish the task that is blocking it first, then return to the first task.
+
+if a task is in-progress it is the number 1 priority over even bugs.
+
+COMPLETELY ignore the acrhive tags contents, dont even proccess it once you see it.
+
+also I understand that these are often big tasks that may take a long time ore are complex, proceed anyways.
+
+when doing a release build, please zip the contents after the build for upload to github. ONLY release builds.
+
+when you finish a task that was blocking another task, remove the block on those apps so the UI of the task managment app is clear.

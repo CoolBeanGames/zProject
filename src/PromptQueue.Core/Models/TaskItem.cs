@@ -33,6 +33,8 @@ public sealed class TaskItem : Observable
     private string _tagText = "";
     private string _notes = "";
     private string _filesChanged = "";
+    private string _image = "";
+    private string _imagePath = "";
     private int _order;
     private bool _collapsed;
 
@@ -191,7 +193,6 @@ public sealed class TaskItem : Observable
         Bug ? "Bug" :
         Error ? "Error" :
         IsBlocked ? "Blocked" :
-        InProgress ? "In progress" :
         "Active";
 
     /// <summary>
@@ -301,6 +302,30 @@ public sealed class TaskItem : Observable
     {
         get => _filesChanged;
         set => Set(ref _filesChanged, value);
+    }
+
+    /// <summary>
+    /// File name (not a full path) of an image attached to this task (ZP-59).
+    /// The file lives in the project's <c>task_images</c> folder. Serialized as
+    /// &lt;image&gt; so an agent can find it at <c>task_images/&lt;image&gt;</c>.
+    /// </summary>
+    public string Image
+    {
+        get => _image;
+        set { if (Set(ref _image, value)) Raise(nameof(HasImage)); }
+    }
+
+    /// <summary>True when an image file name is attached.</summary>
+    public bool HasImage => !string.IsNullOrWhiteSpace(Image);
+
+    /// <summary>
+    /// Runtime-only: absolute path to the attached image, resolved by the app
+    /// from the project directory. Not serialized.
+    /// </summary>
+    public string ImagePath
+    {
+        get => _imagePath;
+        set => Set(ref _imagePath, value);
     }
 
     /// <summary>Zero-based position within the project's task list (authoritative; serialized).</summary>
@@ -414,6 +439,7 @@ public sealed class TaskItem : Observable
             TagText = TagText,
             Notes = Notes,
             FilesChanged = FilesChanged,
+            Image = Image,
             Order = Order,
         };
         foreach (var s in Subtasks)
@@ -444,6 +470,7 @@ public sealed class TaskItem : Observable
         TagText = other.TagText;
         Notes = other.Notes;
         FilesChanged = other.FilesChanged;
+        Image = other.Image;
         Order = other.Order;
         Subtasks.Clear();
         foreach (var s in other.Subtasks)

@@ -16,6 +16,7 @@ public sealed class Project : Observable
     private string _localInstructions = "";
     private string _localPrompt = "";
     private int _nextIndex = 1;
+    private string _loadError = "";
 
     public string Name
     {
@@ -54,6 +55,20 @@ public sealed class Project : Observable
         get => _nextIndex;
         set => Set(ref _nextIndex, value);
     }
+
+    /// <summary>
+    /// Set when the project's <c>tasks.xml</c> could not be parsed (even after
+    /// the lenient repair pass). While this is non-empty the task list in memory
+    /// is empty and MUST NOT be written back over the file on disk, or the
+    /// unreadable-but-present task data would be lost.
+    /// </summary>
+    public string LoadError
+    {
+        get => _loadError;
+        set { if (Set(ref _loadError, value)) Raise(nameof(HasLoadError)); }
+    }
+
+    public bool HasLoadError => !string.IsNullOrEmpty(_loadError);
 
     public ObservableCollection<TaskItem> Tasks { get; } = new();
 

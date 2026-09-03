@@ -29,6 +29,8 @@ internal static class Program
             port = p;
 
         _workspace = Workspace.Load();
+        foreach (var broken in _workspace.Projects.Where(proj => proj.HasLoadError))
+            Console.WriteLine($"WARNING: {broken.Name}: {broken.LoadError}");
         _viewHtml = LoadViewHtml();
 
         port = FindFreePort(port);

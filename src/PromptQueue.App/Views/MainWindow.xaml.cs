@@ -29,6 +29,9 @@ public partial class MainWindow : Window
     private double _grabOffsetY;
     private double _gapHeight;
     private int _insertIndex = -1;
+    // Intended (target) vertical offset per row, so the insert-index maths reads
+    // rest positions and never the mid-flight animated transform value (ZP-64).
+    private readonly Dictionary<ListBoxItem, double> _targetOffset = new();
 
     private bool _allowClose;
     private bool _wasMinimized;
@@ -89,6 +92,12 @@ public partial class MainWindow : Window
         Topmost = false;
         Vm?.ReloadAllProjects();   // pick up any changes made while hidden (ZP-20)
     }
+
+    /// <summary>
+    /// A second zProject launch was attempted (ZP-55): surface this existing
+    /// window instead of starting another process.
+    /// </summary>
+    public void RestoreFromExternalRequest() => RestoreFromTray();
 
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
@@ -188,8 +197,9 @@ public partial class MainWindow : Window
             _ghost.UpdatePosition(topLeft.Y);
         }
 
-        // Collapse the dragged row so the remaining rows form a continuous list.
-        _dragContainer.Visibility = Visibility.Collapsed;
+        // Smoothly collapse the dragged row (height + fade) so the remaining rows
+        // close up gradually instead of snapping (ZP-64).
+        CollapseRow(_dragContainer);
 
         Mouse.Capture(TaskList);
         TaskList.MouseMove += TaskList_DragMove;
@@ -214,9 +224,10 @@ public partial class MainWindow : Window
         {
             var c = others[i];
             var mid = c.TranslatePoint(new Point(0, c.ActualHeight / 2), TaskList).Y;
-            // Discount any gap shift already applied so the midpoint reflects the rest position.
-            if (GetTranslateY(c) > 0)
-                mid -= _gapHeight;
+            // Read the row's REST position: subtract whatever offset we have asked
+            // it to hold, not the mid-flight animated transform value. This keeps
+            // the insert index stable and kills the back-and-forth jitter (ZP-64).
+            mid -= _targetOffset.TryGetValue(c, out var off) ? off : 0;
             if (pointerY < mid)
             {
                 insert = i;
@@ -229,7 +240,11 @@ public partial class MainWindow : Window
         _insertIndex = insert;
 
         for (int i = 0; i < others.Count; i++)
-            AnimateTranslateY(others[i], i >= _insertIndex ? _gapHeight : 0);
+        {
+            double to = i >= _insertIndex ? _gapHeight : 0;
+            _targetOffset[others[i]] = to;
+            AnimateTranslateY(others[i], to);
+        }
     }
 
     // ---- End / cancel ----------------------------------------------
@@ -257,9 +272,15 @@ public partial class MainWindow : Window
 
         foreach (var c in AllContainers())
         {
+            if (c.RenderTransform is TranslateTransform tt)
+                tt.BeginAnimation(TranslateTransform.YProperty, null);
             c.RenderTransform = null;
-            c.Visibility = Visibility.Visible;
+            if (!ReferenceEquals(c, _dragContainer))
+                c.Visibility = Visibility.Visible;
         }
+        _targetOffset.Clear();
+        if (_dragContainer != null)
+            RestoreRow(_dragContainer);
 
         var task = _dragTask;
         var target = _insertIndex;
@@ -289,10 +310,37 @@ public partial class MainWindow : Window
     }
 
     private List<ListBoxItem> VisibleContainers()
-        => AllContainers().Where(c => c.Visibility == Visibility.Visible).ToList();
+        => AllContainers()
+            .Where(c => c.Visibility == Visibility.Visible && !ReferenceEquals(c, _dragContainer))
+            .ToList();
 
-    private static double GetTranslateY(UIElement e)
-        => (e.RenderTransform as TranslateTransform)?.Y ?? 0;
+    // ---- source-row collapse / restore (ZP-64) --------------------
+
+    private static void CollapseRow(ListBoxItem row)
+    {
+        var h = row.ActualHeight;
+        if (h <= 0)
+        {
+            row.Visibility = Visibility.Collapsed;
+            return;
+        }
+        var dur = TimeSpan.FromMilliseconds(140);
+        var ease = new CubicEase { EasingMode = EasingMode.EaseInOut };
+        var height = new DoubleAnimation(h, 0, dur) { EasingFunction = ease };
+        height.Completed += (_, _) => row.Visibility = Visibility.Collapsed;
+        row.BeginAnimation(FrameworkElement.HeightProperty, height);
+        row.BeginAnimation(UIElement.OpacityProperty,
+            new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(90)));
+    }
+
+    private static void RestoreRow(ListBoxItem row)
+    {
+        row.BeginAnimation(FrameworkElement.HeightProperty, null);
+        row.BeginAnimation(UIElement.OpacityProperty, null);
+        row.Height = double.NaN;
+        row.Opacity = 1;
+        row.Visibility = Visibility.Visible;
+    }
 
     private static void AnimateTranslateY(UIElement element, double to)
     {
@@ -301,11 +349,11 @@ public partial class MainWindow : Window
             tt = new TranslateTransform();
             element.RenderTransform = tt;
         }
-        if (Math.Abs(tt.Y - to) < 0.5)
-            return;
-        var anim = new DoubleAnimation(to, TimeSpan.FromMilliseconds(120))
+        // Compare against the animation target, not the mid-flight value, so a
+        // rapid change of direction still re-targets the row (ZP-64).
+        var anim = new DoubleAnimation(to, TimeSpan.FromMilliseconds(200))
         {
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut },
         };
         tt.BeginAnimation(TranslateTransform.YProperty, anim);
     }
@@ -360,8 +408,65 @@ public partial class MainWindow : Window
         if (sender is not DependencyObject d)
             return;
         var container = ItemsControl.ContainerFromElement(TaskList, d) as ListBoxItem;
-        if (container?.DataContext is TaskItem task)
-            Vm?.PersistTaskFlagChange(task);
+        if (container?.DataContext is TaskItem task
+            && (sender as FrameworkElement)?.DataContext is Subtask sub)
+            Vm?.PersistSubtaskChange(task, sub);
+    }
+
+    // ---- Quick add: Space starts it, Enter adds, Esc closes (ZP-57) ----
+
+    private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Handled)
+            return;
+
+        // ZP-58: Escape while editing a task closes the editor, applying changes.
+        if (e.Key == Key.Escape && Vm?.Overlay is TaskFormViewModel form)
+        {
+            if (form.SaveCommand.CanExecute(null))
+                form.SaveCommand.Execute(null);
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key != Key.Space)
+            return;
+        if (Vm == null || Vm.HasOverlay || Vm.QuickAddActive)
+            return;
+        if (!Vm.BeginQuickAddCommand.CanExecute(null))
+            return;
+
+        // Don't hijack the space bar while the user is typing somewhere.
+        if (Keyboard.FocusedElement is System.Windows.Controls.Primitives.TextBoxBase)
+            return;
+        if (Keyboard.FocusedElement is ComboBox { IsEditable: true })
+            return;
+
+        Vm.BeginQuickAddCommand.Execute(null);
+        e.Handled = true;
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            QuickAddBox.Focus();
+            QuickAddBox.SelectAll();
+        }), System.Windows.Threading.DispatcherPriority.Input);
+    }
+
+    private void QuickAdd_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (Vm == null)
+            return;
+
+        if (e.Key == Key.Enter)
+        {
+            Vm.CommitQuickAddCommand.Execute(null);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape)
+        {
+            Vm.CancelQuickAddCommand.Execute(null);
+            Keyboard.ClearFocus();
+            e.Handled = true;
+        }
     }
 
     // ---- Enter in the "new subtask" box adds it -------------------

@@ -1,0 +1,343 @@
+using System.Globalization;
+using System.Xml.Linq;
+using PromptQueue.Core.Models;
+using PromptQueue.Core.Serialization;
+using PromptQueue.Core.Storage;
+
+namespace PromptQueue.Core.Operator;
+
+/// <summary>
+/// The "operator" (ZP-65): the single choke-point through which the app, the
+/// AI agents and the web server all mutate a project's <c>tasks.xml</c>, so
+/// nobody's write clobbers anybody else's while an agent is running.
+///
+/// <para>
+/// Every mutating call is turned into a <see cref="OperatorJob"/>, appended to a
+/// persistent queue file, and then the whole queue is drained under a single
+/// cross-process mutex. A job is removed from the queue only once it has been
+/// applied and the affected project saved, so a crash mid-drain simply retries
+/// the outstanding jobs on the next call. Read-only calls skip the queue.
+/// </para>
+///
+/// <para>
+/// The engine runs in-process (the WPF app calls it directly) and out of
+/// process (<c>zProject_operator.exe</c> calls the same methods); both share the
+/// same mutex and queue file, so they serialise against each other.
+/// </para>
+/// </summary>
+public static class OperatorEngine
+{
+    /// <summary>Name of the system-wide mutex that serialises all tasks.xml writes.</summary>
+    public const string MutexName = @"Global\zProject.Operator";
+
+    /// <summary>Folder (under the workspace root) that holds the queue file.</summary>
+    public static string QueueDirectory =>
+        Path.Combine(Workspace.DefaultRootDirectory, "operator");
+
+    /// <summary>The queue file itself: the list of pending jobs.</summary>
+    public static string QueuePath => Path.Combine(QueueDirectory, "queue.xml");
+
+    // ---- read (no queue) --------------------------------------------------
+
+    /// <summary>Returns a verbatim copy of a project's <c>tasks.xml</c>.</summary>
+    public static OperatorResult Read(string projectRef)
+    {
+        var ws = Workspace.Load();
+        var project = ResolveProject(ws, projectRef);
+        if (project == null)
+            return OperatorResult.Fail($"No project matches \"{projectRef}\".");
+
+        var path = Path.Combine(project.Directory, TaskXmlSerializer.FileName);
+        if (!File.Exists(path))
+            return OperatorResult.Fail($"{path} does not exist yet.");
+
+        return OperatorResult.Pass($"Read {project.Name}", File.ReadAllText(path));
+    }
+
+    /// <summary>Lists every known project (name + directory), newline separated.</summary>
+    public static OperatorResult List()
+    {
+        var ws = Workspace.Load();
+        var lines = ws.Projects.Select(p => $"{p.Name}\t{p.Directory}");
+        return OperatorResult.Pass($"{ws.Projects.Count} project(s)", string.Join("\n", lines));
+    }
+
+    // ---- mutations (queued) ---------------------------------------------
+
+    /// <summary>
+    /// Queues an override of a single field on a task, e.g.
+    /// <c>sync ZP-52 done true</c>. Field name matches the tasks.xml element
+    /// (case-insensitive); a handful of friendly aliases are also accepted.
+    /// </summary>
+    public static OperatorResult Sync(string taskId, string field, string value)
+        => Enqueue(new OperatorJob("sync", taskId, field, value));
+
+    /// <summary>Queues creation of a new task; the new id is returned in the output.</summary>
+    public static OperatorResult NewTask(string projectRef, string name, string prompt = "")
+        => Enqueue(new OperatorJob("new_task", projectRef, name, prompt));
+
+    /// <summary>Queues a new subtask (checklist line) onto an existing task.</summary>
+    public static OperatorResult NewSubtask(string taskId, string text)
+        => Enqueue(new OperatorJob("new_subtask", taskId, text));
+
+    /// <summary>Queues a done/not-done change for one subtask (by zero-based index).</summary>
+    public static OperatorResult SetSubtaskDone(string taskId, int index, bool done)
+        => Enqueue(new OperatorJob("subtask_done", taskId,
+            index.ToString(CultureInfo.InvariantCulture), done ? "true" : "false"));
+
+    /// <summary>Queues removal of a task.</summary>
+    public static OperatorResult Delete(string taskId)
+        => Enqueue(new OperatorJob("delete", taskId));
+
+    /// <summary>Queues a move of a task to a new zero-based position in its project.</summary>
+    public static OperatorResult Move(string taskId, int index)
+        => Enqueue(new OperatorJob("move", taskId, index.ToString(CultureInfo.InvariantCulture)));
+
+    /// <summary>
+    /// Queues a full replace of a task (matched by id) with the supplied one, or
+    /// an add when no task with that id exists. Used by the app, which edits a
+    /// task in memory and then hands the finished object to the operator.
+    /// </summary>
+    public static OperatorResult Upsert(string projectRef, TaskItem task)
+    {
+        var job = new OperatorJob("upsert", projectRef, task.Id)
+        {
+            Payload = SerializeTask(task),
+        };
+        return Enqueue(job);
+    }
+
+    // ---- queue plumbing -----------------------------------------------
+
+    private static OperatorResult Enqueue(OperatorJob job)
+    {
+        using var guard = new CrossProcessLock(MutexName);
+
+        var queue = LoadQueue();
+        queue.Add(job);
+        SaveQueue(queue);
+
+        return Drain(queue);
+    }
+
+    /// <summary>
+    /// Applies every queued job in order, saving each affected project and
+    /// removing the job from the queue as it succeeds. Called while the mutex is
+    /// held. Returns the result of the last job (the caller's own).
+    /// </summary>
+    private static OperatorResult Drain(List<OperatorJob> queue)
+    {
+        var ws = Workspace.Load();
+        var touched = new HashSet<Project>();
+        OperatorResult last = OperatorResult.Pass("Nothing to do");
+
+        while (queue.Count > 0)
+        {
+            var job = queue[0];
+            try
+            {
+                last = Apply(ws, job, touched);
+            }
+            catch (Exception ex)
+            {
+                last = OperatorResult.Fail($"{job.Command} failed: {ex.Message}");
+            }
+
+            queue.RemoveAt(0);
+            SaveQueue(queue);
+        }
+
+        foreach (var project in touched)
+            ProjectStore.Save(project);
+        if (touched.Count > 0)
+            ws.SaveDataCfg();
+
+        return last;
+    }
+
+    private static OperatorResult Apply(Workspace ws, OperatorJob job, HashSet<Project> touched)
+    {
+        switch (job.Command)
+        {
+            case "sync":
+            {
+                var (project, task) = ResolveTask(ws, job.Arg(0));
+                if (task == null)
+                    return OperatorResult.Fail($"No task \"{job.Arg(0)}\".");
+                if (!TaskFields.Apply(task, job.Arg(1), job.Arg(2)))
+                    return OperatorResult.Fail($"Unknown field \"{job.Arg(1)}\".");
+                touched.Add(project!);
+                return OperatorResult.Pass($"{task.Id}.{job.Arg(1)} = {job.Arg(2)}");
+            }
+
+            case "new_task":
+            {
+                var project = ResolveProject(ws, job.Arg(0));
+                if (project == null)
+                    return OperatorResult.Fail($"No project matches \"{job.Arg(0)}\".");
+                var task = new TaskItem
+                {
+                    Id = project.MintTaskId(),
+                    Name = job.Arg(1),
+                    Prompt = job.Arg(2),
+                    Order = project.Tasks.Count,
+                };
+                project.Tasks.Add(task);
+                touched.Add(project);
+                return OperatorResult.Pass($"Created {task.Id}", task.Id);
+            }
+
+            case "new_subtask":
+            {
+                var (project, task) = ResolveTask(ws, job.Arg(0));
+                if (task == null)
+                    return OperatorResult.Fail($"No task \"{job.Arg(0)}\".");
+                task.Subtasks.Add(new Subtask { Text = job.Arg(1) });
+                touched.Add(project!);
+                return OperatorResult.Pass($"{task.Id} +subtask");
+            }
+
+            case "subtask_done":
+            {
+                var (project, task) = ResolveTask(ws, job.Arg(0));
+                if (task == null)
+                    return OperatorResult.Fail($"No task \"{job.Arg(0)}\".");
+                if (!int.TryParse(job.Arg(1), NumberStyles.Integer, CultureInfo.InvariantCulture, out var si)
+                    || si < 0 || si >= task.Subtasks.Count)
+                    return OperatorResult.Fail($"{task.Id} has no subtask #{job.Arg(1)}.");
+                task.Subtasks[si].Done = job.Arg(2) is "true" or "1";
+                touched.Add(project!);
+                return OperatorResult.Pass($"{task.Id} subtask #{si} = {task.Subtasks[si].Done}");
+            }
+
+            case "delete":
+            {
+                var (project, task) = ResolveTask(ws, job.Arg(0));
+                if (task == null)
+                    return OperatorResult.Fail($"No task \"{job.Arg(0)}\".");
+                project!.Tasks.Remove(task);
+                touched.Add(project);
+                return OperatorResult.Pass($"Deleted {job.Arg(0)}");
+            }
+
+            case "move":
+            {
+                var (project, task) = ResolveTask(ws, job.Arg(0));
+                if (task == null)
+                    return OperatorResult.Fail($"No task \"{job.Arg(0)}\".");
+                if (!int.TryParse(job.Arg(1), NumberStyles.Integer, CultureInfo.InvariantCulture, out var index))
+                    return OperatorResult.Fail($"\"{job.Arg(1)}\" is not an index.");
+                var old = project!.Tasks.IndexOf(task);
+                project.Tasks.RemoveAt(old);
+                index = Math.Clamp(index, 0, project.Tasks.Count);
+                project.Tasks.Insert(index, task);
+                touched.Add(project);
+                return OperatorResult.Pass($"Moved {task.Id} to {index}");
+            }
+
+            case "upsert":
+            {
+                var project = ResolveProject(ws, job.Arg(0));
+                if (project == null)
+                    return OperatorResult.Fail($"No project matches \"{job.Arg(0)}\".");
+                var incoming = DeserializeTask(job.Payload);
+                var existing = project.Tasks.FirstOrDefault(t =>
+                    string.Equals(t.Id, incoming.Id, StringComparison.OrdinalIgnoreCase));
+                if (existing != null)
+                {
+                    incoming.Order = existing.Order;
+                    existing.CopyFrom(incoming);
+                }
+                else
+                {
+                    incoming.Order = project.Tasks.Count;
+                    project.Tasks.Add(incoming);
+                }
+                touched.Add(project);
+                return OperatorResult.Pass($"Upserted {incoming.Id}");
+            }
+
+            default:
+                return OperatorResult.Fail($"Unknown command \"{job.Command}\".");
+        }
+    }
+
+    // ---- resolve -------------------------------------------------------
+
+    private static Project? ResolveProject(Workspace ws, string reference)
+    {
+        reference = reference.Trim();
+        return ws.Projects.FirstOrDefault(p =>
+                   string.Equals(p.Name, reference, StringComparison.OrdinalIgnoreCase))
+            ?? ws.Projects.FirstOrDefault(p =>
+                   string.Equals(Path.GetFullPath(p.Directory).TrimEnd('\\', '/'),
+                       SafeFullPath(reference), StringComparison.OrdinalIgnoreCase))
+            ?? ws.Projects.FirstOrDefault(p =>
+                   string.Equals(p.IdPrefix, reference, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string SafeFullPath(string path)
+    {
+        try { return Path.GetFullPath(path).TrimEnd('\\', '/'); }
+        catch { return path; }
+    }
+
+    private static (Project? project, TaskItem? task) ResolveTask(Workspace ws, string taskId)
+    {
+        taskId = taskId.Trim();
+        foreach (var p in ws.Projects)
+        {
+            var t = p.Tasks.FirstOrDefault(x =>
+                string.Equals(x.Id, taskId, StringComparison.OrdinalIgnoreCase));
+            if (t != null)
+                return (p, t);
+        }
+        return (null, null);
+    }
+
+    // ---- queue file --------------------------------------------------
+
+    private static List<OperatorJob> LoadQueue()
+    {
+        if (!File.Exists(QueuePath))
+            return new List<OperatorJob>();
+        try
+        {
+            var doc = XDocument.Load(QueuePath);
+            return doc.Root?.Elements("job").Select(OperatorJob.FromElement).ToList()
+                   ?? new List<OperatorJob>();
+        }
+        catch
+        {
+            // A corrupt queue must not wedge everything; start clean.
+            return new List<OperatorJob>();
+        }
+    }
+
+    private static void SaveQueue(List<OperatorJob> queue)
+    {
+        Directory.CreateDirectory(QueueDirectory);
+        var root = new XElement("queue");
+        foreach (var job in queue)
+            root.Add(job.ToElement());
+        new XDocument(new XDeclaration("1.0", "utf-8", null), root).Save(QueuePath);
+    }
+
+    // ---- task <-> xml (for the upsert payload) ----------------------
+
+    private static string SerializeTask(TaskItem task)
+    {
+        var project = new Project { Name = "x", NextIndex = 1 };
+        project.Tasks.Add(task);
+        // Reuse the real serializer, then lift out the single <task> element.
+        var el = TaskXmlSerializer.ToElement(project).Element("task");
+        return el?.ToString() ?? "<task/>";
+    }
+
+    private static TaskItem DeserializeTask(string xml)
+    {
+        var wrapped = $"<tasks project=\"x\" nextIndex=\"1\">{xml}</tasks>";
+        var doc = TaskXmlSerializer.Deserialize(wrapped);
+        return doc.Tasks.Count > 0 ? doc.Tasks[0] : new TaskItem();
+    }
+}

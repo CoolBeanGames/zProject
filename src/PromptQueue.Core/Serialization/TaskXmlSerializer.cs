@@ -1,8 +1,19 @@
+using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
 using PromptQueue.Core.Models;
 
 namespace PromptQueue.Core.Serialization;
+
+/// <summary>
+/// Thrown when a <c>tasks.xml</c> cannot be parsed even after the lenient
+/// repair pass. Carries the underlying parser message for display.
+/// </summary>
+public sealed class TaskXmlFormatException : Exception
+{
+    public TaskXmlFormatException(string message, Exception? inner = null)
+        : base(message, inner) { }
+}
 
 /// <summary>
 /// Reads and writes a project's <c>tasks.xml</c>. The on-disk order of
@@ -57,7 +68,8 @@ public static class TaskXmlSerializer
             new XElement("release", task.Release),
             new XElement("tags", task.TagText),
             new XElement("notes", task.Notes),
-            new XElement("filesChanged", task.FilesChanged));
+            new XElement("filesChanged", task.FilesChanged),
+            new XElement("image", task.Image));
 
         if (task.Subtasks.Count > 0)
         {
@@ -88,8 +100,8 @@ public static class TaskXmlSerializer
 
     public static Document Deserialize(string xml)
     {
-        var doc = XDocument.Parse(xml);
-        var root = doc.Root ?? throw new FormatException("tasks.xml has no root element.");
+        var doc = ParseTolerant(xml);
+        var root = doc.Root ?? throw new TaskXmlFormatException("tasks.xml has no root element.");
 
         var projectName = (string?)root.Attribute("project") ?? "";
         var tasks = new List<TaskItem>();
@@ -120,6 +132,7 @@ public static class TaskXmlSerializer
                 TagText = (string?)el.Element("tags") ?? "",
                 Notes = (string?)el.Element("notes") ?? "",
                 FilesChanged = (string?)el.Element("filesChanged") ?? "",
+                Image = ((string?)el.Element("image") ?? "").Trim(),
                 Order = order++,
             };
 
@@ -139,6 +152,71 @@ public static class TaskXmlSerializer
                         ?? InferNextIndex(projectName, tasks);
 
         return new Document(projectName, nextIndex, tasks);
+    }
+
+    /// <summary>
+    /// Parses <c>tasks.xml</c>, and if that fails, tries once more after a
+    /// lenient repair pass that re-escapes stray <c>&amp;</c> / <c>&lt;</c> /
+    /// <c>&gt;</c> inside the known free-text elements. Agents hand-edit this file
+    /// and routinely paste command lines, generics and code fragments into
+    /// &lt;notes&gt; without escaping them (see ZP-52); one such slip would
+    /// otherwise take the whole app down on startup.
+    /// </summary>
+    private static XDocument ParseTolerant(string xml)
+    {
+        try
+        {
+            return XDocument.Parse(xml);
+        }
+        catch (XmlException first)
+        {
+            try
+            {
+                return XDocument.Parse(RepairMarkup(xml));
+            }
+            catch (XmlException)
+            {
+                throw new TaskXmlFormatException(first.Message, first);
+            }
+        }
+    }
+
+    /// <summary>Elements whose content is free text an agent might not escape.</summary>
+    private static readonly string[] TextElements =
+    {
+        "name", "prompt", "requirements", "errorMessage",
+        "blockedBy", "tags", "notes", "filesChanged", "lockKey", "image",
+    };
+
+    private static string RepairMarkup(string xml)
+    {
+        // 1. Bare ampersands that are not part of an entity reference.
+        xml = Regex.Replace(
+            xml, @"&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)", "&amp;");
+
+        // 2. Stray < / > inside the known leaf elements. The replacement is
+        //    idempotent, so content that was already well-formed is untouched.
+        foreach (var tag in TextElements)
+        {
+            xml = Regex.Replace(
+                xml,
+                $"(<{tag}>)(.*?)(</{tag}>)",
+                m => m.Groups[1].Value
+                     + m.Groups[2].Value.Replace("<", "&lt;").Replace(">", "&gt;")
+                     + m.Groups[3].Value,
+                RegexOptions.Singleline);
+        }
+
+        // 3. Stray < / > inside <subtask ...>text</subtask> bodies.
+        xml = Regex.Replace(
+            xml,
+            @"(<subtask\b[^>]*>)(.*?)(</subtask>)",
+            m => m.Groups[1].Value
+                 + m.Groups[2].Value.Replace("<", "&lt;").Replace(">", "&gt;")
+                 + m.Groups[3].Value,
+            RegexOptions.Singleline);
+
+        return xml;
     }
 
     private static bool ParseBool(XElement? el)

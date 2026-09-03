@@ -8,7 +8,8 @@
         Icon="pack://application:,,,/Assets/app.ico"
         FontFamily="{StaticResource UiFont}" FontSize="12"
         Background="{StaticResource AppBackgroundBrush}"
-        UseLayoutRounding="True" SnapsToDevicePixels="True">
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
+        PreviewKeyDown="Window_PreviewKeyDown">
 
     <Window.Resources>
         <app:BoolToStrikethroughConverter x:Key="Strike"/>
@@ -23,6 +24,7 @@
         <app:LockGlyphConverter x:Key="LockGlyph"/>
         <app:ChevronGlyphConverter x:Key="ChevronGlyph"/>
         <app:IndentConverter x:Key="Indent"/>
+        <app:PathToImageConverter x:Key="PathImage"/>
 
         <!-- ===================== TEXT EDITOR OVERLAY ===================== -->
         <DataTemplate DataType="{x:Type vm:TextEditorViewModel}">
@@ -181,6 +183,29 @@
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
+
+                            <!-- Image attachment (ZP-59) -->
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="Image" Margin="0,12,0,3"/>
+                            <DockPanel>
+                                <Button DockPanel.Dock="Left" Content="Choose image…" MinWidth="96"
+                                        Command="{Binding ChooseImageCommand}"/>
+                                <Button DockPanel.Dock="Left" Content="Remove" MinWidth="64" Margin="6,0,0,0"
+                                        Command="{Binding RemoveImageCommand}"
+                                        Visibility="{Binding HasImage, Converter={StaticResource BoolVis}}"/>
+                                <TextBlock VerticalAlignment="Center" Margin="8,0,0,0"
+                                           Style="{StaticResource SecondaryText}"
+                                           TextTrimming="CharacterEllipsis"
+                                           Text="{Binding Image, Mode=OneWay}"/>
+                            </DockPanel>
+                            <Border Margin="0,6,0,0" BorderThickness="1"
+                                    BorderBrush="{StaticResource BorderBrush}"
+                                    Background="{StaticResource AppBackgroundBrush}"
+                                    HorizontalAlignment="Left"
+                                    Visibility="{Binding HasImage, Converter={StaticResource BoolVis}}">
+                                <Image Source="{Binding ImagePreviewPath, Converter={StaticResource PathImage}}"
+                                       MaxHeight="200" MaxWidth="360" Margin="4"
+                                       Stretch="Uniform" StretchDirection="DownOnly"/>
+                            </Border>
 
                             <!-- Agent-written sections: shown only when already populated (ZP-6) -->
                             <StackPanel Visibility="{Binding HasError, Converter={StaticResource BoolVis}}">
@@ -358,6 +383,20 @@
                                         ToolTip="Expand every task card"
                                         Command="{Binding DataContext.ExpandAllCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
                             </StackPanel>
+                            <!-- ZP-57: press Space anywhere -> type a name -> Enter to add a locked task -->
+                            <Border Margin="0,8,0,0"
+                                    Visibility="{Binding DataContext.QuickAddActive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolVis}}">
+                                <DockPanel>
+                                    <TextBlock Text="NEW TASK NAME" VerticalAlignment="Center" Margin="0,0,8,0"
+                                               Style="{StaticResource SectionHeading}"/>
+                                    <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" Margin="8,0,0,0"
+                                               Style="{StaticResource SecondaryText}"
+                                               Text="Enter = add · Esc = done"/>
+                                    <TextBox x:Name="QuickAddBox" VerticalContentAlignment="Center"
+                                             Text="{Binding DataContext.QuickAddText, RelativeSource={RelativeSource AncestorType=Window}, UpdateSourceTrigger=PropertyChanged}"
+                                             KeyDown="QuickAdd_KeyDown"/>
+                                </DockPanel>
+                            </Border>
                             <Border Style="{StaticResource HSeparatorBorder}" Margin="0,12,0,0"/>
                             <Grid Margin="0,0,0,0">
                                 <Grid.ColumnDefinitions>
@@ -457,6 +496,11 @@
                                                                         Value="{StaticResource DoneBorderBrush}"/>
                                                             </DataTrigger>
                                                             <DataTrigger Binding="{Binding Name}" Value="Archived">
+                                                                <Setter TargetName="CollapseBtn" Property="Visibility" Value="Visible"/>
+                                                                <Setter TargetName="CollapseBtn" Property="Command"
+                                                                        Value="{Binding DataContext.ToggleArchivedCollapsedCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                                                <Setter TargetName="CollapseBtn" Property="Content"
+                                                                        Value="{Binding DataContext.ArchivedCollapsed, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource ShowHide}}"/>
                                                                 <Setter TargetName="SectionLabel" Property="Foreground"
                                                                         Value="{StaticResource SecondaryTextBrush}"/>
                                                                 <Setter TargetName="Divider" Property="Background"
@@ -468,6 +512,13 @@
                                                                 <MultiDataTrigger.Conditions>
                                                                     <Condition Binding="{Binding Name}" Value="Completed"/>
                                                                     <Condition Binding="{Binding DataContext.CompletedCollapsed, RelativeSource={RelativeSource AncestorType=Window}}" Value="True"/>
+                                                                </MultiDataTrigger.Conditions>
+                                                                <Setter TargetName="Items" Property="Visibility" Value="Collapsed"/>
+                                                            </MultiDataTrigger>
+                                                            <MultiDataTrigger>
+                                                                <MultiDataTrigger.Conditions>
+                                                                    <Condition Binding="{Binding Name}" Value="Archived"/>
+                                                                    <Condition Binding="{Binding DataContext.ArchivedCollapsed, RelativeSource={RelativeSource AncestorType=Window}}" Value="True"/>
                                                                 </MultiDataTrigger.Conditions>
                                                                 <Setter TargetName="Items" Property="Visibility" Value="Collapsed"/>
                                                             </MultiDataTrigger>
@@ -577,6 +628,14 @@
                                                     </StackPanel>
 
                                                     <StackPanel Margin="0,4,0,0"
+                                                                Visibility="{Binding HasImage, Converter={StaticResource BoolVis}}">
+                                                        <TextBlock Text="Image" FontWeight="SemiBold"/>
+                                                        <TextBlock TextWrapping="Wrap">
+                                                            <Run Text="task_images/"/><Run Text="{Binding Image, Mode=OneWay}"/>
+                                                        </TextBlock>
+                                                    </StackPanel>
+
+                                                    <StackPanel Margin="0,4,0,0"
                                                                 Visibility="{Binding HasSubtasks, Converter={StaticResource BoolVis}}">
                                                         <TextBlock FontWeight="SemiBold">
                                                             <Run Text="Subtasks"/><Run Text=" "/><Run Text="{Binding SubtaskProgress, Mode=OneWay}"/>
@@ -649,7 +708,8 @@
                                                            TextDecorations="{Binding Done, Converter={StaticResource Strike}}"/>
                                                 <TextBlock Text="{Binding Id}" Style="{StaticResource SecondaryText}" FontSize="10"
                                                            Visibility="{Binding HasName, Converter={StaticResource BoolVis}}"/>
-                                                <TextBlock Text="{Binding StatusText}" Style="{StaticResource SecondaryText}" FontSize="10"/>
+                                                <TextBlock Text="{Binding StatusText}" Style="{StaticResource SecondaryText}" FontSize="10"
+                                                           Visibility="{Binding InProgress, Converter={StaticResource BoolVis}, ConverterParameter=invert}"/>
                                                 <TextBlock Text="in progress" Style="{StaticResource SecondaryText}"
                                                            Foreground="{StaticResource AccentBrush}" FontSize="10"
                                                            Visibility="{Binding InProgress, Converter={StaticResource BoolVis}}"/>
@@ -776,6 +836,17 @@
                                                         </DataTemplate>
                                                     </ItemsControl.ItemTemplate>
                                                 </ItemsControl>
+
+                                                <!-- attached image thumbnail (ZP-59) -->
+                                                <Border Margin="0,4,0,0" BorderThickness="1" HorizontalAlignment="Left"
+                                                        BorderBrush="{StaticResource BorderBrush}"
+                                                        Background="{StaticResource AppBackgroundBrush}"
+                                                        Visibility="{Binding ImagePath, Converter={StaticResource StrVis}}">
+                                                    <Image Source="{Binding ImagePath, Converter={StaticResource PathImage}}"
+                                                           MaxHeight="120" MaxWidth="220" Margin="3"
+                                                           Stretch="Uniform" StretchDirection="DownOnly"
+                                                           ToolTip="{Binding Image}"/>
+                                                </Border>
                                             </StackPanel>
 
                                             <!-- actions -->

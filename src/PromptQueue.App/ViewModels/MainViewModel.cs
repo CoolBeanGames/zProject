@@ -7,6 +7,8 @@ using System.Windows.Data;
 using System.Windows.Threading;
 using Microsoft.Win32;
 using PromptQueue.Core.Models;
+using PromptQueue.Core.Operator;
+using PromptQueue.Core.Serialization;
 using PromptQueue.Core.Storage;
 
 namespace PromptQueue.App.ViewModels;
@@ -22,7 +24,10 @@ public sealed class MainViewModel : Observable
     private string _statusText = "Ready";
     private ICollectionView? _tasksView;
     private bool _completedCollapsed;
+    private bool _archivedCollapsed = true;   // ZP-53: archived list starts collapsed
     private string _newTaskTagText = "";
+    private bool _quickAddActive;
+    private string _quickAddText = "";
 
     public MainViewModel(Workspace workspace)
     {
@@ -76,6 +81,11 @@ public sealed class MainViewModel : Observable
         CollapseAllCommand = new RelayCommand(() => SetAllCollapsed(true), HasProject);
         ExpandAllCommand = new RelayCommand(() => SetAllCollapsed(false), HasProject);
         ToggleCompletedCollapsedCommand = new RelayCommand(() => CompletedCollapsed = !CompletedCollapsed);
+        ToggleArchivedCollapsedCommand = new RelayCommand(() => ArchivedCollapsed = !ArchivedCollapsed);
+
+        BeginQuickAddCommand = new RelayCommand(() => QuickAddActive = true, HasProject);
+        CommitQuickAddCommand = new RelayCommand(CommitQuickAdd);
+        CancelQuickAddCommand = new RelayCommand(() => { QuickAddActive = false; QuickAddText = ""; });
 
         if (Workspace.Projects.Count > 0)
             SelectedProject = Workspace.Projects[0];
@@ -87,6 +97,32 @@ public sealed class MainViewModel : Observable
     }
 
     private readonly DispatcherTimer _autoReloadTimer;
+
+    /// <summary>
+    /// Called once after the main window is up: if any project's tasks.xml
+    /// failed to parse, tell the user which one and where, rather than letting
+    /// a single bad file crash startup (ZP-52 fallout). The project still opens
+    /// with an empty list and its file is left untouched on disk.
+    /// </summary>
+    public void WarnAboutLoadErrors()
+    {
+        var broken = Workspace.Projects.Where(p => p.HasLoadError).ToList();
+        if (broken.Count == 0)
+            return;
+
+        var lines = broken.Select(p =>
+            $"• {p.Name}\n    {Path.Combine(p.Directory, TaskXmlSerializer.FileName)}\n    {p.LoadError}");
+
+        MessageBox.Show(
+            "These projects have a tasks.xml that could not be read. They are "
+            + "shown with an empty task list and their file has been left as-is "
+            + "so you can fix it by hand (usually an unescaped < > or & inside "
+            + "<notes>). Use Reload once fixed.\n\n"
+            + string.Join("\n\n", lines),
+            "zProject", MessageBoxButton.OK, MessageBoxImage.Warning);
+
+        StatusText = $"{broken.Count} project(s) have an unreadable tasks.xml";
+    }
 
     private void AutoReloadTick()
     {
@@ -136,6 +172,15 @@ public sealed class MainViewModel : Observable
 
     public RelayCommand ToggleCompletedCollapsedCommand { get; }
 
+    /// <summary>Whether the Archived section is collapsed (hidden) in the list (ZP-53).</summary>
+    public bool ArchivedCollapsed
+    {
+        get => _archivedCollapsed;
+        set => Set(ref _archivedCollapsed, value);
+    }
+
+    public RelayCommand ToggleArchivedCollapsedCommand { get; }
+
     /// <summary>Every distinct tag used anywhere in the selected project (for autocomplete).</summary>
     public ObservableCollection<string> KnownTags { get; } = new();
 
@@ -144,6 +189,54 @@ public sealed class MainViewModel : Observable
     {
         get => _newTaskTagText;
         set => Set(ref _newTaskTagText, value);
+    }
+
+    // ---- Quick add (ZP-57): press Space -> type a name -> Enter ----
+
+    /// <summary>Whether the inline "type a name, press Enter" quick-add bar is showing.</summary>
+    public bool QuickAddActive
+    {
+        get => _quickAddActive;
+        set
+        {
+            if (Set(ref _quickAddActive, value) && !value)
+                QuickAddText = "";
+        }
+    }
+
+    /// <summary>The name being typed into the quick-add bar.</summary>
+    public string QuickAddText
+    {
+        get => _quickAddText;
+        set => Set(ref _quickAddText, value);
+    }
+
+    public RelayCommand BeginQuickAddCommand { get; }
+    public RelayCommand CommitQuickAddCommand { get; }
+    public RelayCommand CancelQuickAddCommand { get; }
+
+    private void CommitQuickAdd()
+    {
+        var project = SelectedProject;
+        var name = QuickAddText.Trim();
+        if (project == null || name.Length == 0)
+        {
+            QuickAddActive = false;
+            return;
+        }
+
+        ApplyViaOperator(
+            p =>
+            {
+                var created = OperatorEngine.NewTask(p.Name, name);
+                if (created.Ok && !string.IsNullOrEmpty(created.Output))
+                    OperatorEngine.Sync(created.Output, "locked", "true");   // ZP-57: locked by default
+                return created;
+            },
+            r => r.Ok ? $"Added task {r.Output}" : $"Operator: {r.Message}");
+
+        // Stay in quick-add so several tasks can be entered in a row.
+        QuickAddText = "";
     }
 
     private void RefreshKnownTags()
@@ -356,10 +449,15 @@ public sealed class MainViewModel : Observable
 
         try
         {
+            // ZP-56: deploy the agent through PowerShell instead of cmd.exe.
+            var dir = project.Directory.Replace("'", "''");
+            var bootArg = boot.Replace("'", "''");
+            var psCommand = $"Set-Location -LiteralPath '{dir}'; & {agent} '{bootArg}'";
+
             Process.Start(new ProcessStartInfo
             {
-                FileName = "cmd.exe",
-                Arguments = $"/k cd /d \"{project.Directory}\" && {agent} \"{boot}\"",
+                FileName = "powershell.exe",
+                Arguments = $"-NoExit -ExecutionPolicy Bypass -Command \"{psCommand}\"",
                 UseShellExecute = true,
                 WorkingDirectory = project.Directory,
             });
@@ -381,12 +479,6 @@ public sealed class MainViewModel : Observable
         Workspace.SaveDataCfg();
         RebuildTasksView();   // completed tasks may have been auto-archived (ZP-47)
         StatusText = $"Saved project \"{SelectedProject.Name}\"";
-    }
-
-    private void SaveCurrent()
-    {
-        if (SelectedProject != null)
-            ProjectStore.Save(SelectedProject);
     }
 
     // ---- Text editing -------------------------------------------------
@@ -434,6 +526,7 @@ public sealed class MainViewModel : Observable
         SortIntoSections(SelectedProject);
 
         ResolveBlockedByNames();
+        ResolveImagePaths();
         RecomputeBlockedLayout();
 
         var view = new ListCollectionView(SelectedProject.Tasks)
@@ -462,19 +555,40 @@ public sealed class MainViewModel : Observable
         ProjectStore.Normalize(project);
     }
 
-    /// <summary>Re-sections, refreshes the grouped view and persists.</summary>
-    private void AfterTasksChanged()
+    /// <summary>
+    /// Routes a task change through the operator (ZP-65) — the single writer of
+    /// tasks.xml — then re-reads the project from disk so the app shows exactly
+    /// what was persisted, even if an agent changed other tasks in the meantime.
+    /// Card collapse state (runtime-only) is carried across the reload.
+    /// </summary>
+    private void ApplyViaOperator(Func<Project, OperatorResult> op, Func<OperatorResult, string> status)
     {
-        if (SelectedProject == null)
+        var project = SelectedProject;
+        if (project == null || project.HasLoadError)
             return;
-        ProjectStore.AutoArchiveCompleted(SelectedProject);   // ZP-47: automatic on save
-        SortIntoSections(SelectedProject);
-        ResolveBlockedByNames();
-        RecomputeBlockedLayout();
-        _tasksView?.Refresh();
-        RefreshKnownTags();
-        SaveCurrent();
-        Workspace.Save();
+
+        OperatorResult result;
+        try
+        {
+            result = op(project);
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"Operator error: {ex.Message}";
+            return;
+        }
+
+        var collapsed = project.Tasks.Where(t => t.Collapsed)
+            .Select(t => t.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        ProjectStore.ReloadInto(project);
+        foreach (var t in project.Tasks)
+            if (collapsed.Contains(t.Id))
+                t.Collapsed = true;
+
+        RebuildTasksView();
+        Workspace.SaveDataCfg();
+        StatusText = status(result);
     }
 
     private void ResolveBlockedByNames()
@@ -493,6 +607,29 @@ public sealed class MainViewModel : Observable
                 string.Equals(x.Id, t.BlockedBy, StringComparison.OrdinalIgnoreCase));
             t.BlockedByName = blocker != null && !string.IsNullOrWhiteSpace(blocker.Name)
                 ? blocker.Name : "";
+        }
+    }
+
+    /// <summary>
+    /// Resolves each task's runtime <see cref="TaskItem.ImagePath"/> from its
+    /// <see cref="TaskItem.Image"/> file name and the project's task_images folder
+    /// (ZP-59), so the card can show a thumbnail.
+    /// </summary>
+    private void ResolveImagePaths()
+    {
+        var project = SelectedProject;
+        if (project == null)
+            return;
+        foreach (var t in project.Tasks)
+        {
+            if (!t.HasImage)
+            {
+                t.ImagePath = "";
+                continue;
+            }
+            var path = Path.Combine(
+                project.Directory, TaskFormViewModel.ImageFolderName, t.Image);
+            t.ImagePath = File.Exists(path) ? path : "";
         }
     }
 
@@ -577,18 +714,26 @@ public sealed class MainViewModel : Observable
             source: seed,
             onSave: form =>
             {
-                var task = new TaskItem
-                {
-                    Id = newId,
-                    Order = project.Tasks.Count,
-                };
+                var task = new TaskItem { Id = newId, Order = project.Tasks.Count };
                 form.ApplyTo(task);
-                project.Tasks.Add(task);
-                AfterTasksChanged();
-                StatusText = $"Added task {task.Id}";
+                ApplyViaOperator(
+                    p =>
+                    {
+                        // Mint the id through the operator so its NextIndex on disk
+                        // advances even against a concurrently running agent.
+                        var created = OperatorEngine.NewTask(p.Name, task.Name, task.Prompt);
+                        if (created.Ok && !string.IsNullOrEmpty(created.Output))
+                        {
+                            task.Id = created.Output;
+                            return OperatorEngine.Upsert(p.Name, task);
+                        }
+                        return created;
+                    },
+                    r => r.Ok ? $"Added task {task.Id}" : $"Operator: {r.Message}");
             },
             onClose: CloseOverlay,
-            peers: project.Tasks.ToList());
+            peers: project.Tasks.ToList(),
+            projectDirectory: project.Directory);
     }
 
     private void EditTask(TaskItem? task)
@@ -604,11 +749,13 @@ public sealed class MainViewModel : Observable
             onSave: form =>
             {
                 form.ApplyTo(task);
-                AfterTasksChanged();
-                StatusText = $"Updated task {task.Id}";
+                ApplyViaOperator(
+                    p => OperatorEngine.Upsert(p.Name, task),
+                    r => r.Ok ? $"Updated task {task.Id}" : $"Operator: {r.Message}");
             },
             onClose: CloseOverlay,
-            peers: project.Tasks.ToList());
+            peers: project.Tasks.ToList(),
+            projectDirectory: project.Directory);
     }
 
     private void DeleteTask(TaskItem? task)
@@ -625,9 +772,9 @@ public sealed class MainViewModel : Observable
         if (confirm != MessageBoxResult.OK)
             return;
 
-        project.Tasks.Remove(task);
-        AfterTasksChanged();
-        StatusText = $"Deleted task {task.Id}";
+        ApplyViaOperator(
+            _ => OperatorEngine.Delete(task.Id),
+            r => r.Ok ? $"Deleted task {task.Id}" : $"Operator: {r.Message}");
     }
 
     /// <summary>
@@ -644,33 +791,39 @@ public sealed class MainViewModel : Observable
         if (oldIndex < 0)
             return;
 
-        project.Tasks.RemoveAt(oldIndex);
-        var target = Math.Clamp(indexAmongOthers, 0, project.Tasks.Count);
-        project.Tasks.Insert(target, task);
+        var target = Math.Clamp(indexAmongOthers, 0, Math.Max(0, project.Tasks.Count - 1));
+        if (target == oldIndex)
+            return;
 
-        AfterTasksChanged();
-        if (target != oldIndex)
-            StatusText = $"Moved {task.Id} to position {target + 1}";
+        ApplyViaOperator(
+            _ => OperatorEngine.Move(task.Id, target),
+            r => r.Ok ? $"Moved {task.Id} to position {target + 1}" : $"Operator: {r.Message}");
     }
 
     private void ToggleDone(TaskItem? task)
     {
         if (task == null)
             return;
-        task.Done = !task.Done;
-        if (task.Done)
-            task.InProgress = false;
-        AfterTasksChanged();
-        StatusText = $"{task.Id} marked {(task.Done ? "done" : "not done")}";
+        var newDone = !task.Done;
+        ApplyViaOperator(
+            _ =>
+            {
+                var r = OperatorEngine.Sync(task.Id, "done", newDone ? "true" : "false");
+                if (newDone)
+                    OperatorEngine.Sync(task.Id, "inProgress", "false");
+                return r;
+            },
+            _ => $"{task.Id} marked {(newDone ? "done" : "not done")}");
     }
 
     private void ToggleLock(TaskItem? task)
     {
         if (task == null)
             return;
-        task.Locked = !task.Locked;
-        AfterTasksChanged();
-        StatusText = $"{task.Id} {(task.Locked ? "locked — an agent will ignore it" : "unlocked")}";
+        var newLocked = !task.Locked;
+        ApplyViaOperator(
+            _ => OperatorEngine.Sync(task.Id, "locked", newLocked ? "true" : "false"),
+            _ => $"{task.Id} {(newLocked ? "locked — an agent will ignore it" : "unlocked")}");
     }
 
     private void ToggleCollapsed(TaskItem? task)
@@ -694,10 +847,28 @@ public sealed class MainViewModel : Observable
     /// <summary>Called by the view after a checkbox binding flips Done/InProgress.</summary>
     public void PersistTaskFlagChange(TaskItem task)
     {
-        if (task.Done && task.InProgress)
-            task.InProgress = false;
-        AfterTasksChanged();
-        StatusText = $"Updated {task.Id}";
+        var done = task.Done;
+        ApplyViaOperator(
+            _ =>
+            {
+                var r = OperatorEngine.Sync(task.Id, "done", done ? "true" : "false");
+                if (done)
+                    OperatorEngine.Sync(task.Id, "inProgress", "false");
+                return r;
+            },
+            _ => $"Updated {task.Id}");
+    }
+
+    /// <summary>Called by the view after a subtask checkbox is toggled on a card.</summary>
+    public void PersistSubtaskChange(TaskItem task, Subtask sub)
+    {
+        var index = task.Subtasks.IndexOf(sub);
+        if (index < 0)
+            return;
+        var done = sub.Done;
+        ApplyViaOperator(
+            _ => OperatorEngine.SetSubtaskDone(task.Id, index, done),
+            _ => $"{task.Id} subtask {index + 1} {(done ? "done" : "not done")}");
     }
 
     // ---- Overlay -----------------------------------------------------

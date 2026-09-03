@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.IO;
+using Microsoft.Win32;
 using PromptQueue.Core.Models;
 
 namespace PromptQueue.App.ViewModels;
@@ -32,10 +34,15 @@ public sealed class TaskFormViewModel : Observable
     private string _tagText;
     private string _notes;
     private string _filesChanged;
+    private string _image;
     private string _newSubtask = "";
 
     private readonly Action<TaskFormViewModel> _onSave;
     private readonly Action _onClose;
+    private readonly string? _projectDirectory;
+
+    /// <summary>Sub-folder of the project directory that holds task images (ZP-59).</summary>
+    public const string ImageFolderName = "task_images";
 
     public TaskFormViewModel(
         bool isNew,
@@ -43,10 +50,12 @@ public sealed class TaskFormViewModel : Observable
         TaskItem? source,
         Action<TaskFormViewModel> onSave,
         Action onClose,
-        IEnumerable<TaskItem>? peers = null)
+        IEnumerable<TaskItem>? peers = null,
+        string? projectDirectory = null)
     {
         IsNew = isNew;
         Id = id;
+        _projectDirectory = projectDirectory;
         _name = source?.Name ?? "";
         _prompt = source?.Prompt ?? "";
         _requirements = source?.Requirements ?? "";
@@ -68,12 +77,16 @@ public sealed class TaskFormViewModel : Observable
         _tagText = source?.TagText ?? "";
         _notes = source?.Notes ?? "";
         _filesChanged = source?.FilesChanged ?? "";
+        _image = source?.Image ?? "";
         _onSave = onSave;
         _onClose = onClose;
 
         BlockCandidates = (peers ?? Enumerable.Empty<TaskItem>())
             .Where(t => !string.Equals(t.Id, id, StringComparison.OrdinalIgnoreCase))
-            .Select(t => string.IsNullOrWhiteSpace(t.Name) ? t.Id : $"{t.Id} — {t.Name}")
+            // ZP-54: only offer live, named tasks as blockers - hide done,
+            // archived, and unnamed tasks.
+            .Where(t => !t.Done && !t.Archived && !string.IsNullOrWhiteSpace(t.Name))
+            .Select(t => $"{t.Id} — {t.Name}")
             .ToList();
 
         if (source != null)
@@ -103,12 +116,61 @@ public sealed class TaskFormViewModel : Observable
         HasNotes = !string.IsNullOrWhiteSpace(_notes);
         HasFilesChanged = !string.IsNullOrWhiteSpace(_filesChanged);
 
+        ChooseImageCommand = new RelayCommand(ChooseImage, () => !string.IsNullOrEmpty(_projectDirectory));
+        RemoveImageCommand = new RelayCommand(() => Image = "", () => HasImage);
+
         SaveCommand = new RelayCommand(() =>
         {
             _onSave(this);
             _onClose();
         });
         CancelCommand = new RelayCommand(_onClose);
+    }
+
+    /// <summary>
+    /// Copies a picked image into the project's <c>task_images</c> folder and
+    /// records its file name on the task (ZP-59).
+    /// </summary>
+    private void ChooseImage()
+    {
+        if (string.IsNullOrEmpty(_projectDirectory))
+            return;
+
+        var dlg = new OpenFileDialog
+        {
+            Title = "Choose an image for this task",
+            Filter = "Images|*.png;*.jpg;*.jpeg;*.gif;*.bmp;*.webp|All files|*.*",
+            CheckFileExists = true,
+        };
+        if (dlg.ShowDialog() != true)
+            return;
+
+        try
+        {
+            var folder = System.IO.Path.Combine(_projectDirectory, ImageFolderName);
+            System.IO.Directory.CreateDirectory(folder);
+
+            var ext = System.IO.Path.GetExtension(dlg.FileName).ToLowerInvariant();
+            var fileName = $"{Id}{ext}";
+            var dest = System.IO.Path.Combine(folder, fileName);
+
+            // Drop a previous image with a different extension.
+            if (HasImage && !string.Equals(Image, fileName, StringComparison.OrdinalIgnoreCase))
+            {
+                var old = System.IO.Path.Combine(folder, Image);
+                if (System.IO.File.Exists(old))
+                    System.IO.File.Delete(old);
+            }
+
+            System.IO.File.Copy(dlg.FileName, dest, overwrite: true);
+            Image = fileName;
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                $"Could not attach the image:\n\n{ex.Message}",
+                "zProject", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+        }
     }
 
     public bool IsNew { get; }
@@ -262,6 +324,33 @@ public sealed class TaskFormViewModel : Observable
         set => Set(ref _filesChanged, value);
     }
 
+    /// <summary>File name of the attached task image (ZP-59), or "" when none.</summary>
+    public string Image
+    {
+        get => _image;
+        set
+        {
+            if (Set(ref _image, value))
+            {
+                Raise(nameof(HasImage));
+                Raise(nameof(ImagePreviewPath));
+                RemoveImageCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    public bool HasImage => !string.IsNullOrWhiteSpace(_image);
+
+    /// <summary>Absolute path to the attached image for the preview, or "" when none.</summary>
+    public string ImagePreviewPath =>
+        HasImage && !string.IsNullOrEmpty(_projectDirectory)
+            ? System.IO.Path.Combine(_projectDirectory, ImageFolderName, _image)
+            : "";
+
+    public RelayCommand ChooseImageCommand { get; private set; } = null!;
+
+    public RelayCommand RemoveImageCommand { get; private set; } = null!;
+
     /// <summary>Show the error section only when the task already carries an error.</summary>
     public bool HasError { get; }
 
@@ -296,6 +385,7 @@ public sealed class TaskFormViewModel : Observable
         task.TagText = TagText.Trim();
         task.Notes = Notes;
         task.FilesChanged = FilesChanged;
+        task.Image = Image;
 
         task.Subtasks.Clear();
         foreach (var s in Subtasks)

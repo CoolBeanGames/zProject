@@ -1,4 +1,5 @@
 using PromptQueue.Core.Models;
+using PromptQueue.Core.Operator;
 using PromptQueue.Core.Serialization;
 
 namespace PromptQueue.Core.Storage;
@@ -35,10 +36,22 @@ public static class ProjectStore
         var tasksPath = Path.Combine(directory, TaskXmlSerializer.FileName);
         if (File.Exists(tasksPath))
         {
-            var doc = TaskXmlSerializer.Deserialize(File.ReadAllText(tasksPath));
-            project.NextIndex = doc.NextIndex;
-            foreach (var t in doc.Tasks)
-                project.Tasks.Add(t);
+            try
+            {
+                var doc = TaskXmlSerializer.Deserialize(File.ReadAllText(tasksPath));
+                project.NextIndex = doc.NextIndex;
+                foreach (var t in doc.Tasks)
+                    project.Tasks.Add(t);
+            }
+            catch (TaskXmlFormatException ex)
+            {
+                // One project's broken tasks.xml must not stop the whole app
+                // from opening. Leave the task list empty and flag the project;
+                // ProjectStore.Save then refuses to overwrite the file so the
+                // real data is preserved for the user to fix by hand.
+                project.LoadError =
+                    $"{TaskXmlSerializer.FileName} could not be read: {ex.Message}";
+            }
         }
 
         project.LocalDesign = ReadTextOrEmpty(Path.Combine(directory, DesignFile));
@@ -53,12 +66,28 @@ public static class ProjectStore
     {
         System.IO.Directory.CreateDirectory(project.Directory);
 
+        // The on-disk tasks.xml is unreadable and was NOT loaded into memory;
+        // writing our empty list back would destroy it. Persist the text files
+        // (they loaded fine) but leave tasks.xml for the user to repair.
+        if (project.HasLoadError)
+        {
+            WriteOrDelete(Path.Combine(project.Directory, DesignFile), project.LocalDesign);
+            WriteOrDelete(Path.Combine(project.Directory, InstructionsFile), project.LocalInstructions);
+            WriteOrDelete(Path.Combine(project.Directory, PromptFile), project.LocalPrompt);
+            return;
+        }
+
         AutoArchiveCompleted(project);
         Normalize(project);
 
-        File.WriteAllText(
-            Path.Combine(project.Directory, TaskXmlSerializer.FileName),
-            TaskXmlSerializer.Serialize(project));
+        // Serialise tasks.xml writes against the operator / other processes (ZP-65)
+        // so an agent's write and the app's write never interleave.
+        using (new CrossProcessLock(OperatorEngine.MutexName))
+        {
+            File.WriteAllText(
+                Path.Combine(project.Directory, TaskXmlSerializer.FileName),
+                TaskXmlSerializer.Serialize(project));
+        }
 
         WriteOrDelete(Path.Combine(project.Directory, DesignFile), project.LocalDesign);
         WriteOrDelete(Path.Combine(project.Directory, InstructionsFile), project.LocalInstructions);
@@ -72,7 +101,21 @@ public static class ProjectStore
         if (!File.Exists(tasksPath))
             return;
 
-        var doc = TaskXmlSerializer.Deserialize(File.ReadAllText(tasksPath));
+        TaskXmlSerializer.Document doc;
+        try
+        {
+            doc = TaskXmlSerializer.Deserialize(File.ReadAllText(tasksPath));
+        }
+        catch (TaskXmlFormatException ex)
+        {
+            // Keep the in-memory list as-is; just flag the project so the UI can
+            // warn and Save() stops overwriting the broken file.
+            project.LoadError =
+                $"{TaskXmlSerializer.FileName} could not be read: {ex.Message}";
+            return;
+        }
+
+        project.LoadError = "";
         project.Tasks.Clear();
         foreach (var t in doc.Tasks)
             project.Tasks.Add(t);
