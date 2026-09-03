@@ -44,6 +44,24 @@ public sealed class Workspace : Observable
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "PromptQueue");
 
+    /// <summary>Folder that holds "local projects" (ZP-70) — personal to-do lists.</summary>
+    public string LocalProjectsRoot => Path.Combine(RootDirectory, "local");
+
+    /// <summary>True when <paramref name="directory"/> sits under <see cref="LocalProjectsRoot"/>.</summary>
+    public bool IsLocalPath(string directory)
+    {
+        try
+        {
+            var full = Path.GetFullPath(directory).TrimEnd('\\', '/');
+            var root = Path.GetFullPath(LocalProjectsRoot).TrimEnd('\\', '/');
+            return full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public const string IndexFile = "workspace.xml";
     public const string GlobalDesignFile = "global.design.txt";
     public const string GlobalInstructionsFile = "global.instructions.txt";
@@ -73,7 +91,9 @@ public sealed class Workspace : Observable
                 var dir = (string?)el.Attribute("directory");
                 if (string.IsNullOrWhiteSpace(dir) || !Directory.Exists(dir))
                     continue;
-                ws.Projects.Add(ProjectStore.Load(dir));
+                var project = ProjectStore.Load(dir);
+                project.IsLocal = (bool?)el.Attribute("local") ?? ws.IsLocalPath(dir);
+                ws.Projects.Add(project);
             }
         }
         else
@@ -96,7 +116,12 @@ public sealed class Workspace : Observable
 
         var root = new XElement("workspace");
         foreach (var p in Projects)
-            root.Add(new XElement("project", new XAttribute("directory", p.Directory)));
+        {
+            var el = new XElement("project", new XAttribute("directory", p.Directory));
+            if (p.IsLocal)
+                el.Add(new XAttribute("local", true));
+            root.Add(el);
+        }
         new XDocument(new XDeclaration("1.0", "utf-8", null), root)
             .Save(Path.Combine(RootDirectory, IndexFile));
 
@@ -126,10 +151,13 @@ public sealed class Workspace : Observable
             if (p.HasLoadError)
                 continue;
 
-            projects.Add(new XElement("project",
+            var pe = new XElement("project",
                 new XAttribute("name", p.Name),
                 new XAttribute("directory", p.Directory),
-                TaskXmlSerializer.ToElement(p)));
+                TaskXmlSerializer.ToElement(p));
+            if (p.IsLocal)
+                pe.Add(new XAttribute("local", true));
+            projects.Add(pe);
         }
         root.Add(projects);
 
@@ -182,7 +210,9 @@ public sealed class Workspace : Observable
                 continue;
             if (Projects.Any(p => string.Equals(p.Directory, dir, StringComparison.OrdinalIgnoreCase)))
                 continue;
-            Projects.Add(ProjectStore.Load(dir));
+            var hydrated = ProjectStore.Load(dir);
+            hydrated.IsLocal = (bool?)el.Attribute("local") ?? IsLocalPath(dir);
+            Projects.Add(hydrated);
         }
     }
 
@@ -196,10 +226,30 @@ public sealed class Workspace : Observable
             return existing;
 
         var project = ProjectStore.Load(directory);
-        SeedLocalsFromGlobals(project);
+        project.IsLocal = IsLocalPath(directory);
+        if (!project.IsLocal)
+            SeedLocalsFromGlobals(project);
         Projects.Add(project);
         Save();
         ProjectStore.Save(project);
+        return project;
+    }
+
+    /// <summary>
+    /// Creates a "local project" (ZP-70): a personal to-do list under
+    /// <see cref="LocalProjectsRoot"/>/&lt;name&gt;. No source path is needed and
+    /// agents never touch it. Returns the existing one if the name is taken.
+    /// </summary>
+    public Project AddLocalProject(string name)
+    {
+        var clean = new string(name.Trim()
+            .Select(c => char.IsLetterOrDigit(c) || c is ' ' or '-' or '_' ? c : '-').ToArray())
+            .Trim().Trim('.');
+        if (clean.Length == 0)
+            clean = "list";
+
+        var dir = Path.Combine(LocalProjectsRoot, clean);
+        var project = AddProject(dir);   // IsLocal is set from the path
         return project;
     }
 

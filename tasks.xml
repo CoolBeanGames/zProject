@@ -1,5 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
-<tasks project="zProject" nextIndex="78">
+<tasks project="zProject" nextIndex="79">
+  <task id="ZP-78">
+    <name>mobile server 503</name>
+    <prompt>After ZP-68/69 the task server starts (Tailscale prompts for elevation) but opening the Funnel URL returns "HTTP error 503 Service Unavailable". Repro: Server menu -&gt; Start Mobile Server, approve the Tailscale UAC prompt, open the https://*.ts.net URL on a phone or browser. Expected: the task page loads. Actual: 503. Likely cause: HttpListener is bound to http://localhost:{port}/ only, so a request that Tailscale Funnel forwards with Host: &lt;node&gt;.&lt;tailnet&gt;.ts.net matches no prefix and HttpListener answers 503. (The first request can also 503 briefly while Tailscale provisions the HTTPS cert.)</prompt>
+    <requirements>the Tailscale Funnel URL serves the task page (no 503); localhost still works; at most one extra UAC prompt</requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <bug>true</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>true</commit>
+    <build>true</build>
+    <release>true</release>
+    <tags>webserver,tailscale,bug</tags>
+    <notes>Root cause confirmed: HttpListener answers 503 to any request whose Host/port matches none of its registered prefixes, and Tailscale Funnel forwards requests with the public Host (&lt;node&gt;.&lt;tailnet&gt;.ts.net) - which the localhost-only bind from ZP-68 never matched. Fix: in funnel mode StartListener now binds the wildcard http://+:{port}/ (accepts any Host); if Windows has no URL reservation it adds one elevated via `netsh http add urlacl` (a single UAC prompt - and Tailscale already elevates once anyway), then retries. If that is declined/fails it falls back to localhost + 127.0.0.1 and prints the exact netsh line plus a warning that the Funnel URL will 503 until it is run. Non-funnel mode (--no-funnel) stays localhost-only, no prompt. Also: after the funnel starts, SelfCheck() does a local GET and logs the status code so a backend problem is distinguishable from a Tailscale one, and the banner now notes the first request can 503 for ~10-30s while Tailscale provisions the HTTPS cert. Verified --no-funnel localhost serve still works and builds clean.</notes>
+    <filesChanged>src/PromptQueue.Server/Program.cs</filesChanged>
+    <image></image>
+    <subtasks>
+      <subtask done="true">bind HttpListener so proxied (non-localhost Host) requests are accepted</subtask>
+      <subtask done="true">keep localhost working and keep UAC prompts to a minimum</subtask>
+      <subtask done="true">clearer console output: confirm the local server answers, note the cert-provisioning delay</subtask>
+    </subtasks>
+  </task>
   <task id="ZP-62">
     <name>in progress bug</name>
     <prompt>when a task is in progress it says in progress twice</prompt>
@@ -377,7 +405,7 @@ Verified end to end against a scratch project: new_project, new_task (id minted 
     <prompt>local projects are mainly for me to use as a to-do list, they are stored in the zProject directory and dont need a path, and the AI agents wont work on them</prompt>
     <requirements></requirements>
     <inProgress>false</inProgress>
-    <done>false</done>
+    <done>true</done>
     <bug>false</bug>
     <error>false</error>
     <errorMessage></errorMessage>
@@ -391,8 +419,8 @@ Verified end to end against a scratch project: new_project, new_task (id minted 
     <build>false</build>
     <release>false</release>
     <tags>projects</tags>
-    <notes></notes>
-    <filesChanged></filesChanged>
+    <notes>Added "local projects" - personal to-do lists. New Project.IsLocal; a project is local when its folder sits under &lt;workspace root&gt;/local/ (Workspace.LocalProjectsRoot / IsLocalPath), and it is also flagged local="true" in workspace.xml and data.cfg so the mark survives even if the folder is moved. New Workspace.AddLocalProject(name) creates %LOCALAPPDATA%/PromptQueue/local/&lt;name&gt;/ from just a name - no path picker, and local projects are NOT seeded with the global design/instructions/prompt. UI: sidebar gained "+ New Local List" (and File &gt; New Local List) which asks only for a name via a new small InputPrompt dialog; local rows show a blue "local" tag and hide the directory line. Agents can't run on them: DeployCodex/DeployClaude CanExecute is now CanDeployAgent (false for a local project), the right-click "Run only this with..." bails with a status message, and RefreshCommandStates re-evaluates the deploy buttons on selection change. Build clean.</notes>
+    <filesChanged>src/PromptQueue.Core/Models/Project.cs; src/PromptQueue.Core/Storage/Workspace.cs; src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/Views/InputPrompt.cs (new)</filesChanged>
     <image></image>
   </task>
   <task id="ZP-71">

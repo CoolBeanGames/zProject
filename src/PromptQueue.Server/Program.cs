@@ -36,7 +36,12 @@ internal static class Program
         _viewHtml = LoadViewHtml();
 
         port = FindFreePort(port);
-        var listener = StartListener(port);
+
+        // ZP-68: reach the phone through Tailscale Funnel instead of the old
+        // LAN / URL-ACL route. --no-funnel keeps it localhost-only.
+        var useFunnel = !args.Contains("--no-funnel", StringComparer.OrdinalIgnoreCase);
+
+        var listener = StartListener(port, useFunnel);
         if (listener == null)
         {
             Console.WriteLine("Press any key to exit.");
@@ -44,10 +49,9 @@ internal static class Program
             return 1;
         }
 
-        // ZP-68: reach the phone through Tailscale Funnel instead of the old
-        // LAN / URL-ACL route. --no-funnel keeps it localhost-only.
-        var useFunnel = !args.Contains("--no-funnel", StringComparer.OrdinalIgnoreCase);
         _publicUrl = useFunnel ? Tailscale.StartFunnel(port) : null;
+        if (_publicUrl != null)
+            SelfCheck(port);
 
         Banner(port);
 
@@ -80,24 +84,98 @@ internal static class Program
     }
 
     /// <summary>
-    /// Binds to localhost only (ZP-68). The phone reaches the server through
-    /// Tailscale Funnel, which proxies from <c>localhost:{port}</c>, so the old
-    /// "http://+:port/" bind and its one-time URL-ACL / firewall dance are gone.
+    /// Tailscale Funnel forwards requests with the PUBLIC host header
+    /// (<c>&lt;node&gt;.&lt;tailnet&gt;.ts.net</c>), and HttpListener answers 503 to any
+    /// request whose host/port matches none of its prefixes (ZP-78). So in funnel
+    /// mode we must bind the wildcard <c>http://+:{port}/</c>, which needs a
+    /// one-time URL reservation on Windows — we add it elevated (one UAC) if it
+    /// is missing. Without funnel, localhost is enough.
     /// </summary>
-    private static HttpListener? StartListener(int port)
+    private static HttpListener? StartListener(int port, bool useFunnel)
     {
-        var loc = new HttpListener();
-        loc.Prefixes.Add($"http://localhost:{port}/");
-        loc.Prefixes.Add($"http://127.0.0.1:{port}/");
+        if (useFunnel && TryStart(Wildcard(port), out var wild))
+            return wild;
+
+        if (useFunnel)
+        {
+            Console.WriteLine($"Windows has no URL reservation for http://+:{port}/ (needed so the");
+            Console.WriteLine("Tailscale Funnel hostname is accepted). Adding it now — approve the UAC prompt.");
+            if (TryAddUrlAcl(port) && TryStart(Wildcard(port), out var retry))
+            {
+                Console.WriteLine("Reservation added.");
+                return retry;
+            }
+            Console.WriteLine();
+            Console.WriteLine("Could not add the reservation. Falling back to localhost — the Funnel URL");
+            Console.WriteLine("will return 503 until you run this once in an elevated prompt:");
+            Console.WriteLine($"    netsh http add urlacl url=http://+:{port}/ user=\"{Environment.UserDomainName}\\{Environment.UserName}\"");
+            Console.WriteLine();
+        }
+
+        if (TryStart(new[] { $"http://localhost:{port}/", $"http://127.0.0.1:{port}/" }, out var loc))
+            return loc;
+
+        Console.WriteLine($"Could not start the HTTP listener on port {port}.");
+        return null;
+    }
+
+    private static string[] Wildcard(int port) => new[] { $"http://+:{port}/" };
+
+    private static bool TryStart(string[] prefixes, out HttpListener? listener)
+    {
+        var l = new HttpListener();
+        foreach (var p in prefixes)
+            l.Prefixes.Add(p);
         try
         {
-            loc.Start();
-            return loc;
+            l.Start();
+            listener = l;
+            return true;
         }
-        catch (HttpListenerException ex)
+        catch (HttpListenerException)
         {
-            Console.WriteLine("Could not start on localhost: " + ex.Message);
-            return null;
+            l.Close();
+            listener = null;
+            return false;
+        }
+    }
+
+    private static bool TryAddUrlAcl(int port)
+    {
+        try
+        {
+            var user = $"{Environment.UserDomainName}\\{Environment.UserName}";
+            var psi = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "netsh",
+                Arguments = $"http add urlacl url=http://+:{port}/ user=\"{user}\"",
+                Verb = "runas",              // one UAC prompt
+                UseShellExecute = true,
+                WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden,
+            };
+            var proc = System.Diagnostics.Process.Start(psi);
+            proc?.WaitForExit(20000);
+            return proc is { ExitCode: 0 };
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("  netsh failed: " + ex.Message);
+            return false;
+        }
+    }
+
+    /// <summary>Confirms the local server answers before we trust the Funnel URL (ZP-78).</summary>
+    private static void SelfCheck(int port)
+    {
+        try
+        {
+            using var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(4) };
+            var res = http.GetAsync($"http://127.0.0.1:{port}/").GetAwaiter().GetResult();
+            Console.WriteLine($"  local self-check: http://127.0.0.1:{port}/ -> {(int)res.StatusCode}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("  local self-check FAILED: " + ex.Message);
         }
     }
 
@@ -110,9 +188,16 @@ internal static class Program
         Console.WriteLine("  On this machine :");
         Console.WriteLine($"    http://localhost:{port}/");
         Console.WriteLine("  On your phone (anywhere, via Tailscale Funnel) :");
-        Console.WriteLine(_publicUrl != null
-            ? $"    {_publicUrl}"
-            : "    (Tailscale Funnel not active — see the note above)");
+        if (_publicUrl != null)
+        {
+            Console.WriteLine($"    {_publicUrl}");
+            Console.WriteLine("    (the very first request can take ~10-30s / show 503 while");
+            Console.WriteLine("     Tailscale provisions the HTTPS certificate — just retry)");
+        }
+        else
+        {
+            Console.WriteLine("    (Tailscale Funnel not active — see the note above)");
+        }
         Console.WriteLine($"  Projects: {_workspace.Projects.Count}");
         Console.WriteLine($"  Auto-reload every {ReloadSeconds}s and on each client connect");
         Console.WriteLine(new string('=', 60));

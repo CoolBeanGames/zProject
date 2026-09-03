@@ -17,6 +17,7 @@ public sealed class Project : Observable
     private string _localPrompt = "";
     private int _nextIndex = 1;
     private string _loadError = "";
+    private bool _isLocal;
 
     public string Name
     {
@@ -69,6 +70,17 @@ public sealed class Project : Observable
     }
 
     public bool HasLoadError => !string.IsNullOrEmpty(_loadError);
+
+    /// <summary>
+    /// A "local project" (ZP-70): a personal to-do list stored under the
+    /// workspace's <c>local/</c> folder. It has no meaningful source path and AI
+    /// agents never work on it (the deploy actions are disabled for it).
+    /// </summary>
+    public bool IsLocal
+    {
+        get => _isLocal;
+        set => Set(ref _isLocal, value);
+    }
 
     public ObservableCollection<TaskItem> Tasks { get; } = new();
 

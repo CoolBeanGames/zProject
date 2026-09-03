@@ -242,6 +242,7 @@
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="_File">
                 <MenuItem Header="_New Project…" Command="{Binding NewProjectCommand}"/>
+                <MenuItem Header="New _Local List…" Command="{Binding NewLocalProjectCommand}"/>
                 <Separator/>
                 <MenuItem Header="Save _Current Project" Command="{Binding SaveCurrentCommand}"/>
                 <MenuItem Header="_Save All" Command="{Binding SaveAllCommand}"/>
@@ -294,9 +295,14 @@
                 <DockPanel Grid.Column="0" Background="{StaticResource AppBackgroundBrush}">
                     <TextBlock DockPanel.Dock="Top" Text="PROJECTS" Margin="12,10,12,6"
                                Style="{StaticResource SectionHeading}"/>
-                    <Button DockPanel.Dock="Bottom" Content="+ New Project" Margin="8,6,8,10"
-                            HorizontalContentAlignment="Left" Padding="8,4"
-                            Command="{Binding NewProjectCommand}"/>
+                    <StackPanel DockPanel.Dock="Bottom" Margin="8,6,8,10">
+                        <Button Content="+ New Project" HorizontalContentAlignment="Left" Padding="8,4"
+                                Command="{Binding NewProjectCommand}"/>
+                        <Button Content="+ New Local List" HorizontalContentAlignment="Left" Padding="8,4"
+                                Margin="0,4,0,0"
+                                ToolTip="A personal to-do list stored with zProject — agents don't work on it"
+                                Command="{Binding NewLocalProjectCommand}"/>
+                    </StackPanel>
                     <Border DockPanel.Dock="Bottom" Style="{StaticResource HSeparatorBorder}" Margin="0"/>
                     <ListBox x:Name="ProjectList" Style="{StaticResource SidebarList}"
                              ItemContainerStyle="{StaticResource SidebarItem}"
@@ -312,9 +318,16 @@
                                                       CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                                         </ContextMenu>
                                     </StackPanel.ContextMenu>
-                                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Right" Text="local" FontSize="9"
+                                                   VerticalAlignment="Center" Margin="4,0,0,0"
+                                                   Foreground="{StaticResource AccentBrush}"
+                                                   Visibility="{Binding IsLocal, Converter={StaticResource BoolVis}}"/>
+                                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
+                                    </DockPanel>
                                     <TextBlock Text="{Binding Directory}" Style="{StaticResource SecondaryText}"
-                                               TextTrimming="CharacterEllipsis" FontSize="10"/>
+                                               TextTrimming="CharacterEllipsis" FontSize="10"
+                                               Visibility="{Binding IsLocal, Converter={StaticResource BoolVis}, ConverterParameter=invert}"/>
                                 </StackPanel>
                             </DataTemplate>
                         </ListBox.ItemTemplate>

@@ -34,6 +34,7 @@ public sealed class MainViewModel : Observable
         Workspace = workspace;
 
         NewProjectCommand = new RelayCommand(NewProject);
+        NewLocalProjectCommand = new RelayCommand(NewLocalProject);
         RemoveProjectCommand = new RelayCommand(p => RemoveProject(p as Project ?? SelectedProject));
         SaveAllCommand = new RelayCommand(SaveAll);
         SaveCurrentCommand = new RelayCommand(SaveCurrentProject, () => SelectedProject != null);
@@ -48,8 +49,8 @@ public sealed class MainViewModel : Observable
         InstallBothCliCommand = new RelayCommand(() => RunInTerminal(
             "npm install -g @openai/codex @anthropic-ai/claude-code", "Install both AI CLIs"));
 
-        DeployCodexCommand = new RelayCommand(() => DeployAgent("codex"), HasProject);
-        DeployClaudeCommand = new RelayCommand(() => DeployAgent("claude"), HasProject);
+        DeployCodexCommand = new RelayCommand(() => DeployAgent("codex"), CanDeployAgent);
+        DeployClaudeCommand = new RelayCommand(() => DeployAgent("claude"), CanDeployAgent);
         RunTaskWithCodexCommand = new RelayCommand(p => DeployAgentForTask("codex", p as TaskItem));
         RunTaskWithClaudeCommand = new RelayCommand(p => DeployAgentForTask("claude", p as TaskItem));
 
@@ -274,6 +275,7 @@ public sealed class MainViewModel : Observable
     // ---- Commands -------------------------------------------------------
 
     public RelayCommand NewProjectCommand { get; }
+    public RelayCommand NewLocalProjectCommand { get; }
     public RelayCommand RemoveProjectCommand { get; }
     public RelayCommand SaveAllCommand { get; }
     public RelayCommand SaveCurrentCommand { get; }
@@ -329,6 +331,27 @@ public sealed class MainViewModel : Observable
             ? $"Opened existing project \"{project.Name}\""
             : $"Created project \"{project.Name}\" at {project.Directory}";
     }
+
+    /// <summary>
+    /// "New Local Project" (ZP-70): a personal to-do list. Only a name is asked
+    /// for; it is created under the workspace's local/ folder and agents ignore it.
+    /// </summary>
+    private void NewLocalProject()
+    {
+        var name = Views.InputPrompt.Ask("New Local Project",
+            "Name for this local to-do list:");
+        if (name == null)
+            return;
+
+        var project = Workspace.AddLocalProject(name);
+        if (!Workspace.Projects.Contains(project))
+            Workspace.Projects.Add(project);
+        SelectedProject = project;
+        StatusText = $"Created local project \"{project.Name}\" (agents will not work on it)";
+    }
+
+    /// <summary>Agents can be deployed to a real project, but never to a local to-do list (ZP-70).</summary>
+    private bool CanDeployAgent() => SelectedProject is { IsLocal: false };
 
     /// <summary>
     /// Right-click &gt; Remove Project (ZP-67): unregisters the project from the
@@ -461,6 +484,11 @@ public sealed class MainViewModel : Observable
     {
         if (task == null)
             return;
+        if (SelectedProject is { IsLocal: true })
+        {
+            StatusText = "This is a local to-do list — agents don't run on it.";
+            return;
+        }
         LaunchAgent(agent,
             $"Read prompt.txt in this directory and follow it exactly for task {task.Id} only. " +
             $"Complete ONLY task {task.Id}, then stop.",
@@ -912,6 +940,8 @@ public sealed class MainViewModel : Observable
         ReloadProjectCommand.RaiseCanExecuteChanged();
         SaveCurrentCommand.RaiseCanExecuteChanged();
         AddTaskCommand.RaiseCanExecuteChanged();
+        DeployCodexCommand.RaiseCanExecuteChanged();
+        DeployClaudeCommand.RaiseCanExecuteChanged();
         CollapseAllCommand.RaiseCanExecuteChanged();
         ExpandAllCommand.RaiseCanExecuteChanged();
         EditLocalDesignCommand.RaiseCanExecuteChanged();
