@@ -401,6 +401,16 @@ public partial class MainWindow : Window
             Vm?.PersistTaskFlagChange(task);
     }
 
+    // ---- Flag checkbox (bug/commit/build/release) toggled on an expanded card (ZP-75) ----
+
+    private void TaskFlag_Click(object sender, RoutedEventArgs e)
+    {
+        // Click fires only on real user interaction, never on binding init, so no
+        // spurious operator writes while cards are materialised.
+        if (sender is CheckBox { DataContext: TaskItem task, Tag: string field } cb)
+            Vm?.PersistTaskFieldChange(task, field, cb.IsChecked == true);
+    }
+
     // ---- Inline subtask checkbox toggled on a task row -----------
 
     private void Subtask_Changed(object sender, RoutedEventArgs e)

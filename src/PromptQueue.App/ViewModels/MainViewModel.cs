@@ -953,6 +953,14 @@ public sealed class MainViewModel : Observable
             _ => $"Updated {task.Id}");
     }
 
+    /// <summary>Called by the view when a bug/commit/build/release checkbox is toggled on a card (ZP-75).</summary>
+    public void PersistTaskFieldChange(TaskItem task, string field, bool value)
+    {
+        ApplyViaOperator(
+            _ => OperatorEngine.Sync(task.Id, field, value ? "true" : "false"),
+            _ => $"{task.Id} {field} {(value ? "on" : "off")}");
+    }
+
     /// <summary>Called by the view after a subtask checkbox is toggled on a card.</summary>
     public void PersistSubtaskChange(TaskItem task, Subtask sub)
     {

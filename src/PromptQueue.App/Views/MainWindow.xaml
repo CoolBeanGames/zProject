@@ -808,6 +808,18 @@
                                                     </Border>
                                                 </StackPanel>
 
+                                                <!-- editable flag checkboxes on an expanded card (ZP-75) -->
+                                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                                    <CheckBox Content="bug" Tag="bug" FontSize="10" Margin="0,0,10,0"
+                                                              IsChecked="{Binding Bug}" Click="TaskFlag_Click"/>
+                                                    <CheckBox Content="commit" Tag="commit" FontSize="10" Margin="0,0,10,0"
+                                                              IsChecked="{Binding Commit}" Click="TaskFlag_Click"/>
+                                                    <CheckBox Content="build" Tag="build" FontSize="10" Margin="0,0,10,0"
+                                                              IsChecked="{Binding Build}" Click="TaskFlag_Click"/>
+                                                    <CheckBox Content="release" Tag="release" FontSize="10"
+                                                              IsChecked="{Binding Release}" Click="TaskFlag_Click"/>
+                                                </StackPanel>
+
                                                 <!-- colour-coded, collapsable tag chips (ZP-26 / ZP-33) -->
                                                 <StackPanel Orientation="Horizontal" Margin="0,3,0,0"
                                                             Visibility="{Binding TagText, Converter={StaticResource StrVis}}">

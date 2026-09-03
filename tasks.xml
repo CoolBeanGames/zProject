@@ -148,7 +148,7 @@ Verified end to end via curl on a scratch target (new_task/sync_many/new_subtask
     <prompt>add checkboxes to fulley extended tasks for commit build release and bug tags</prompt>
     <requirements></requirements>
     <inProgress>false</inProgress>
-    <done>false</done>
+    <done>true</done>
     <bug>false</bug>
     <error>false</error>
     <errorMessage></errorMessage>
@@ -162,8 +162,8 @@ Verified end to end via curl on a scratch target (new_task/sync_many/new_subtask
     <build>true</build>
     <release>true</release>
     <tags>ui,tasks</tags>
-    <notes></notes>
-    <filesChanged></filesChanged>
+    <notes>An expanded task card now has a row of editable checkboxes for bug / commit / build / release (below the at-a-glance chips), two-way bound to the task. They use the Click event (not Checked/Unchecked) so binding-driven changes during card materialisation never fire a write - only real user clicks do. New MainWindow.TaskFlag_Click -> MainViewModel.PersistTaskFieldChange(task, field, value), which routes the change through the operator (OperatorEngine.Sync) like every other card mutation and reloads. Ticking "bug" re-sorts the card to the Bugs section as expected. Built to builds/debug + builds/release; release zipped.</notes>
+    <filesChanged>src/PromptQueue.App/Views/MainWindow.xaml; src/PromptQueue.App/Views/MainWindow.xaml.cs; src/PromptQueue.App/ViewModels/MainViewModel.cs</filesChanged>
     <image></image>
   </task>
   <task id="ZP-76">
