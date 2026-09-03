@@ -62,6 +62,34 @@ public static class OperatorEngine
         return OperatorResult.Pass($"{ws.Projects.Count} project(s)", string.Join("\n", lines));
     }
 
+    /// <summary>Returns a project's whole <c>archive.xml</c> (ZP-72). Empty when there is none.</summary>
+    public static OperatorResult GetArchive(string projectRef)
+    {
+        var ws = Workspace.Load();
+        var project = ResolveProject(ws, projectRef);
+        if (project == null)
+            return OperatorResult.Fail($"No project matches \"{projectRef}\".");
+
+        var path = Path.Combine(project.Directory, TaskXmlSerializer.ArchiveFileName);
+        return File.Exists(path)
+            ? OperatorResult.Pass($"Archive of {project.Name}", File.ReadAllText(path))
+            : OperatorResult.Pass($"{project.Name} has no archive yet",
+                $"<tasks project=\"{project.Name}\" nextIndex=\"1\" />");
+    }
+
+    /// <summary>Returns one field's value for a task (ZP-72), or fails if the field is unknown.</summary>
+    public static OperatorResult GetTag(string taskId, string field)
+    {
+        var ws = Workspace.Load();
+        var (_, task) = ResolveTask(ws, taskId);
+        if (task == null)
+            return OperatorResult.Fail($"No task \"{taskId}\".");
+        var value = TaskFields.Read(task, field);
+        return value == null
+            ? OperatorResult.Fail($"Unknown field \"{field}\".")
+            : OperatorResult.Pass($"{task.Id}.{field}", value);
+    }
+
     // ---- mutations (queued) ---------------------------------------------
 
     /// <summary>
@@ -107,6 +135,18 @@ public static class OperatorEngine
     public static OperatorResult SetSubtaskDone(string taskId, int index, bool done)
         => Enqueue(new OperatorJob("subtask_done", taskId,
             index.ToString(CultureInfo.InvariantCulture), done ? "true" : "false"));
+
+    /// <summary>Queues "send this task to the archive" (ZP-72): done + archived, out of the queue.</summary>
+    public static OperatorResult Archive(string taskId)
+        => Enqueue(new OperatorJob("archive", taskId));
+
+    /// <summary>Queues an agent ownership lock on a task (ZP-72): sets lockKey if free.</summary>
+    public static OperatorResult AgentLock(string taskId, string key)
+        => Enqueue(new OperatorJob("agent_lock", taskId, key));
+
+    /// <summary>Queues release of an agent lock (ZP-72): clears lockKey if the key matches.</summary>
+    public static OperatorResult AgentUnlock(string taskId, string key)
+        => Enqueue(new OperatorJob("agent_unlock", taskId, key));
 
     /// <summary>Queues removal of a task.</summary>
     public static OperatorResult Delete(string taskId)
@@ -275,6 +315,48 @@ public static class OperatorEngine
                 project!.Tasks.Remove(task);
                 touched.Add(project);
                 return OperatorResult.Pass($"Deleted {job.Arg(0)}");
+            }
+
+            case "archive":
+            {
+                var (project, task) = ResolveTask(ws, job.Arg(0));
+                if (task == null)
+                    return OperatorResult.Fail($"No task \"{job.Arg(0)}\".");
+                task.InProgress = false;
+                task.LockKey = "";
+                task.Done = true;
+                task.Archived = true;   // ProjectStore.Save moves it into archive.xml
+                touched.Add(project!);
+                return OperatorResult.Pass($"Archived {task.Id}");
+            }
+
+            case "agent_lock":
+            {
+                var (project, task) = ResolveTask(ws, job.Arg(0));
+                if (task == null)
+                    return OperatorResult.Fail($"No task \"{job.Arg(0)}\".");
+                var key = job.Arg(1).Trim();
+                if (key.Length == 0)
+                    return OperatorResult.Fail("A lock key is required.");
+                if (task.LockKey.Length > 0 && task.LockKey != key)
+                    return OperatorResult.Fail($"{task.Id} is already locked by another agent.");
+                task.LockKey = key;
+                task.InProgress = true;
+                touched.Add(project!);
+                return OperatorResult.Pass($"{task.Id} locked");
+            }
+
+            case "agent_unlock":
+            {
+                var (project, task) = ResolveTask(ws, job.Arg(0));
+                if (task == null)
+                    return OperatorResult.Fail($"No task \"{job.Arg(0)}\".");
+                var key = job.Arg(1).Trim();
+                if (task.LockKey.Length > 0 && task.LockKey != key)
+                    return OperatorResult.Fail($"{task.Id}'s lock key does not match.");
+                task.LockKey = "";
+                touched.Add(project!);
+                return OperatorResult.Pass($"{task.Id} unlocked");
             }
 
             case "move":

@@ -55,6 +55,41 @@ public static class TaskFields
     /// <summary>The set of recognised field names (canonical spelling).</summary>
     public static IEnumerable<string> Names => Setters.Keys;
 
+    private static readonly Dictionary<string, Func<TaskItem, string>> Getters =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["name"] = t => t.Name,
+            ["prompt"] = t => t.Prompt,
+            ["requirements"] = t => t.Requirements,
+            ["inprogress"] = t => t.InProgress ? "true" : "false",
+            ["done"] = t => t.Done ? "true" : "false",
+            ["bug"] = t => t.Bug ? "true" : "false",
+            ["error"] = t => t.Error ? "true" : "false",
+            ["errormessage"] = t => t.ErrorMessage,
+            ["lockkey"] = t => t.LockKey,
+            ["locked"] = t => t.Locked ? "true" : "false",
+            ["archived"] = t => t.Archived ? "true" : "false",
+            ["blockedby"] = t => t.BlockedBy,
+            ["datestarted"] = t => t.DateStartedText,
+            ["duedate"] = t => t.DueDateText,
+            ["commit"] = t => t.Commit ? "true" : "false",
+            ["build"] = t => t.Build ? "true" : "false",
+            ["release"] = t => t.Release ? "true" : "false",
+            ["tags"] = t => t.TagText,
+            ["notes"] = t => t.Notes,
+            ["fileschanged"] = t => t.FilesChanged,
+            ["image"] = t => t.Image,
+        };
+
+    /// <summary>Reads one field's value, or null if the field name is unknown.</summary>
+    public static string? Read(TaskItem task, string field)
+    {
+        field = field.Trim();
+        if (Aliases.TryGetValue(field, out var canonical))
+            field = canonical;
+        return Getters.TryGetValue(field, out var getter) ? getter(task) : null;
+    }
+
     /// <summary>Applies <paramref name="value"/> to <paramref name="field"/>; false if the field is unknown.</summary>
     public static bool Apply(TaskItem task, string field, string value)
     {

@@ -59,6 +59,8 @@ internal static class Program
     private static OperatorResult Dispatch(string command, string[] a) => command switch
     {
         "read" when a.Length >= 1 => OperatorEngine.Read(a[0]),
+        "get_archive" when a.Length >= 1 => OperatorEngine.GetArchive(a[0]),
+        "get_tag" when a.Length >= 2 => OperatorEngine.GetTag(a[0], a[1]),
         "list" => OperatorEngine.List(),
         "sync" when a.Length >= 3 => OperatorEngine.Sync(a[0], a[1], string.Join(' ', a.Skip(2))),
         "new_task" when a.Length >= 2 => OperatorEngine.NewTask(a[0], a[1], a.Length > 2 ? string.Join(' ', a.Skip(2)) : ""),
@@ -68,6 +70,9 @@ internal static class Program
         "new_subtask" when a.Length >= 2 => OperatorEngine.NewSubtask(a[0], string.Join(' ', a.Skip(1))),
         "subtask_done" when a.Length >= 3 && int.TryParse(a[1], out var sdi) => OperatorEngine.SetSubtaskDone(a[0], sdi, a[2] is "true" or "1"),
         "delete" when a.Length >= 1 => OperatorEngine.Delete(a[0]),
+        "archive" when a.Length >= 1 => OperatorEngine.Archive(a[0]),
+        "agent_lock" when a.Length >= 2 => OperatorEngine.AgentLock(a[0], a[1]),
+        "agent_unlock" when a.Length >= 2 => OperatorEngine.AgentUnlock(a[0], a[1]),
         "move" when a.Length >= 2 && int.TryParse(a[1], out var i) => OperatorEngine.Move(a[0], i),
         "move" => OperatorResult.Fail("move needs: <task_id> <index>"),
         _ => OperatorResult.Fail($"bad or incomplete command. \n{Usage}"),
@@ -84,8 +89,13 @@ internal static class Program
         zProject operator
 
           operator read       <project>
+          operator get_archive <project>
+          operator get_tag    <task_id> <field>
           operator list
           operator sync       <task_id> <field> <value>
+          operator archive    <task_id>
+          operator agent_lock <task_id> <key>
+          operator agent_unlock <task_id> <key>
           operator new_task   <project> <name> [prompt]
           operator new_project <name> [directory]
           operator new_subtask <task_id> <text...>

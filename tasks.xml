@@ -72,7 +72,7 @@ Verified end to end via curl on a scratch target (new_task/sync_many/new_subtask
     <prompt>just some more operator stuff</prompt>
     <requirements></requirements>
     <inProgress>false</inProgress>
-    <done>false</done>
+    <done>true</done>
     <bug>false</bug>
     <error>false</error>
     <errorMessage></errorMessage>
@@ -86,15 +86,15 @@ Verified end to end via curl on a scratch target (new_task/sync_many/new_subtask
     <build>true</build>
     <release>false</release>
     <tags>operator, tags, archive</tags>
-    <notes></notes>
-    <filesChanged></filesChanged>
+    <notes>Five new operator commands, wired into the operator exe and the server's /api/op: get_archive &lt;project&gt; (read-only, returns the whole archive.xml, or an empty &lt;tasks/&gt; when there is none); get_tag &lt;task_id&gt; &lt;field&gt; (read-only, returns one field's value via new TaskFields.Read + Getters map, fails on an unknown field); archive &lt;task_id&gt; (queued: clears inProgress/lockKey, sets done + archived, so ProjectStore.Save moves it into archive.xml); agent_lock &lt;task_id&gt; &lt;key&gt; (queued: sets lockKey + inProgress when the task is free or already holds that key, fails if another key owns it); agent_unlock &lt;task_id&gt; &lt;key&gt; (queued: clears lockKey when the key matches or is empty, fails otherwise). All verified on a scratch project. Built to builds/debug.</notes>
+    <filesChanged>src/PromptQueue.Core/Operator/OperatorEngine.cs; src/PromptQueue.Core/Operator/TaskFields.cs; src/PromptQueue.Operator/Program.cs; src/PromptQueue.Server/Program.cs</filesChanged>
     <image></image>
     <subtasks>
-      <subtask done="false">read archive "get_archive" returns the whole archive</subtask>
-      <subtask done="false">move to archive "archive task_id" marks a task as not in project, done, and archived and moves it to the archive</subtask>
-      <subtask done="false">ai lock "agent_lock task_id key" locks the task by an agent</subtask>
-      <subtask done="false">ai unlock "agent_unlock task_id key" unlocks a task if the id matches</subtask>
-      <subtask done="false">get tag "get_tag task_id tag" returns the value of the requested tag if it exists</subtask>
+      <subtask done="true">read archive "get_archive" returns the whole archive</subtask>
+      <subtask done="true">move to archive "archive task_id" marks a task as not in project, done, and archived and moves it to the archive</subtask>
+      <subtask done="true">ai lock "agent_lock task_id key" locks the task by an agent</subtask>
+      <subtask done="true">ai unlock "agent_unlock task_id key" unlocks a task if the id matches</subtask>
+      <subtask done="true">get tag "get_tag task_id tag" returns the value of the requested tag if it exists</subtask>
     </subtasks>
   </task>
   <task id="ZP-73">

@@ -320,6 +320,8 @@ internal static class Program
         OperatorResult result = req.Command.ToLowerInvariant() switch
         {
             "read" when a.Length >= 1 => OperatorEngine.Read(a[0]),
+            "get_archive" when a.Length >= 1 => OperatorEngine.GetArchive(a[0]),
+            "get_tag" when a.Length >= 2 => OperatorEngine.GetTag(a[0], a[1]),
             "list" => OperatorEngine.List(),
             "sync" when a.Length >= 3 => OperatorEngine.Sync(a[0], a[1], string.Join(' ', a.Skip(2))),
             "new_task" when a.Length >= 2 => OperatorEngine.NewTask(a[0], a[1], a.Length > 2 ? string.Join(' ', a.Skip(2)) : ""),
@@ -330,6 +332,9 @@ internal static class Program
                 OperatorEngine.SetSubtaskDone(a[0], sdi, a[2] is "true" or "1"),
             "sync_many" when a.Length >= 3 => OperatorEngine.SyncMany(a[0], Pairs(a.Skip(1).ToArray())),
             "delete" when a.Length >= 1 => OperatorEngine.Delete(a[0]),
+            "archive" when a.Length >= 1 => OperatorEngine.Archive(a[0]),
+            "agent_lock" when a.Length >= 2 => OperatorEngine.AgentLock(a[0], a[1]),
+            "agent_unlock" when a.Length >= 2 => OperatorEngine.AgentUnlock(a[0], a[1]),
             "move" when a.Length >= 2 && int.TryParse(a[1], out var mi) => OperatorEngine.Move(a[0], mi),
             _ => OperatorResult.Fail($"bad or incomplete command '{req.Command}'"),
         };
