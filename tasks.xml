@@ -274,7 +274,7 @@ APP (subtask 9 - "switched to interacting with the operator"): MainViewModel rou
     <prompt>the labels were supposed to have autocomplete for all existing tags, that is not in place. press tab to accept autocomplete as soon as it can figure out a tag that fits it should try to autocomplete with slightly greyed out text</prompt>
     <requirements></requirements>
     <inProgress>false</inProgress>
-    <done>false</done>
+    <done>true</done>
     <bug>false</bug>
     <error>false</error>
     <errorMessage></errorMessage>
@@ -288,8 +288,8 @@ APP (subtask 9 - "switched to interacting with the operator"): MainViewModel rou
     <build>false</build>
     <release>false</release>
     <tags></tags>
-    <notes></notes>
-    <filesChanged></filesChanged>
+    <notes>Added inline "ghost text" tag autocomplete. New attached behaviour PromptQueue.App/Behaviors/GhostCompletion.cs: set b:GhostCompletion.Suggestions on a TextBox and, as the user types the segment after the last comma, the best-matching existing tag is drawn after the caret in faint grey via an Adorner (measured with the TextBox's own typeface/size, offset for horizontal scroll). Tab - or Right-arrow at end of text - accepts it; already-used tags and exact matches are skipped; a trailing space cancels the hint. Wired on the task editor's Tags box (new TaskFormViewModel.KnownTags, built from peer tasks) and on the header "tags for new tasks" field, which was changed from an editable ComboBox to a plain TextBox so the behaviour and Tab-to-accept are consistent (bound to MainViewModel.KnownTags). Build clean, 0 warnings.</notes>
+    <filesChanged>src/PromptQueue.App/Behaviors/GhostCompletion.cs (new); src/PromptQueue.App/ViewModels/TaskFormViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
     <image></image>
   </task>
   <task id="ZP-67">
@@ -297,7 +297,7 @@ APP (subtask 9 - "switched to interacting with the operator"): MainViewModel rou
     <prompt>add a right click menu for deleting projects. get right of global buttons they can live in the globals section of the menu bar</prompt>
     <requirements></requirements>
     <inProgress>false</inProgress>
-    <done>false</done>
+    <done>true</done>
     <bug>false</bug>
     <error>false</error>
     <errorMessage></errorMessage>
@@ -311,8 +311,8 @@ APP (subtask 9 - "switched to interacting with the operator"): MainViewModel rou
     <build>false</build>
     <release>false</release>
     <tags>UI, buttons</tags>
-    <notes></notes>
-    <filesChanged></filesChanged>
+    <notes>Right-click a project in the sidebar list -> "Remove Project…" (new MainViewModel.RemoveProjectCommand / RemoveProject): confirms, unregisters the project from the workspace and saves; the project folder and all its files are left on disk (the dialog says so and shows the path). If the removed project was selected, selection falls to the neighbour. The old GLOBAL toolbar strip (Design / Instructions / Prompt buttons) was deleted - those actions already exist under the Globals menu. Build clean; app launches.</notes>
+    <filesChanged>src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
     <image></image>
   </task>
   <task id="ZP-68">
@@ -323,7 +323,7 @@ basically
 phone connects to tailscale -&gt; interacts with operator -&gt; view and adjust the tasks and projects</prompt>
     <requirements>tailscale implemented</requirements>
     <inProgress>false</inProgress>
-    <done>false</done>
+    <done>true</done>
     <bug>false</bug>
     <error>false</error>
     <errorMessage></errorMessage>
@@ -337,8 +337,8 @@ phone connects to tailscale -&gt; interacts with operator -&gt; view and adjust 
     <build>false</build>
     <release>false</release>
     <tags>webserver,tailscale, operator</tags>
-    <notes></notes>
-    <filesChanged></filesChanged>
+    <notes>Moved the task server off the LAN/URL-ACL route (the "never worked" one) onto Tailscale Funnel. Server now binds localhost only (http://localhost:{port}/ + 127.0.0.1) - deleted StartListener's "http://+:port/" bind, the [Y/n] UAC prompt, TryAddUrlAcl and the netsh/firewall fallback, plus LocalUrls. New PromptQueue.Server/Tailscale.cs: finds the tailscale CLI (PATH or C:\Program Files\Tailscale\tailscale.exe), on start runs `tailscale funnel --bg {port}` (window-less) and parses the https://*.ts.net URL from its output or `funnel status`; on shutdown runs `tailscale funnel --bg off` (fallback `funnel {port} off`). If Tailscale is missing/!enabled it prints setup steps and serves localhost only. Ctrl+C / ProcessExit now go through one idempotent Shutdown() that also stops the funnel. `--no-funnel` arg skips it. Phone-adjust path: new `POST /api/op` endpoint takes {command,args[]} and calls OperatorEngine in-process (same queue+mutex as the app and operator exe) - read/list/sync/new_task/new_subtask/delete/move; on success it re-reads from disk and pushes an SSE reload to every viewer. App: Server menu item + status text reworded to "Start Mobile Server" / Tailscale Funnel. The mobile-optimised page and in-page create/edit UI are ZP-69. Server builds clean; localhost serve + /api/op verified (list ok, sync on a missing task fails cleanly, /api/projects ok).</notes>
+    <filesChanged>src/PromptQueue.Server/Program.cs; src/PromptQueue.Server/Tailscale.cs (new); src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml</filesChanged>
     <image></image>
   </task>
   <task id="ZP-69">
@@ -346,7 +346,7 @@ phone connects to tailscale -&gt; interacts with operator -&gt; view and adjust 
     <prompt>I decided I do want to be able to make new tasks, projects, and edit tasks from the mobile webserver. be sure to optimize the webpage for mobile!</prompt>
     <requirements></requirements>
     <inProgress>false</inProgress>
-    <done>false</done>
+    <done>true</done>
     <bug>false</bug>
     <error>false</error>
     <errorMessage></errorMessage>
@@ -360,8 +360,16 @@ phone connects to tailscale -&gt; interacts with operator -&gt; view and adjust 
     <build>true</build>
     <release>true</release>
     <tags>webserver</tags>
-    <notes></notes>
-    <filesChanged></filesChanged>
+    <notes>The mobile task server can now create projects, create tasks and edit tasks - all through the operator (POST /api/op).
+
+OPERATOR (Core): new OperatorEngine.NewProject(name,[dir]) - with no dir the project is created under %LOCALAPPDATA%/PromptQueue/projects/&lt;sanitised name&gt; via Workspace.AddProject (registers + seeds globals); OperatorEngine.SyncMany(taskId, field/value pairs) - one job applies many field overrides. Operator exe gained `new_project` and `sync_many` verbs.
+
+SERVER: /api/op switch extended with new_project + sync_many. On a successful new_project the server rebuilds its workspace project list from disk (ReloadWorkspace) so the new project shows immediately; other successful ops re-read tasks and push an SSE reload as before.
+
+MOBILE PAGE (zProject_webView.html): full rewrite for phones - viewport-fit=cover, sticky header, 40px+ tap targets, 16px form inputs (no iOS zoom-on-focus), single column, capped at 760px on desktop. Picker has "+ New Project" (name prompt -&gt; new_project). Project view has "+ New Task". Tapping a card header expands it; expanded cards show Done/Reopen, Lock/Unlock, Edit, Delete buttons wired to the operator. Edit/New opens a full-screen form (name, prompt, requirements, tags, blocked-by, due date, notes, and bug/commit/build/release/locked/done/inProgress checkboxes) that saves via new_task + sync_many. Live SSE reload is suppressed while a form is open. The old read-only badge is gone.
+
+Verified end to end against a scratch project: new_project, new_task (id minted + returned), sync_many (3 fields written to tasks.xml), delete - all ok; page serves and contains the new controls. Built app+server+operator to builds/debug and builds/release; release zipped to builds/zProject-release-ZP-69.zip. Committed + pushed.</notes>
+    <filesChanged>src/PromptQueue.Core/Operator/OperatorEngine.cs; src/PromptQueue.Operator/Program.cs; src/PromptQueue.Server/Program.cs; src/PromptQueue.Server/zProject_webView.html</filesChanged>
     <image></image>
   </task>
   <task id="ZP-70">

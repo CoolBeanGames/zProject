@@ -34,6 +34,7 @@ public sealed class MainViewModel : Observable
         Workspace = workspace;
 
         NewProjectCommand = new RelayCommand(NewProject);
+        RemoveProjectCommand = new RelayCommand(p => RemoveProject(p as Project ?? SelectedProject));
         SaveAllCommand = new RelayCommand(SaveAll);
         SaveCurrentCommand = new RelayCommand(SaveCurrentProject, () => SelectedProject != null);
         ReloadProjectCommand = new RelayCommand(ReloadProject, () => SelectedProject != null);
@@ -273,6 +274,7 @@ public sealed class MainViewModel : Observable
     // ---- Commands -------------------------------------------------------
 
     public RelayCommand NewProjectCommand { get; }
+    public RelayCommand RemoveProjectCommand { get; }
     public RelayCommand SaveAllCommand { get; }
     public RelayCommand SaveCurrentCommand { get; }
     public RelayCommand ReloadProjectCommand { get; }
@@ -326,6 +328,36 @@ public sealed class MainViewModel : Observable
         StatusText = existing != null
             ? $"Opened existing project \"{project.Name}\""
             : $"Created project \"{project.Name}\" at {project.Directory}";
+    }
+
+    /// <summary>
+    /// Right-click &gt; Remove Project (ZP-67): unregisters the project from the
+    /// workspace. The project's files on disk (tasks.xml, instructions, …) are
+    /// left untouched — this only takes it out of the list.
+    /// </summary>
+    private void RemoveProject(Project? project)
+    {
+        if (project == null)
+            return;
+
+        var confirm = MessageBox.Show(
+            $"Remove \"{project.Name}\" from zProject?\n\n" +
+            $"The project folder and its files (tasks.xml, instructions.txt, …) are " +
+            $"kept on disk at\n{project.Directory}\n\nThis only removes it from the list.",
+            "zProject", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
+        if (confirm != MessageBoxResult.OK)
+            return;
+
+        var index = Workspace.Projects.IndexOf(project);
+        Workspace.Projects.Remove(project);
+        Workspace.Save();
+
+        if (ReferenceEquals(SelectedProject, project))
+            SelectedProject = Workspace.Projects.Count > 0
+                ? Workspace.Projects[Math.Clamp(index, 0, Workspace.Projects.Count - 1)]
+                : null;
+
+        StatusText = $"Removed \"{project.Name}\" from the workspace";
     }
 
     /// <summary>
@@ -385,7 +417,7 @@ public sealed class MainViewModel : Observable
                 UseShellExecute = true,   // gives the console app its own window
                 WorkingDirectory = AppContext.BaseDirectory,
             });
-            StatusText = "Started the read-only web view server (see its console window)";
+            StatusText = "Started the mobile task server — its console window shows the Tailscale Funnel URL for your phone";
         }
         catch (Exception ex)
         {

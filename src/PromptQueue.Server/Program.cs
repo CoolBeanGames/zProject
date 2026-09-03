@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using PromptQueue.Core.Models;
+using PromptQueue.Core.Operator;
 using PromptQueue.Core.Storage;
 
 namespace PromptQueue.Server;
@@ -18,6 +19,7 @@ internal static class Program
 
     private static Workspace _workspace = null!;
     private static string _viewHtml = "";
+    private static string? _publicUrl;
 
     private static int Main(string[] args)
     {
@@ -42,13 +44,29 @@ internal static class Program
             return 1;
         }
 
+        // ZP-68: reach the phone through Tailscale Funnel instead of the old
+        // LAN / URL-ACL route. --no-funnel keeps it localhost-only.
+        var useFunnel = !args.Contains("--no-funnel", StringComparer.OrdinalIgnoreCase);
+        _publicUrl = useFunnel ? Tailscale.StartFunnel(port) : null;
+
         Banner(port);
 
         using var reloadTimer = new Timer(_ => AutoReload(), null,
             TimeSpan.FromSeconds(ReloadSeconds), TimeSpan.FromSeconds(ReloadSeconds));
 
         var cts = new CancellationTokenSource();
-        Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
+        var stopping = 0;
+        void Shutdown()
+        {
+            if (Interlocked.Exchange(ref stopping, 1) != 0)
+                return;
+            if (_publicUrl != null)
+                Tailscale.StopFunnel(port);
+            try { listener.Stop(); } catch { }
+            cts.Cancel();
+        }
+        Console.CancelKeyPress += (_, e) => { e.Cancel = true; Shutdown(); };
+        AppDomain.CurrentDomain.ProcessExit += (_, _) => Shutdown();
 
         _ = AcceptLoop(listener, cts.Token);
 
@@ -56,125 +74,48 @@ internal static class Program
         Console.WriteLine(new string('-', 60));
         cts.Token.WaitHandle.WaitOne();
 
-        listener.Stop();
+        Shutdown();
         Console.WriteLine("Server stopped.");
         return 0;
     }
 
     /// <summary>
-    /// Binds to every network interface so a phone on the same wifi can reach it
-    /// (ZP-39). "http://+:port/" needs a one-time URL ACL on Windows; if it is
-    /// missing we offer to add it (one UAC prompt) and fall back to localhost.
+    /// Binds to localhost only (ZP-68). The phone reaches the server through
+    /// Tailscale Funnel, which proxies from <c>localhost:{port}</c>, so the old
+    /// "http://+:port/" bind and its one-time URL-ACL / firewall dance are gone.
     /// </summary>
     private static HttpListener? StartListener(int port)
     {
-        var all = $"http://+:{port}/";
-        var local = $"http://localhost:{port}/";
-
-        var listener = new HttpListener();
-        listener.Prefixes.Add(all);
-        try
-        {
-            listener.Start();
-            return listener;
-        }
-        catch (HttpListenerException) { /* almost always: missing URL ACL */ }
-
-        Console.WriteLine($"Windows is blocking {all} (no URL reservation).");
-        Console.Write("Add the reservation now so your phone can connect? A UAC prompt will appear. [Y/n] ");
-        var key = Console.ReadLine();
-        if (string.IsNullOrWhiteSpace(key) || key.Trim().StartsWith("y", StringComparison.OrdinalIgnoreCase))
-        {
-            if (TryAddUrlAcl(port))
-            {
-                var retry = new HttpListener();
-                retry.Prefixes.Add(all);
-                try { retry.Start(); Console.WriteLine("Reservation added — now reachable on the network."); return retry; }
-                catch (HttpListenerException ex) { Console.WriteLine("Still blocked: " + ex.Message); }
-            }
-        }
-
-        Console.WriteLine();
-        Console.WriteLine("Falling back to localhost only (this machine can view it, phones cannot).");
-        Console.WriteLine("To enable network access later, run once in an elevated prompt:");
-        Console.WriteLine($"    netsh http add urlacl url={all} user=\"{Environment.UserDomainName}\\{Environment.UserName}\"");
-        Console.WriteLine($"    netsh advfirewall firewall add rule name=\"zProject server\" dir=in action=allow protocol=TCP localport={port}");
-        Console.WriteLine();
-
         var loc = new HttpListener();
-        loc.Prefixes.Add(local);
-        try { loc.Start(); return loc; }
-        catch (HttpListenerException ex) { Console.WriteLine("Could not start even on localhost: " + ex.Message); return null; }
-    }
-
-    private static bool TryAddUrlAcl(int port)
-    {
+        loc.Prefixes.Add($"http://localhost:{port}/");
+        loc.Prefixes.Add($"http://127.0.0.1:{port}/");
         try
         {
-            var user = $"{Environment.UserDomainName}\\{Environment.UserName}";
-            var script =
-                $"http add urlacl url=http://+:{port}/ user=\"{user}\" & " +
-                $"advfirewall firewall add rule name=\"zProject server\" dir=in action=allow protocol=TCP localport={port}";
-            var psi = new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = "cmd.exe",
-                Arguments = $"/c netsh {script}",
-                Verb = "runas",              // triggers UAC
-                UseShellExecute = true,
-                WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden,
-            };
-            var proc = System.Diagnostics.Process.Start(psi);
-            proc?.WaitForExit(15000);
-            return proc?.ExitCode == 0;
+            loc.Start();
+            return loc;
         }
-        catch (Exception ex)
+        catch (HttpListenerException ex)
         {
-            Console.WriteLine("Could not add the reservation automatically: " + ex.Message);
-            return false;
+            Console.WriteLine("Could not start on localhost: " + ex.Message);
+            return null;
         }
     }
 
     private static void Banner(int port)
     {
-        var urls = LocalUrls(port).ToList();
         Console.WriteLine(new string('=', 60));
-        Console.WriteLine("  zProject task server  —  read only");
+        Console.WriteLine("  zProject task server");
         Console.WriteLine(new string('=', 60));
         Console.WriteLine($"  Port    : {port}");
-        Console.WriteLine("  Open on this machine :");
+        Console.WriteLine("  On this machine :");
         Console.WriteLine($"    http://localhost:{port}/");
-        Console.WriteLine("  Open on your phone (same wifi) :");
-        foreach (var u in urls)
-            Console.WriteLine($"    {u}");
-        if (urls.Count == 0)
-            Console.WriteLine("    (no LAN address detected)");
+        Console.WriteLine("  On your phone (anywhere, via Tailscale Funnel) :");
+        Console.WriteLine(_publicUrl != null
+            ? $"    {_publicUrl}"
+            : "    (Tailscale Funnel not active — see the note above)");
         Console.WriteLine($"  Projects: {_workspace.Projects.Count}");
         Console.WriteLine($"  Auto-reload every {ReloadSeconds}s and on each client connect");
         Console.WriteLine(new string('=', 60));
-    }
-
-    private static IEnumerable<string> LocalUrls(int port)
-    {
-        System.Net.NetworkInformation.NetworkInterface[] nics;
-        try { nics = System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces(); }
-        catch { yield break; }
-
-        foreach (var nic in nics)
-        {
-            if (nic.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up)
-                continue;
-            if (nic.NetworkInterfaceType == System.Net.NetworkInformation.NetworkInterfaceType.Loopback)
-                continue;
-            foreach (var addr in nic.GetIPProperties().UnicastAddresses)
-            {
-                if (addr.Address.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
-                    continue;
-                var s = addr.Address.ToString();
-                if (s.StartsWith("169.254.") || s == "127.0.0.1")
-                    continue;
-                yield return $"http://{s}:{port}/";
-            }
-        }
     }
 
     // ---- request loop --------------------------------------------------
@@ -234,6 +175,10 @@ internal static class Program
                     WriteText(ctx, "unknown project", "text/plain");
                 }
             }
+            else if (path == "/api/op" && ctx.Request.HttpMethod == "POST")
+            {
+                status = HandleOperator(ctx);
+            }
             else if (path == "/events")
             {
                 status = 200;
@@ -262,6 +207,86 @@ internal static class Program
 
         Log(ip, ctx.Request.HttpMethod, path, status, started);
     }
+
+    /// <summary>
+    /// ZP-68: the phone adjusts tasks and projects through the operator. Body is
+    /// <c>{"command":"sync","args":["ZP-1","done","true"]}</c>; the operator runs
+    /// in-process (same queue + mutex as the app and the operator exe). After a
+    /// successful change we re-read from disk and push a reload to every viewer.
+    /// </summary>
+    private static int HandleOperator(HttpListenerContext ctx)
+    {
+        string body;
+        using (var reader = new StreamReader(ctx.Request.InputStream, Encoding.UTF8))
+            body = reader.ReadToEnd();
+
+        OpRequest? req;
+        try { req = JsonSerializer.Deserialize<OpRequest>(body, JsonReadOpts); }
+        catch { req = null; }
+
+        if (req == null || string.IsNullOrWhiteSpace(req.Command))
+        {
+            ctx.Response.StatusCode = 400;
+            WriteJson(ctx, new { ok = false, message = "expected {command, args[]}" });
+            return 400;
+        }
+
+        var a = req.Args ?? Array.Empty<string>();
+        OperatorResult result = req.Command.ToLowerInvariant() switch
+        {
+            "read" when a.Length >= 1 => OperatorEngine.Read(a[0]),
+            "list" => OperatorEngine.List(),
+            "sync" when a.Length >= 3 => OperatorEngine.Sync(a[0], a[1], string.Join(' ', a.Skip(2))),
+            "new_task" when a.Length >= 2 => OperatorEngine.NewTask(a[0], a[1], a.Length > 2 ? string.Join(' ', a.Skip(2)) : ""),
+            "new_project" when a.Length >= 1 => OperatorEngine.NewProject(a[0], a.Length > 1 ? a[1] : null),
+            "new_subtask" when a.Length >= 2 => OperatorEngine.NewSubtask(a[0], string.Join(' ', a.Skip(1))),
+            "sync_many" when a.Length >= 3 => OperatorEngine.SyncMany(a[0], Pairs(a.Skip(1).ToArray())),
+            "delete" when a.Length >= 1 => OperatorEngine.Delete(a[0]),
+            "move" when a.Length >= 2 && int.TryParse(a[1], out var mi) => OperatorEngine.Move(a[0], mi),
+            _ => OperatorResult.Fail($"bad or incomplete command '{req.Command}'"),
+        };
+
+        if (result.Ok)
+        {
+            if (req.Command.Equals("new_project", StringComparison.OrdinalIgnoreCase))
+                ReloadWorkspace();
+            else
+                AutoReload(silent: true);
+        }
+
+        ctx.Response.StatusCode = result.Ok ? 200 : 400;
+        WriteJson(ctx, new { ok = result.Ok, message = result.Message, output = result.Output });
+        return ctx.Response.StatusCode;
+    }
+
+    private sealed record OpRequest(string Command, string[]? Args);
+
+    private static IEnumerable<KeyValuePair<string, string>> Pairs(string[] items)
+    {
+        for (int i = 0; i + 1 < items.Length; i += 2)
+            yield return new KeyValuePair<string, string>(items[i], items[i + 1]);
+    }
+
+    /// <summary>Rebuilds the workspace project list from disk (after a new project).</summary>
+    private static void ReloadWorkspace()
+    {
+        try
+        {
+            var fresh = Workspace.Load();
+            lock (Sync)
+                _workspace = fresh;
+            PushReload();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"  ! workspace reload failed: {ex.Message}");
+        }
+    }
+
+    private static readonly JsonSerializerOptions JsonReadOpts = new()
+    {
+        PropertyNameCaseInsensitive = true,
+    };
 
     private static void Log(string ip, string method, string path, int status, DateTime started)
     {

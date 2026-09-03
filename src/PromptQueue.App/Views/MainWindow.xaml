@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:app="clr-namespace:PromptQueue.App"
         xmlns:vm="clr-namespace:PromptQueue.App.ViewModels"
+        xmlns:b="clr-namespace:PromptQueue.App.Behaviors"
         Title="zProject" Height="720" Width="1120"
         MinHeight="480" MinWidth="800"
         Icon="pack://application:,,,/Assets/app.ico"
@@ -167,7 +168,9 @@
                             </Grid>
 
                             <TextBlock Style="{StaticResource FieldLabel}" Text="Tags (comma separated)" Margin="0,12,0,3"/>
-                            <TextBox Text="{Binding TagText, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBox Text="{Binding TagText, UpdateSourceTrigger=PropertyChanged}"
+                                     b:GhostCompletion.Suggestions="{Binding KnownTags}"
+                                     ToolTip="Existing tags autocomplete — press Tab to accept the greyed suggestion"/>
                             <ItemsControl ItemsSource="{Binding TagText, Converter={StaticResource TagList}}" Margin="0,4,0,0">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
@@ -263,25 +266,13 @@
                 <MenuItem Header="Global _Prompt" Command="{Binding EditGlobalPromptCommand}"/>
             </MenuItem>
             <MenuItem Header="_Server">
-                <MenuItem Header="Start _Web View Server…" Command="{Binding StartWebServerCommand}"
-                          ToolTip="Opens a console window serving a read-only web view of all projects"/>
+                <MenuItem Header="Start _Mobile Server…" Command="{Binding StartWebServerCommand}"
+                          ToolTip="Opens a console window that serves the task view and publishes it to your phone via Tailscale Funnel"/>
             </MenuItem>
         </Menu>
 
-        <!-- ===================== GLOBAL TOOLBAR ===================== -->
-        <Border DockPanel.Dock="Top" Background="{StaticResource AppBackgroundBrush}"
-                BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,1">
-            <StackPanel Orientation="Horizontal" Margin="8,5">
-                <TextBlock Text="GLOBAL" VerticalAlignment="Center" Margin="2,0,10,0"
-                           Style="{StaticResource SectionHeading}"/>
-                <Button Content="Design" Style="{StaticResource ToolbarButton}"
-                        Command="{Binding EditGlobalDesignCommand}"/>
-                <Button Content="Instructions" Style="{StaticResource ToolbarButton}" Margin="4,0,0,0"
-                        Command="{Binding EditGlobalInstructionsCommand}"/>
-                <Button Content="Prompt" Style="{StaticResource ToolbarButton}" Margin="4,0,0,0"
-                        Command="{Binding EditGlobalPromptCommand}"/>
-            </StackPanel>
-        </Border>
+        <!-- Global Design / Instructions / Prompt now live only in the Globals
+             menu (ZP-67); the old GLOBAL toolbar strip was removed. -->
 
         <!-- ===================== STATUS BAR ===================== -->
         <Border DockPanel.Dock="Bottom" Background="{StaticResource SecondarySurfaceBrush}"
@@ -313,7 +304,14 @@
                              SelectedItem="{Binding SelectedProject}">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <StackPanel>
+                                <StackPanel Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}">
+                                    <StackPanel.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="Remove Project…"
+                                                      Command="{Binding PlacementTarget.Tag.RemoveProjectCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                                      CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                        </ContextMenu>
+                                    </StackPanel.ContextMenu>
                                     <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
                                     <TextBlock Text="{Binding Directory}" Style="{StaticResource SecondaryText}"
                                                TextTrimming="CharacterEllipsis" FontSize="10"/>
@@ -349,11 +347,10 @@
                             <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                                 <Button Content="Add Task" Style="{StaticResource AccentButton}" MinWidth="80"
                                         Command="{Binding DataContext.AddTaskCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                                <ComboBox Width="200" Margin="6,0,0,0" IsEditable="True" IsTextSearchEnabled="True"
-                                          VerticalContentAlignment="Center"
-                                          ToolTip="Tags for new tasks (comma separated) — existing tags autocomplete"
-                                          ItemsSource="{Binding DataContext.KnownTags, RelativeSource={RelativeSource AncestorType=Window}}"
-                                          Text="{Binding DataContext.NewTaskTagText, RelativeSource={RelativeSource AncestorType=Window}, UpdateSourceTrigger=PropertyChanged}"/>
+                                <TextBox Width="200" Margin="6,0,0,0" VerticalContentAlignment="Center"
+                                         ToolTip="Tags for new tasks (comma separated) — press Tab to accept the greyed suggestion"
+                                         b:GhostCompletion.Suggestions="{Binding DataContext.KnownTags, RelativeSource={RelativeSource AncestorType=Window}}"
+                                         Text="{Binding DataContext.NewTaskTagText, RelativeSource={RelativeSource AncestorType=Window}, UpdateSourceTrigger=PropertyChanged}"/>
                                 <Border Width="1" Background="{StaticResource BorderBrush}" Margin="10,2"/>
                                 <TextBlock Text="DEPLOY" VerticalAlignment="Center" Margin="0,0,8,0"
                                            Style="{StaticResource SectionHeading}"/>

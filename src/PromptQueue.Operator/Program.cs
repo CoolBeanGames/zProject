@@ -62,12 +62,21 @@ internal static class Program
         "list" => OperatorEngine.List(),
         "sync" when a.Length >= 3 => OperatorEngine.Sync(a[0], a[1], string.Join(' ', a.Skip(2))),
         "new_task" when a.Length >= 2 => OperatorEngine.NewTask(a[0], a[1], a.Length > 2 ? string.Join(' ', a.Skip(2)) : ""),
+        "new_project" when a.Length >= 1 => OperatorEngine.NewProject(a[0], a.Length > 1 ? a[1] : null),
+        "sync_many" when a.Length >= 3 => OperatorEngine.SyncMany(a[0], Pairs(a.Skip(1))),
         "new_subtask" when a.Length >= 2 => OperatorEngine.NewSubtask(a[0], string.Join(' ', a.Skip(1))),
         "delete" when a.Length >= 1 => OperatorEngine.Delete(a[0]),
         "move" when a.Length >= 2 && int.TryParse(a[1], out var i) => OperatorEngine.Move(a[0], i),
         "move" => OperatorResult.Fail("move needs: <task_id> <index>"),
         _ => OperatorResult.Fail($"bad or incomplete command. \n{Usage}"),
     };
+
+    private static IEnumerable<KeyValuePair<string, string>> Pairs(IEnumerable<string> items)
+    {
+        var list = items.ToList();
+        for (int i = 0; i + 1 < list.Count; i += 2)
+            yield return new KeyValuePair<string, string>(list[i], list[i + 1]);
+    }
 
     private const string Usage = """
         zProject operator
@@ -76,7 +85,9 @@ internal static class Program
           operator list
           operator sync       <task_id> <field> <value>
           operator new_task   <project> <name> [prompt]
+          operator new_project <name> [directory]
           operator new_subtask <task_id> <text...>
+          operator sync_many  <task_id> <field> <value> [<field> <value> ...]
           operator delete     <task_id>
           operator move       <task_id> <index>
 

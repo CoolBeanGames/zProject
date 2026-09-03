@@ -2,122 +2,155 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>zProject — task view</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>zProject</title>
 <style>
   :root{
     --bg:#f3f3f3; --surface:#fff; --surface2:#ececec; --border:#d6d6d6;
-    --text:#1e1e1e; --text2:#6a6a6a; --accent:#4b6ea8; --sel:#e4eaf4;
+    --text:#1e1e1e; --text2:#6a6a6a; --accent:#4b6ea8; --accent-d:#3c5988; --sel:#e4eaf4;
     --bug-s:#f1ecf8; --bug-b:#b6a6d2; --bug-t:#5e4791;
     --err-s:#fbeaea; --err-b:#c98b8b; --err-t:#9e2a2a;
     --done-s:#eaf3ec; --done-b:#a7c9b0; --done-t:#3c7a4e;
     --lock-s:#e6e6e6; --lock-b:#c4c4c4;
   }
-  *{box-sizing:border-box}
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0}
   body{
-    margin:0; background:var(--bg); color:var(--text);
-    font:12.5px/1.45 "Segoe UI", system-ui, sans-serif;
+    background:var(--bg); color:var(--text);
+    font:14px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif;
+    padding-bottom:env(safe-area-inset-bottom);
   }
   header{
+    position:sticky; top:0; z-index:5;
     background:var(--bg); border-bottom:1px solid var(--border);
-    padding:8px 14px; display:flex; align-items:center; gap:12px;
+    padding:calc(8px + env(safe-area-inset-top)) 12px 8px;
+    display:flex; align-items:center; gap:10px;
   }
-  header .title{font-weight:600; font-size:14px}
-  header .crumb{color:var(--text2)}
-  header a{color:var(--accent); text-decoration:none; cursor:pointer}
-  header .ro{
-    margin-left:auto; font-size:11px; color:var(--text2);
-    border:1px solid var(--border); border-radius:2px; padding:1px 6px;
-  }
-  main{max-width:1000px; margin:0 auto; padding:14px}
+  header .title{font-weight:600; font-size:15px; white-space:nowrap}
+  header .crumb{color:var(--text2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1}
+  header a{color:var(--accent); text-decoration:none}
+  main{max-width:760px; margin:0 auto; padding:10px 12px 40px}
   .muted{color:var(--text2)}
+  .err-banner{background:var(--err-s); border:1px solid var(--err-b); color:var(--err-t);
+    padding:8px 10px; border-radius:3px; margin:8px 0; font-size:13px}
+
+  button, .btn{
+    font:inherit; font-size:14px; min-height:40px; padding:8px 12px;
+    border:1px solid var(--border); border-radius:3px; background:var(--surface);
+    color:var(--text); cursor:pointer;
+  }
+  button:active,.btn:active{background:var(--surface2)}
+  .btn-accent{background:var(--accent); border-color:var(--accent-d); color:#fff; font-weight:600}
+  .btn-accent:active{background:var(--accent-d)}
+  .btn-row{display:flex; flex-wrap:wrap; gap:6px; margin:8px 0}
+  .btn-sm{min-height:34px; padding:5px 10px; font-size:13px}
+  .full{width:100%}
 
   /* project picker */
-  .plist{border:1px solid var(--border); border-radius:2px; background:var(--surface)}
+  .plist{border:1px solid var(--border); border-radius:3px; background:var(--surface); overflow:hidden}
   .prow{
-    display:flex; align-items:baseline; gap:10px; padding:9px 12px;
-    border-bottom:1px solid var(--border); cursor:pointer;
+    display:block; padding:12px 14px; border-bottom:1px solid var(--border);
+    cursor:pointer; text-decoration:none; color:inherit;
   }
   .prow:last-child{border-bottom:0}
-  .prow:hover{background:var(--sel)}
-  .prow .pname{font-weight:600}
-  .prow .pdir{color:var(--text2); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-  .prow .pcount{margin-left:auto; color:var(--text2); font-size:11px; white-space:nowrap}
+  .prow:active{background:var(--sel)}
+  .prow .pname{font-weight:600; font-size:15px}
+  .prow .pdir{color:var(--text2); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .prow .pcount{color:var(--text2); font-size:12px; margin-top:2px}
 
   /* sections + cards */
   .section-h{
-    font-size:11px; font-weight:600; letter-spacing:.02em; color:var(--text2);
-    padding:6px 4px 3px; margin-top:12px; border-top:1px solid var(--border);
+    font-size:12px; font-weight:700; letter-spacing:.03em; color:var(--text2);
+    padding:8px 4px 4px; margin-top:14px; border-top:1px solid var(--border); text-transform:uppercase;
   }
-  .section-h.bugs{color:var(--bug-t); background:var(--bug-s); border-top:2px solid var(--bug-b); border-bottom:1px solid var(--bug-b)}
-  .section-h.err{color:var(--err-t); background:var(--err-s); border-top:2px solid var(--err-b); border-bottom:1px solid var(--err-b)}
-  .section-h.done{color:var(--done-t); background:var(--done-s); border-bottom:1px solid var(--done-b)}
-  .section-h.arch{color:var(--text2); background:var(--lock-s); border-bottom:1px solid var(--lock-b)}
+  .section-h.bugs{color:var(--bug-t); background:var(--bug-s); border-top:2px solid var(--bug-b); border-bottom:1px solid var(--bug-b); padding-left:8px}
+  .section-h.err{color:var(--err-t); background:var(--err-s); border-top:2px solid var(--err-b); border-bottom:1px solid var(--err-b); padding-left:8px}
+  .section-h.done{color:var(--done-t); background:var(--done-s); border-bottom:1px solid var(--done-b); padding-left:8px}
+  .section-h.arch{color:var(--text2); background:var(--lock-s); border-bottom:1px solid var(--lock-b); padding-left:8px}
 
   .card{
-    border:1px solid var(--border); border-radius:2px; background:var(--surface);
-    padding:6px 8px; margin:3px 0; display:grid; grid-template-columns:20px 150px 1fr; gap:8px;
+    border:1px solid var(--border); border-radius:3px; background:var(--surface);
+    margin:6px 0; overflow:hidden;
   }
   .card.done{background:var(--done-s); border-color:var(--done-b)}
   .card.err{background:var(--err-s); border-color:var(--err-b)}
   .card.bug{background:var(--bug-s); border-color:var(--bug-b)}
   .card.locked,.card.archived{background:var(--lock-s); border-color:var(--lock-b)}
-
-  .card .chev{
-    background:none; border:0; color:var(--text2); cursor:pointer; font-size:11px;
-    padding:0; width:18px; height:18px; align-self:start;
+  .card .head{
+    display:flex; gap:8px; align-items:baseline; padding:10px 12px; cursor:pointer;
   }
-  .card .head .name{font-weight:600}
+  .card .head .name{font-weight:600; flex:1}
   .card.done .head .name, .card.archived .head .name{text-decoration:line-through}
-  .card .head .id, .card .head .status{color:var(--text2); font-size:10.5px}
-  .card .head .ip{color:var(--accent); font-size:10.5px}
+  .card .head .meta{color:var(--text2); font-size:11.5px; white-space:nowrap}
+  .card .head .ip{color:var(--accent); font-weight:600}
 
-  .detail{min-width:0}
+  .detail{padding:0 12px 12px; display:none}
+  .detail.open{display:block}
   .detail .prompt{white-space:pre-wrap}
-  .detail .req{color:var(--text2); margin-top:2px}
-  .detail .blocked{color:var(--text2); font-style:italic; margin-top:3px}
-  .detail .dates{color:var(--text2); margin-top:3px}
-  .detail.hidden{display:none}
+  .detail .req{color:var(--text2); margin-top:4px; white-space:pre-wrap}
+  .detail .blocked{color:var(--text2); font-style:italic; margin-top:4px}
+  .detail .dates{color:var(--text2); margin-top:4px; font-size:12.5px}
 
-  .chips{display:flex; flex-wrap:wrap; gap:4px; margin-top:4px}
-  .chip{
-    border:1px solid var(--border); border-radius:2px; padding:0 4px;
-    font-size:9.5px; font-weight:600; color:var(--text2);
-  }
+  .chips{display:flex; flex-wrap:wrap; gap:4px; margin-top:6px}
+  .chip{border:1px solid var(--border); border-radius:2px; padding:1px 5px; font-size:10.5px; font-weight:700; color:var(--text2)}
   .chip.bug{background:var(--bug-s); border-color:var(--bug-b); color:var(--bug-t)}
   .chip.err{background:var(--err-s); border-color:var(--err-b); color:var(--err-t)}
   .chip.rel{border-color:var(--accent); color:var(--accent)}
 
-  .subs{margin-top:4px}
-  .subs .sub{font-size:11.5px}
+  .subs{margin-top:6px}
+  .subs .sub{font-size:13px; padding:2px 0}
   .subs .sub.done{color:var(--text2); text-decoration:line-through}
-
-  .agent{margin-top:5px; border-top:1px dashed var(--border); padding-top:4px; color:var(--text2)}
+  .agent{margin-top:8px; border-top:1px dashed var(--border); padding-top:6px; color:var(--text2); font-size:12.5px}
   .agent b{color:var(--text)}
 
-  footer{max-width:1000px; margin:18px auto 30px; padding:0 14px; color:var(--text2); font-size:11px}
+  /* forms / overlay */
+  .overlay{
+    position:fixed; inset:0; z-index:20; background:var(--bg);
+    overflow-y:auto; padding:calc(10px + env(safe-area-inset-top)) 12px 40px;
+  }
+  .overlay h2{font-size:16px; margin:4px 0 12px}
+  .field{margin:10px 0}
+  .field label{display:block; font-size:12px; font-weight:600; color:var(--text2); margin-bottom:3px; text-transform:uppercase; letter-spacing:.02em}
+  .field input[type=text], .field textarea{
+    width:100%; font:inherit; font-size:16px; padding:9px 10px;
+    border:1px solid var(--border); border-radius:3px; background:var(--surface); color:var(--text);
+  }
+  .field textarea{min-height:80px; resize:vertical}
+  .checks{display:flex; flex-wrap:wrap; gap:10px 16px; margin:12px 0}
+  .checks label{display:flex; align-items:center; gap:6px; font-size:14px}
+  .checks input{width:20px; height:20px}
+  .form-actions{display:flex; gap:8px; margin-top:16px; position:sticky; bottom:0;
+    background:var(--bg); padding:10px 0 calc(10px + env(safe-area-inset-bottom))}
+  .form-actions button{flex:1}
+
+  footer{max-width:760px; margin:20px auto 30px; padding:0 12px; color:var(--text2); font-size:12px}
+  @media (min-width:700px){ .card .head .meta{font-size:12px} }
 </style>
 </head>
 <body>
 <header>
   <span class="title">zProject</span>
   <span class="crumb" id="crumb"></span>
-  <span class="ro">read only</span>
 </header>
 <main id="main"><p class="muted">Loading…</p></main>
 <footer id="foot"></footer>
+<div id="overlay"></div>
 
 <script>
 const $main = document.getElementById('main');
 const $crumb = document.getElementById('crumb');
 const $foot = document.getElementById('foot');
-let currentProject = null;         // index or null (picker)
+const $overlay = document.getElementById('overlay');
+let currentProject = null;          // index or null (picker)
+let projectName = '';               // name of the open project (for operator calls)
 let reloadSeconds = 120;
-const collapsed = new Set();       // task ids collapsed in this session
+const collapsed = new Set();         // task ids collapsed in this session
+let busy = false;
 
 function esc(s){ return (s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function attr(s){ return esc(s).replace(/'/g,'&#39;'); }
 
-// deterministic pale colour per tag (mirrors the app's TagColorConverter)
 function tagColor(tag){
   let h = 2166136261 >>> 0;
   for (const ch of tag.toLowerCase()) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
@@ -125,11 +158,36 @@ function tagColor(tag){
   return { bg:`hsl(${hue} 45% 90%)`, bd:`hsl(${hue} 40% 72%)`, fg:`hsl(${hue} 55% 32%)` };
 }
 
+/* ---- operator calls ---- */
+async function op(command, ...args){
+  if (busy) return { ok:false, message:'busy' };
+  busy = true;
+  try{
+    const res = await fetch('/api/op', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ command, args: args.map(String) }),
+    });
+    const j = await res.json().catch(() => ({ ok:false, message:'bad response' }));
+    if (!j.ok) flash(j.message || 'operation failed');
+    return j;
+  }catch(e){
+    flash(e.message); return { ok:false, message:e.message };
+  }finally{
+    busy = false;
+  }
+}
+function flash(msg){
+  const b = document.createElement('div');
+  b.className = 'err-banner'; b.textContent = 'operator: ' + msg;
+  $main.prepend(b);
+  setTimeout(() => b.remove(), 4000);
+}
+
 function syncHash(){
   const h = location.hash.replace('#','');
   currentProject = /^\d+$/.test(h) ? +h : null;
 }
-window.addEventListener('hashchange', () => { syncHash(); load(); });
+window.addEventListener('hashchange', () => { syncHash(); closeOverlay(); load(); });
 
 async function load(){
   try{
@@ -140,32 +198,39 @@ async function load(){
   }
 }
 
+/* ---- project picker ---- */
 async function renderPicker(){
   const data = await (await fetch('/api/projects')).json();
   reloadSeconds = data.reloadSeconds || 120;
   $crumb.textContent = '';
-  if (!data.projects.length){
-    $main.innerHTML = '<p class="muted">No projects in the workspace yet.</p>';
-    return;
-  }
-  const rows = data.projects.map(p => `
-    <div class="prow" data-i="${p.index}">
+  let rows = data.projects.map(p => `
+    <a class="prow" href="#${p.index}">
       <span class="pname">${esc(p.name)}</span>
-      <span class="pdir">${esc(p.directory)}</span>
-      <span class="pcount">${p.open} open · ${p.done} done · ${p.total} total</span>
-    </div>`).join('');
-  $main.innerHTML = `<div class="plist">${rows}</div>`;
-  $main.querySelectorAll('.prow').forEach(el =>
-    el.onclick = () => { location.hash = '#' + el.dataset.i; });
+      <div class="pdir">${esc(p.directory)}</div>
+      <div class="pcount">${p.open} open · ${p.done} done · ${p.total} total</div>
+    </a>`).join('');
+  if (!rows) rows = '<div class="prow muted">No projects yet.</div>';
+  $main.innerHTML = `
+    <div class="btn-row"><button class="btn-accent full" id="newProj">+ New Project</button></div>
+    <div class="plist">${rows}</div>`;
+  document.getElementById('newProj').onclick = newProject;
   $foot.textContent = `${data.projects.length} project(s) · auto-reloads every ${reloadSeconds}s`;
 }
 
+async function newProject(){
+  const name = (prompt('New project name:') || '').trim();
+  if (!name) return;
+  const r = await op('new_project', name);
+  if (r.ok) load();
+}
+
+/* ---- project view ---- */
 const SECTION_CLASS = { 'Bugs':'bugs', 'Needs attention':'err', 'Completed':'done', 'Archived':'arch', 'Active':'' };
 
 async function renderProject(i){
   const data = await (await fetch('/api/project/' + i)).json();
-  $crumb.innerHTML = `<a id="back">‹ all projects</a> &nbsp;/&nbsp; ${esc(data.name)}`;
-  document.getElementById('back').onclick = () => { location.hash = ''; };
+  projectName = data.name;
+  $crumb.innerHTML = `<a href="#">‹ projects</a> &nbsp;/&nbsp; ${esc(data.name)}`;
 
   const groups = new Map();
   for (const t of data.tasks){
@@ -173,21 +238,37 @@ async function renderProject(i){
     groups.get(t.sectionKey).push(t);
   }
   const order = [...groups.keys()].sort((a,b) =>
-    (groups.get(a)[0].sectionRank) - (groups.get(b)[0].sectionRank));
+    groups.get(a)[0].sectionRank - groups.get(b)[0].sectionRank);
 
-  let html = '';
+  let html = `<div class="btn-row"><button class="btn-accent full" id="newTask">+ New Task</button></div>`;
   for (const key of order){
     html += `<div class="section-h ${SECTION_CLASS[key] ?? ''}">${esc(key)} (${groups.get(key).length})</div>`;
     for (const t of groups.get(key)) html += card(t);
   }
-  if (!data.tasks.length) html = '<p class="muted">No tasks in this project.</p>';
+  if (!data.tasks.length) html += '<p class="muted">No tasks yet — add one above.</p>';
   $main.innerHTML = html;
-  $main.querySelectorAll('.chev').forEach(b => b.onclick = () => {
-    const id = b.dataset.id;
-    collapsed.has(id) ? collapsed.delete(id) : collapsed.add(id);
-    load();
+
+  document.getElementById('newTask').onclick = () => taskForm(null);
+  $main.querySelectorAll('.card').forEach(el => {
+    const t = data.tasks.find(x => x.id === el.dataset.id);
+    el.querySelector('.head').onclick = () => {
+      collapsed.has(t.id) ? collapsed.delete(t.id) : collapsed.add(t.id);
+      el.querySelector('.detail').classList.toggle('open');
+    };
+    el.querySelectorAll('[data-act]').forEach(btn => btn.onclick = e => {
+      e.stopPropagation();
+      doAction(btn.dataset.act, t);
+    });
   });
   $foot.textContent = `${esc(data.directory)} · ${data.tasks.length} task(s) · auto-reloads every ${reloadSeconds}s`;
+}
+
+async function doAction(act, t){
+  if (act === 'done')   { const r = await op('sync', t.id, 'done', String(!t.done));
+                          if (r.ok && !t.done) await op('sync', t.id, 'inProgress', 'false'); load(); }
+  if (act === 'lock')   { const r = await op('sync', t.id, 'locked', String(!t.locked)); if (r.ok) load(); }
+  if (act === 'edit')   taskForm(t);
+  if (act === 'delete') { if (confirm('Delete ' + t.id + '?')){ const r = await op('delete', t.id); if (r.ok) load(); } }
 }
 
 function card(t){
@@ -198,8 +279,7 @@ function card(t){
   else if (t.bug) cls.push('bug');
   else if (t.error) cls.push('err');
 
-  const isCollapsed = collapsed.has(t.id);
-  const chev = isCollapsed ? '❯' : '▾';
+  const isOpen = !collapsed.has(t.id);
 
   const chips = [];
   if (t.bug) chips.push('<span class="chip bug">BUG</span>');
@@ -215,7 +295,7 @@ function card(t){
   const subs = (t.subtasks || []).map(s =>
     `<div class="sub ${s.done?'done':''}">${s.done?'☑':'☐'} ${esc(s.text)}</div>`).join('');
   const subCount = t.subtasks && t.subtasks.length
-    ? `<span class="status">☑ ${t.subtasks.filter(s=>s.done).length}/${t.subtasks.length}</span>` : '';
+    ? ` · ☑ ${t.subtasks.filter(s=>s.done).length}/${t.subtasks.length}` : '';
 
   const dates = [];
   if (t.dateStarted) dates.push('Started ' + esc(t.dateStarted));
@@ -226,41 +306,100 @@ function card(t){
   if (t.notes) agent.push(`<div><b>Notes:</b> ${esc(t.notes)}</div>`);
   if (t.filesChanged) agent.push(`<div><b>Files changed:</b> ${esc(t.filesChanged)}</div>`);
 
-  const head = `
+  return `<div class="${cls.join(' ')}" data-id="${attr(t.id)}">
     <div class="head">
-      <div class="name">${esc(t.displayName)}</div>
-      ${t.name ? `<div class="id">${esc(t.id)}</div>` : ''}
-      <div class="status">${esc(t.statusText)}</div>
-      ${t.inProgress ? '<div class="ip">in progress</div>' : ''}
-      ${subCount}
-    </div>`;
-
-  const detail = `
-    <div class="detail ${isCollapsed ? 'hidden' : ''}">
-      <div class="prompt">${esc(t.prompt)}</div>
+      <span class="name">${esc(t.displayName)}</span>
+      <span class="meta">${t.name ? esc(t.id)+' · ' : ''}${t.inProgress ? '<span class="ip">in progress</span>' : esc(t.statusText)}${subCount}</span>
+    </div>
+    <div class="detail ${isOpen ? 'open' : ''}">
+      <div class="prompt">${esc(t.prompt) || '<span class="muted">(no prompt)</span>'}</div>
       ${t.requirements ? `<div class="req">${esc(t.requirements)}</div>` : ''}
       ${t.blockedBy ? `<div class="blocked">⛔ blocked by ${esc(t.blockedBy)}</div>` : ''}
       ${dates.length ? `<div class="dates">${dates.join('  •  ')}</div>` : ''}
       ${chips.length ? `<div class="chips">${chips.join('')}</div>` : ''}
       ${subs ? `<div class="subs">${subs}</div>` : ''}
       ${agent.length ? `<div class="agent">${agent.join('')}</div>` : ''}
-    </div>`;
-
-  return `<div class="${cls.join(' ')}">
-    <button class="chev" data-id="${esc(t.id)}" title="collapse / expand">${chev}</button>
-    ${head}
-    ${detail}
+      <div class="btn-row">
+        <button class="btn-sm" data-act="done">${t.done ? '↺ Reopen' : '✓ Done'}</button>
+        <button class="btn-sm" data-act="lock">${t.locked ? '🔓 Unlock' : '🔒 Lock'}</button>
+        <button class="btn-sm" data-act="edit">✎ Edit</button>
+        <button class="btn-sm" data-act="delete">🗑 Delete</button>
+      </div>
+    </div>
   </div>`;
 }
 
-// live updates: SSE reload events + a 120s fallback poll
-if (!location.search.includes('static')){
-  try{
-    const ev = new EventSource('/events');
-    ev.addEventListener('reload', () => load());
-  }catch(e){ /* SSE unsupported */ }
-  setInterval(load, (reloadSeconds || 120) * 1000);
+/* ---- task create / edit form ---- */
+function taskForm(t){
+  const isNew = !t;
+  t = t || {};
+  const v = k => attr(t[k] ?? '');
+  const ck = k => t[k] ? 'checked' : '';
+  $overlay.innerHTML = `
+    <div class="overlay">
+      <h2>${isNew ? 'New Task' : 'Edit ' + esc(t.id)}</h2>
+      <div class="field"><label>Name</label><input type="text" id="f_name" value="${v('name')}"></div>
+      <div class="field"><label>Prompt</label><textarea id="f_prompt">${esc(t.prompt ?? '')}</textarea></div>
+      <div class="field"><label>Requirements</label><textarea id="f_requirements">${esc(t.requirements ?? '')}</textarea></div>
+      <div class="field"><label>Tags (comma separated)</label><input type="text" id="f_tags" value="${isNew ? '' : (t.tags||[]).join(', ')}"></div>
+      <div class="field"><label>Blocked by (task id)</label><input type="text" id="f_blockedBy" value="${v('blockedBy')}"></div>
+      <div class="field"><label>Due date (YYYY-MM-DD HH:mm)</label><input type="text" id="f_dueDate" value="${v('dueDate')}"></div>
+      ${isNew ? '' : `<div class="field"><label>Notes</label><textarea id="f_notes">${esc(t.notes ?? '')}</textarea></div>`}
+      <div class="checks">
+        <label><input type="checkbox" id="f_bug" ${ck('bug')}> Bug</label>
+        <label><input type="checkbox" id="f_commit" ${ck('commit')}> Commit</label>
+        <label><input type="checkbox" id="f_build" ${ck('build')}> Build</label>
+        <label><input type="checkbox" id="f_release" ${ck('release')}> Release</label>
+        <label><input type="checkbox" id="f_locked" ${ck('locked')}> Locked</label>
+        ${isNew ? '' : `<label><input type="checkbox" id="f_done" ${ck('done')}> Done</label>`}
+        ${isNew ? '' : `<label><input type="checkbox" id="f_inProgress" ${ck('inProgress')}> In progress</label>`}
+      </div>
+      <div class="form-actions">
+        <button id="f_cancel">Cancel</button>
+        <button class="btn-accent" id="f_save">${isNew ? 'Create' : 'Save'}</button>
+      </div>
+    </div>`;
+  document.getElementById('f_cancel').onclick = closeOverlay;
+  document.getElementById('f_save').onclick = () => saveTaskForm(isNew, t);
+  document.getElementById('f_name').focus();
 }
+function closeOverlay(){ $overlay.innerHTML = ''; }
+
+async function saveTaskForm(isNew, t){
+  const g = id => document.getElementById(id);
+  const txt = { name:g('f_name').value, prompt:g('f_prompt').value, requirements:g('f_requirements').value,
+                tags:g('f_tags').value, blockedBy:g('f_blockedBy').value, dueDate:g('f_dueDate').value };
+  const bools = { bug:g('f_bug').checked, commit:g('f_commit').checked, build:g('f_build').checked,
+                  release:g('f_release').checked, locked:g('f_locked').checked };
+  if (!isNew){ bools.done = g('f_done').checked; bools.inProgress = g('f_inProgress').checked; txt.notes = g('f_notes').value; }
+
+  let id = t.id;
+  if (isNew){
+    const r = await op('new_task', projectName, txt.name || '(new task)', txt.prompt || '');
+    if (!r.ok) return;
+    id = (r.output || '').trim();
+  }
+
+  const fields = [];
+  const push = (k,val) => { fields.push(k); fields.push(String(val)); };
+  if (!isNew){ push('name', txt.name); push('prompt', txt.prompt); }
+  push('requirements', txt.requirements);
+  push('tags', txt.tags.split(',').map(s=>s.trim()).filter(Boolean).join(', '));
+  push('blockedBy', txt.blockedBy.trim());
+  push('dueDate', txt.dueDate.trim());
+  if (!isNew) push('notes', txt.notes);
+  for (const [k,val] of Object.entries(bools)) push(k, val);
+
+  const r2 = await op('sync_many', id, ...fields);
+  if (r2.ok || isNew){ closeOverlay(); load(); }
+}
+
+/* ---- live updates ---- */
+try{
+  const ev = new EventSource('/events');
+  ev.addEventListener('reload', () => { if (!$overlay.innerHTML) load(); });
+}catch(e){ /* SSE unsupported */ }
+setInterval(() => { if (!$overlay.innerHTML) load(); }, 120000);
 
 syncHash();
 load();

@@ -76,6 +76,25 @@ public static class OperatorEngine
     public static OperatorResult NewTask(string projectRef, string name, string prompt = "")
         => Enqueue(new OperatorJob("new_task", projectRef, name, prompt));
 
+    /// <summary>
+    /// Queues creation of a new project. With no directory it is created under
+    /// <c>&lt;workspace root&gt;/projects/&lt;name&gt;</c>. The directory is returned in the output.
+    /// </summary>
+    public static OperatorResult NewProject(string name, string? directory = null)
+        => Enqueue(new OperatorJob("new_project", name, directory ?? ""));
+
+    /// <summary>Queues several field overrides on one task in a single job.</summary>
+    public static OperatorResult SyncMany(string taskId, IEnumerable<KeyValuePair<string, string>> fields)
+    {
+        var job = new OperatorJob("sync_many", taskId);
+        foreach (var kv in fields)
+        {
+            job.Args.Add(kv.Key);
+            job.Args.Add(kv.Value);
+        }
+        return Enqueue(job);
+    }
+
     /// <summary>Queues a new subtask (checklist line) onto an existing task.</summary>
     public static OperatorResult NewSubtask(string taskId, string text)
         => Enqueue(new OperatorJob("new_subtask", taskId, text));
@@ -168,6 +187,31 @@ public static class OperatorEngine
                     return OperatorResult.Fail($"Unknown field \"{job.Arg(1)}\".");
                 touched.Add(project!);
                 return OperatorResult.Pass($"{task.Id}.{job.Arg(1)} = {job.Arg(2)}");
+            }
+
+            case "sync_many":
+            {
+                var (project, task) = ResolveTask(ws, job.Arg(0));
+                if (task == null)
+                    return OperatorResult.Fail($"No task \"{job.Arg(0)}\".");
+                int applied = 0;
+                for (int i = 1; i + 1 < job.Args.Count; i += 2)
+                    if (TaskFields.Apply(task, job.Args[i], job.Args[i + 1]))
+                        applied++;
+                touched.Add(project!);
+                return OperatorResult.Pass($"{task.Id}: {applied} field(s) updated");
+            }
+
+            case "new_project":
+            {
+                var name = job.Arg(0).Trim();
+                if (name.Length == 0)
+                    return OperatorResult.Fail("A project name is required.");
+                var dir = job.Arg(1).Trim();
+                if (dir.Length == 0)
+                    dir = Path.Combine(Workspace.DefaultRootDirectory, "projects", SanitizeName(name));
+                var project = ws.AddProject(dir);   // creates dir, registers, seeds globals, saves
+                return OperatorResult.Pass($"Project \"{project.Name}\" at {project.Directory}", project.Directory);
             }
 
             case "new_task":
@@ -274,6 +318,14 @@ public static class OperatorEngine
                        SafeFullPath(reference), StringComparison.OrdinalIgnoreCase))
             ?? ws.Projects.FirstOrDefault(p =>
                    string.Equals(p.IdPrefix, reference, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string SanitizeName(string name)
+    {
+        var clean = new string(name
+            .Select(c => char.IsLetterOrDigit(c) || c is ' ' or '-' or '_' or '.' ? c : '-')
+            .ToArray()).Trim().Trim('.');
+        return clean.Length > 0 ? clean : "project";
     }
 
     private static string SafeFullPath(string path)

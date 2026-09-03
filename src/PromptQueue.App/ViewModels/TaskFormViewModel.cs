@@ -81,6 +81,13 @@ public sealed class TaskFormViewModel : Observable
         _onSave = onSave;
         _onClose = onClose;
 
+        KnownTags = (peers ?? Enumerable.Empty<TaskItem>())
+            .SelectMany(t => t.Tags)
+            .Concat(TaskItem.SplitTags(_tagText))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(t => t, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
         BlockCandidates = (peers ?? Enumerable.Empty<TaskItem>())
             .Where(t => !string.Equals(t.Id, id, StringComparison.OrdinalIgnoreCase))
             // ZP-54: only offer live, named tasks as blockers - hide done,
@@ -181,6 +188,9 @@ public sealed class TaskFormViewModel : Observable
 
     /// <summary>"ID — name" strings for the Blocked-by autocomplete.</summary>
     public IReadOnlyList<string> BlockCandidates { get; }
+
+    /// <summary>Every tag already used in the project, for the Tags ghost-autocomplete (ZP-66).</summary>
+    public IReadOnlyList<string> KnownTags { get; }
 
     public string Name
     {
