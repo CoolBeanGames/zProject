@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+<html data-zui-theme="holo" lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>zProject</title>
+  <link rel="stylesheet" href="zui/css/zui.css">
+  <link rel="stylesheet" href="zui/css/themes/holo.css">
+  <script src="zui/js/zui.js"></script>
+  <style>
+    /* ── App-shell layout ─────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: var(--zui-bg-app);
+      color: var(--zui-text);
+      font: var(--zui-fw-normal) var(--zui-fs-normal) / var(--zui-lh) var(--zui-font);
+      overflow: hidden;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    /* ── Title-bar / menu strip ───────────────────────────────── */
+    #titlebar {
+      display: flex;
+      align-items: center;
+      gap: var(--zui-space-1);
+      padding: 0 var(--zui-space-2);
+      height: 32px;
+      background: var(--zui-bg-surface-alt);
+      border-bottom: 1px solid var(--zui-border);
+      flex-shrink: 0;
+      -webkit-app-region: drag;
+      user-select: none;
+    }
+    #titlebar .app-name {
+      font-size: var(--zui-fs-small);
+      font-weight: var(--zui-fw-medium);
+      color: var(--zui-text-secondary);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      flex: 0 0 auto;
+      margin-right: var(--zui-space-2);
+    }
+    #titlebar .menu-btn {
+      -webkit-app-region: no-drag;
+      background: none;
+      border: none;
+      color: var(--zui-text-secondary);
+      font: inherit;
+      font-size: var(--zui-fs-small);
+      padding: 0 var(--zui-space-2);
+      height: 26px;
+      cursor: pointer;
+      border-radius: var(--zui-radius);
+    }
+    #titlebar .menu-btn:hover { background: var(--zui-bg-hover); color: var(--zui-text); }
+    #titlebar .sep { flex: 1; }
+    #titlebar .status-text {
+      font-size: var(--zui-fs-small);
+      color: var(--zui-text-secondary);
+      margin-right: var(--zui-space-2);
+    }
+
+    /* ── Body: sidebar + main ──────────────────────────────────── */
+    #body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ───────────────────────────────────────────────── */
+    #sidebar {
+      width: 192px;
+      flex-shrink: 0;
+      background: var(--zui-bg-surface);
+      border-right: 1px solid var(--zui-border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #sidebar .sidebar-header {
+      padding: var(--zui-space-2) var(--zui-space-3);
+      font-size: var(--zui-fs-small);
+      font-weight: var(--zui-fw-medium);
+      color: var(--zui-label-color);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      border-bottom: 1px solid var(--zui-accent);
+      flex-shrink: 0;
+    }
+    #project-list {
+      flex: 1;
+      overflow-y: auto;
+      list-style: none;
+    }
+    #project-list li {
+      display: flex;
+      align-items: center;
+      padding: var(--zui-space-1) var(--zui-space-3);
+      font-size: var(--zui-fs-normal);
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      user-select: none;
+      gap: var(--zui-space-2);
+    }
+    #project-list li:hover { background: var(--zui-bg-hover); }
+    #project-list li.selected {
+      background: var(--zui-bg-selected);
+      border-left-color: var(--zui-accent);
+      color: var(--zui-text);
+    }
+    #project-list li .proj-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #project-list li .proj-local-badge {
+      font-size: var(--zui-fs-small);
+      color: var(--zui-text-secondary);
+      flex-shrink: 0;
+    }
+
+    #sidebar-footer {
+      border-top: 1px solid var(--zui-border);
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      padding: var(--zui-space-1) 0;
+      flex-shrink: 0;
+    }
+    #sidebar-footer button {
+      background: none;
+      border: none;
+      color: var(--zui-text-secondary);
+      font: inherit;
+      font-size: var(--zui-fs-small);
+      text-align: left;
+      padding: var(--zui-space-1) var(--zui-space-3);
+      cursor: pointer;
+      border-radius: 0;
+    }
+    #sidebar-footer button:hover { background: var(--zui-bg-hover); color: var(--zui-text); }
+
+    /* ── Main area ──────────────────────────────────────────────── */
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--zui-bg-app);
+    }
+
+    /* ── Toolbar ────────────────────────────────────────────────── */
+    #toolbar {
+      display: flex;
+      align-items: center;
+      gap: var(--zui-space-2);
+      padding: 0 var(--zui-space-3);
+      height: 36px;
+      background: var(--zui-bg-surface-alt);
+      border-bottom: 1px solid var(--zui-border);
+      flex-shrink: 0;
+    }
+    #toolbar .toolbar-btn {
+      background: var(--zui-bg-surface);
+      border: 1px solid var(--zui-border-strong);
+      color: var(--zui-text);
+      font: inherit;
+      font-size: var(--zui-fs-small);
+      padding: 0 var(--zui-space-2);
+      height: 24px;
+      cursor: pointer;
+      border-radius: var(--zui-radius);
+      white-space: nowrap;
+    }
+    #toolbar .toolbar-btn:hover { background: var(--zui-bg-hover); border-color: var(--zui-accent); }
+    #toolbar .toolbar-btn.primary {
+      background: var(--zui-accent);
+      color: var(--zui-text-on-accent);
+      border-color: var(--zui-accent);
+    }
+    #toolbar .toolbar-btn.primary:hover { background: var(--zui-accent-hover); }
+    #toolbar .sep { width: 1px; height: 20px; background: var(--zui-border); margin: 0 var(--zui-space-1); }
+    #toolbar .branch-input {
+      background: var(--zui-bg-surface);
+      border: 1px solid var(--zui-border-strong);
+      color: var(--zui-text);
+      font: inherit;
+      font-size: var(--zui-fs-small);
+      padding: 0 var(--zui-space-2);
+      height: 24px;
+      border-radius: var(--zui-radius);
+      width: 100px;
+    }
+    #toolbar .branch-label {
+      font-size: var(--zui-fs-small);
+      color: var(--zui-text-secondary);
+    }
+    #toolbar .spacer { flex: 1; }
+
+    /* ── Quick-add bar ─────────────────────────────────────────── */
+    #quick-add-bar {
+      display: none;
+      align-items: center;
+      gap: var(--zui-space-2);
+      padding: var(--zui-space-1) var(--zui-space-3);
+      background: var(--zui-bg-surface-alt);
+      border-bottom: 1px solid var(--zui-border);
+      flex-shrink: 0;
+    }
+    #quick-add-bar.visible { display: flex; }
+    #quick-add-bar label { font-size: var(--zui-fs-small); color: var(--zui-text-secondary); }
+    #quick-add-bar input {
+      flex: 1;
+      background: var(--zui-bg-surface);
+      border: 1px solid var(--zui-accent);
+      color: var(--zui-text);
+      font: inherit;
+      font-size: var(--zui-fs-normal);
+      padding: 0 var(--zui-space-2);
+      height: 26px;
+      border-radius: var(--zui-radius);
+      outline: none;
+    }
+    #quick-add-bar .hint { font-size: var(--zui-fs-small); color: var(--zui-text-secondary); }
+
+    /* ── Task list ───────────────────────────────────────────────── */
+    #task-scroll {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    /* Section headers */
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: var(--zui-space-2);
+      padding: var(--zui-space-1) var(--zui-space-3);
+      font-size: var(--zui-fs-small);
+      font-weight: var(--zui-fw-medium);
+      color: var(--zui-label-color);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      border-bottom: 1px solid var(--zui-accent);
+      background: var(--zui-bg-app);
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      user-select: none;
+      cursor: pointer;
+    }
+    .section-header .branch-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .section-header .section-count {
+      color: var(--zui-text-secondary);
+      font-weight: var(--zui-fw-normal);
+      margin-left: auto;
+    }
+    .section-header .collapse-arrow {
+      color: var(--zui-text-secondary);
+      font-size: 10px;
+    }
+
+    /* Task cards ─────────────────────────────────────────────────── */
+    .task-card {
+      border-bottom: 1px solid var(--zui-border);
+      background: var(--zui-bg-surface);
+      cursor: pointer;
+      user-select: none;
+    }
+    .task-card:hover { background: var(--zui-bg-hover); }
+    .task-card.selected { background: var(--zui-bg-selected); }
+    .task-card.done .task-name { text-decoration: line-through; color: var(--zui-text-secondary); }
+    .task-card.indented { margin-left: 20px; }
+
+    .task-row {
+      display: flex;
+      align-items: flex-start;
+      padding: var(--zui-space-2) var(--zui-space-3);
+      gap: var(--zui-space-2);
+    }
+
+    /* Done checkbox */
+    .task-done-cb {
+      flex-shrink: 0;
+      margin-top: 1px;
+      width: 14px;
+      height: 14px;
+      cursor: pointer;
+      accent-color: var(--zui-accent);
+    }
+
+    /* Task body */
+    .task-body { flex: 1; min-width: 0; }
+
+    .task-id {
+      font-size: var(--zui-fs-small);
+      color: var(--zui-text-secondary);
+      margin-right: var(--zui-space-1);
+    }
+    .task-name {
+      font-size: var(--zui-fs-normal);
+      font-weight: var(--zui-fw-normal);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .task-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px;
+      margin-top: 3px;
+    }
+    .chip {
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: var(--zui-radius);
+      border: 1px solid var(--zui-border-strong);
+      color: var(--zui-text-secondary);
+      white-space: nowrap;
+    }
+    .chip.inprogress { border-color: var(--zui-accent); color: var(--zui-accent); }
+    .chip.bug { border-color: var(--zui-error); color: var(--zui-error); }
+    .chip.locked { border-color: var(--zui-warn); color: var(--zui-warn); }
+    .chip.commit { border-color: #6a7; color: #6a7; }
+    .chip.build { border-color: #8a5; color: #8a5; }
+    .chip.release { border-color: #a85; color: #a85; }
+    .chip.merge { border-color: var(--zui-accent); color: var(--zui-accent); }
+    .chip.branch { border-color: #555; color: var(--zui-text-secondary); font-weight: var(--zui-fw-medium); }
+    .chip.blocked { border-color: var(--zui-warn); color: var(--zui-warn); }
+    .chip.tag { background: var(--zui-bg-raised); }
+
+    /* Subtask mini-bar */
+    .task-subtasks {
+      margin-top: 4px;
+      display: flex;
+      gap: var(--zui-space-1);
+      flex-wrap: wrap;
+    }
+    .subtask-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: var(--zui-text-secondary);
+    }
+    .subtask-item input[type=checkbox] {
+      width: 11px;
+      height: 11px;
+      accent-color: var(--zui-accent);
+      cursor: pointer;
+    }
+    .subtask-item.done-sub { text-decoration: line-through; opacity: 0.5; }
+
+    /* Task action buttons */
+    .task-actions {
+      display: flex;
+      align-items: center;
+      gap: var(--zui-space-1);
+      flex-shrink: 0;
+      opacity: 0;
+      transition: opacity var(--zui-dur-fast);
+    }
+    .task-card:hover .task-actions { opacity: 1; }
+    .task-actions button {
+      background: none;
+      border: 1px solid var(--zui-border-strong);
+      color: var(--zui-text-secondary);
+      font: inherit;
+      font-size: 11px;
+      padding: 0 5px;
+      height: 20px;
+      cursor: pointer;
+      border-radius: var(--zui-radius);
+    }
+    .task-actions button:hover { background: var(--zui-bg-raised); color: var(--zui-text); border-color: var(--zui-accent); }
+    .task-actions button.danger:hover { border-color: var(--zui-error); color: var(--zui-error); }
+
+    /* Branch color bar at left of task card (non-main only) */
+    .task-card .branch-bar {
+      width: 3px;
+      background: transparent;
+      flex-shrink: 0;
+      align-self: stretch;
+      border-radius: 0;
+    }
+
+    /* Drag handle indicator */
+    .task-card .drag-handle {
+      color: var(--zui-text-disabled);
+      font-size: 11px;
+      flex-shrink: 0;
+      cursor: grab;
+      padding: 0 2px;
+      opacity: 0;
+    }
+    .task-card:hover .drag-handle { opacity: 1; }
+    .task-card.dragging { opacity: 0.4; }
+    .task-card.drag-over-above { border-top: 2px solid var(--zui-accent); }
+    .task-card.drag-over-below { border-bottom: 2px solid var(--zui-accent); }
+
+    /* ── Empty/placeholder ──────────────────────────────────────── */
+    #empty-state {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: var(--zui-space-3);
+      height: 100%;
+      color: var(--zui-text-secondary);
+      font-size: var(--zui-fs-normal);
+    }
+    #empty-state.visible { display: flex; }
+    #empty-state .empty-hint { font-size: var(--zui-fs-small); }
+
+    /* ── Overlay scrim + modal ───────────────────────────────────── */
+    #overlay-scrim {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: var(--zui-scrim);
+      z-index: 10;
+    }
+    #overlay-scrim.visible { display: block; }
+
+    /* ── Task form overlay ──────────────────────────────────────── */
+    #task-form-overlay {
+      display: none;
+      position: fixed;
+      top: 0; right: 0; bottom: 0;
+      width: 440px;
+      background: var(--zui-bg-surface);
+      border-left: 1px solid var(--zui-border-strong);
+      z-index: 11;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #task-form-overlay.visible { display: flex; }
+
+    .form-header {
+      display: flex;
+      align-items: center;
+      gap: var(--zui-space-2);
+      padding: var(--zui-space-2) var(--zui-space-3);
+      border-bottom: 1px solid var(--zui-border);
+      background: var(--zui-bg-surface-alt);
+      flex-shrink: 0;
+    }
+    .form-header h2 {
+      flex: 1;
+      font-size: var(--zui-fs-medium);
+      font-weight: var(--zui-fw-medium);
+    }
+    .form-header .form-id {
+      font-size: var(--zui-fs-small);
+      color: var(--zui-text-secondary);
+    }
+    .form-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--zui-space-3);
+      display: flex;
+      flex-direction: column;
+      gap: var(--zui-space-3);
+    }
+    .form-footer {
+      display: flex;
+      gap: var(--zui-space-2);
+      padding: var(--zui-space-2) var(--zui-space-3);
+      border-top: 1px solid var(--zui-border);
+      background: var(--zui-bg-surface-alt);
+      flex-shrink: 0;
+      justify-content: flex-end;
+    }
+
+    .field-group { display: flex; flex-direction: column; gap: 5px; }
+    .field-group label {
+      font-size: var(--zui-fs-small);
+      color: var(--zui-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .field-group input[type=text],
+    .field-group textarea,
+    .field-group select {
+      background: var(--zui-bg-raised);
+      border: 1px solid var(--zui-border-strong);
+      color: var(--zui-text);
+      font: inherit;
+      font-size: var(--zui-fs-normal);
+      padding: var(--zui-space-1) var(--zui-space-2);
+      border-radius: var(--zui-radius);
+      outline: none;
+      width: 100%;
+    }
+    .field-group input[type=text]:focus,
+    .field-group textarea:focus,
+    .field-group select:focus { border-color: var(--zui-accent); }
+    .field-group textarea { resize: vertical; min-height: 60px; }
+
+    .flag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--zui-space-2);
+      align-items: center;
+    }
+    .flag-cb {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: var(--zui-fs-small);
+      cursor: pointer;
+    }
+    .flag-cb input { accent-color: var(--zui-accent); }
+
+    .subtask-list { list-style: none; display: flex; flex-direction: column; gap: 3px; }
+    .subtask-list li {
+      display: flex;
+      align-items: center;
+      gap: var(--zui-space-2);
+      font-size: var(--zui-fs-small);
+    }
+    .subtask-list li input[type=checkbox] { accent-color: var(--zui-accent); }
+    .subtask-list li .st-text { flex: 1; }
+    .subtask-list li .st-remove {
+      background: none;
+      border: none;
+      color: var(--zui-text-secondary);
+      cursor: pointer;
+      font-size: 12px;
+      padding: 0 3px;
+    }
+    .subtask-list li .st-remove:hover { color: var(--zui-error); }
+
+    .add-subtask-row {
+      display: flex;
+      gap: var(--zui-space-2);
+    }
+    .add-subtask-row input {
+      flex: 1;
+      background: var(--zui-bg-raised);
+      border: 1px solid var(--zui-border-strong);
+      color: var(--zui-text);
+      font: inherit;
+      font-size: var(--zui-fs-small);
+      padding: 2px var(--zui-space-2);
+      border-radius: var(--zui-radius);
+      outline: none;
+    }
+    .add-subtask-row input:focus { border-color: var(--zui-accent); }
+
+    /* ── Text editor overlay ─────────────────────────────────────── */
+    #text-editor-overlay {
+      display: none;
+      position: fixed;
+      inset: 60px 40px;
+      background: var(--zui-bg-surface);
+      border: 1px solid var(--zui-border-strong);
+      border-radius: var(--zui-radius-lg);
+      box-shadow: var(--zui-shadow-modal);
+      z-index: 11;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #text-editor-overlay.visible { display: flex; }
+    #text-editor-overlay .form-header { }
+    #text-editor-subtitle {
+      font-size: var(--zui-fs-small);
+      color: var(--zui-text-secondary);
+      padding: 2px var(--zui-space-3) var(--zui-space-1);
+      border-bottom: 1px solid var(--zui-border);
+      background: var(--zui-bg-surface-alt);
+      flex-shrink: 0;
+    }
+    #text-editor-overlay textarea {
+      flex: 1;
+      resize: none;
+      background: var(--zui-bg-surface);
+      border: none;
+      color: var(--zui-text);
+      font: var(--zui-fw-normal) var(--zui-fs-small) / 1.6 var(--zui-font-mono);
+      padding: var(--zui-space-3);
+      outline: none;
+    }
+
+    /* Buttons (reuse zui style) */
+    .btn {
+      background: var(--zui-bg-raised);
+      border: 1px solid var(--zui-border-strong);
+      color: var(--zui-text);
+      font: inherit;
+      font-size: var(--zui-fs-small);
+      padding: 0 var(--zui-space-3);
+      height: 26px;
+      cursor: pointer;
+      border-radius: var(--zui-radius);
+    }
+    .btn:hover { background: var(--zui-bg-active); border-color: var(--zui-accent); }
+    .btn.primary {
+      background: var(--zui-accent);
+      border-color: var(--zui-accent);
+      color: var(--zui-text-on-accent);
+    }
+    .btn.primary:hover { background: var(--zui-accent-hover); }
+    .btn.danger { }
+    .btn.danger:hover { border-color: var(--zui-error); color: var(--zui-error); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--zui-scrollbar-thumb); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--zui-scrollbar-thumb-hover); }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ── Title-bar ──────────────────────────────────────────────── -->
+  <div id="titlebar">
+    <span class="app-name">zProject</span>
+    <button class="menu-btn" id="menu-file">File</button>
+    <button class="menu-btn" id="menu-project">Project</button>
+    <button class="menu-btn" id="menu-agent">Agent</button>
+    <span class="sep"></span>
+    <span class="status-text" id="status-text">Ready</span>
+  </div>
+
+  <!-- ── Body ───────────────────────────────────────────────────── -->
+  <div id="body">
+
+    <!-- Sidebar -->
+    <div id="sidebar">
+      <div class="sidebar-header">Projects</div>
+      <ul id="project-list"></ul>
+      <div id="sidebar-footer">
+        <button id="btn-new-project">+ Add Project</button>
+        <button id="btn-new-local">+ Local List</button>
+        <button id="btn-save-all">Save All</button>
+        <button id="btn-web-server">Start Web Server</button>
+        <button id="btn-exit">Exit</button>
+      </div>
+    </div>
+
+    <!-- Main -->
+    <div id="main">
+
+      <!-- Toolbar -->
+      <div id="toolbar">
+        <button class="toolbar-btn primary" id="btn-add-task">+ New Task</button>
+        <div class="sep"></div>
+        <button class="toolbar-btn" id="btn-deploy-codex">▶ Codex</button>
+        <button class="toolbar-btn" id="btn-deploy-claude">▶ Claude</button>
+        <button class="toolbar-btn" id="btn-deploy-antigravity">▶ Antigravity</button>
+        <div class="sep"></div>
+        <button class="toolbar-btn" id="btn-collapse-all">Collapse All</button>
+        <button class="toolbar-btn" id="btn-expand-all">Expand All</button>
+        <div class="sep"></div>
+        <span class="branch-label">Branch:</span>
+        <input type="text" class="branch-input" id="new-task-branch" value="main" title="Branch for new tasks">
+        <div class="spacer"></div>
+        <button class="toolbar-btn" id="btn-reload">Reload</button>
+        <button class="toolbar-btn" id="btn-open-dir">Open Folder</button>
+      </div>
+
+      <!-- Quick-add bar -->
+      <div id="quick-add-bar">
+        <label>New task:</label>
+        <input type="text" id="quick-add-input" placeholder="Task name…">
+        <span class="hint">Enter — add · Esc — cancel</span>
+      </div>
+
+      <!-- Task scroll area -->
+      <div id="task-scroll">
+        <div id="empty-state" class="visible">
+          <span>No project selected</span>
+          <span class="empty-hint">Choose a project from the sidebar or add one with + Add Project</span>
+        </div>
+        <div id="task-list"></div>
+      </div>
+
+    </div><!-- /main -->
+  </div><!-- /body -->
+
+</div><!-- /app -->
+
+<!-- ── Overlay scrim ────────────────────────────────────────────── -->
+<div id="overlay-scrim"></div>
+
+<!-- ── Task form overlay ────────────────────────────────────────── -->
+<div id="task-form-overlay">
+  <div class="form-header">
+    <span class="form-id" id="form-task-id"></span>
+    <h2 id="form-title">Task</h2>
+    <button class="btn" id="form-cancel-btn">✕</button>
+  </div>
+  <div class="form-body" id="form-body">
+    <div class="field-group">
+      <label>Name</label>
+      <input type="text" id="form-name" placeholder="Task name">
+    </div>
+    <div class="field-group">
+      <label>Branch</label>
+      <input type="text" id="form-branch" placeholder="main" list="form-branches-list">
+      <datalist id="form-branches-list"></datalist>
+    </div>
+    <div class="field-group">
+      <label>Flags</label>
+      <div class="flag-row">
+        <label class="flag-cb"><input type="checkbox" id="form-inprogress"> In Progress</label>
+        <label class="flag-cb"><input type="checkbox" id="form-done"> Done</label>
+        <label class="flag-cb"><input type="checkbox" id="form-bug"> Bug</label>
+        <label class="flag-cb"><input type="checkbox" id="form-locked"> Locked</label>
+        <label class="flag-cb"><input type="checkbox" id="form-archived"> Archived</label>
+        <label class="flag-cb"><input type="checkbox" id="form-commit"> Commit</label>
+        <label class="flag-cb"><input type="checkbox" id="form-build"> Build</label>
+        <label class="flag-cb"><input type="checkbox" id="form-release"> Release</label>
+        <label class="flag-cb"><input type="checkbox" id="form-merge"> Merge</label>
+      </div>
+    </div>
+    <div class="field-group">
+      <label>Blocked By</label>
+      <input type="text" id="form-blocked-by" placeholder="Task ID" list="form-blockers-list">
+      <datalist id="form-blockers-list"></datalist>
+    </div>
+    <div class="field-group">
+      <label>Tags</label>
+      <input type="text" id="form-tags" placeholder="comma-separated tags" list="form-tags-list">
+      <datalist id="form-tags-list"></datalist>
+    </div>
+    <div class="field-group">
+      <label>Prompt</label>
+      <textarea id="form-prompt" placeholder="Task description for the agent…" rows="4"></textarea>
+    </div>
+    <div class="field-group">
+      <label>Requirements</label>
+      <textarea id="form-requirements" placeholder="Specific requirements…" rows="3"></textarea>
+    </div>
+    <div class="field-group" id="form-notes-group">
+      <label>Notes (agent-written)</label>
+      <textarea id="form-notes" rows="3"></textarea>
+    </div>
+    <div class="field-group" id="form-files-group">
+      <label>Files Changed (agent-written)</label>
+      <textarea id="form-files" rows="2"></textarea>
+    </div>
+    <div class="field-group" id="form-error-group">
+      <label>Error Message</label>
+      <textarea id="form-error-msg" rows="2"></textarea>
+    </div>
+    <div class="field-group">
+      <label>Subtasks</label>
+      <ul class="subtask-list" id="form-subtask-list"></ul>
+      <div class="add-subtask-row">
+        <input type="text" id="form-new-subtask" placeholder="New subtask…">
+        <button class="btn" id="form-add-subtask">Add</button>
+      </div>
+    </div>
+    <div class="field-group">
+      <label>Run with agent</label>
+      <div class="flag-row">
+        <button class="btn" id="form-run-codex">▶ Codex</button>
+        <button class="btn" id="form-run-claude">▶ Claude</button>
+        <button class="btn" id="form-run-antigravity">▶ Antigravity</button>
+      </div>
+    </div>
+  </div>
+  <div class="form-footer">
+    <button class="btn danger" id="form-delete-btn">Delete</button>
+    <div style="flex:1"></div>
+    <button class="btn" id="form-cancel-btn2">Cancel</button>
+    <button class="btn primary" id="form-save-btn">Save</button>
+  </div>
+</div>
+
+<!-- ── Text editor overlay ──────────────────────────────────────── -->
+<div id="text-editor-overlay">
+  <div class="form-header">
+    <h2 id="text-editor-title">Edit</h2>
+    <button class="btn" id="text-editor-cancel">✕</button>
+  </div>
+  <div id="text-editor-subtitle"></div>
+  <textarea id="text-editor-content"></textarea>
+  <div class="form-footer">
+    <button class="btn" id="text-editor-cancel2">Cancel</button>
+    <button class="btn primary" id="text-editor-save">Save</button>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// zProject UI — talks to C# host via zui.send / zui.receive
+// ════════════════════════════════════════════════════════════
+
+'use strict';
+
+// ── State ────────────────────────────────────────────────────
+let state = {
+  projects: [],        // [{id, name, isLocal}]
+  selectedProject: null,
+  tasks: [],           // TaskItem objects from host
+  sections: [],        // [{key, label, tasks}]
+  collapsedSections: new Set(),
+  knownBranches: ['main'],
+  knownTags: [],
+  quickAddActive: false,
+  formTask: null,      // {isNew, task, blockers, branches, tags} or null
+  textEditor: null,    // {title, subtitle, channel, current}
+  dragTask: null,
+  dragOverTask: null,
+  dragAbove: false,
+};
+
+// ── Helpers ──────────────────────────────────────────────────
+function branchColor(branch) {
+  if (!branch || branch.toLowerCase() === 'main') return null;
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < branch.length; i++) {
+    h ^= branch.toLowerCase().charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return `hsl(${h % 360},55%,52%)`;
+}
+
+function chipHtml(cls, label) {
+  return `<span class="chip ${cls}">${label}</span>`;
+}
+
+// ── Render ───────────────────────────────────────────────────
+function renderProjects() {
+  const ul = document.getElementById('project-list');
+  ul.innerHTML = '';
+  for (const p of state.projects) {
+    const li = document.createElement('li');
+    if (state.selectedProject && p.id === state.selectedProject) li.classList.add('selected');
+    li.dataset.id = p.id;
+    li.innerHTML = `<span class="proj-name" title="${esc(p.name)}">${esc(p.name)}</span>`;
+    if (p.isLocal) li.innerHTML += `<span class="proj-local-badge">local</span>`;
+    li.addEventListener('click', () => zui.send('select-project', p.id));
+    li.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      showProjectContextMenu(e, p);
+    });
+    ul.appendChild(li);
+  }
+}
+
+function showProjectContextMenu(e, p) {
+  // Simple inline context menu
+  const menu = document.createElement('div');
+  menu.style.cssText = `position:fixed;left:${e.clientX}px;top:${e.clientY}px;
+    background:var(--zui-bg-raised);border:1px solid var(--zui-border-strong);
+    border-radius:var(--zui-radius);z-index:99;min-width:140px;
+    box-shadow:var(--zui-shadow-pop);`;
+  const items = [
+    ['Open Folder', () => zui.send('open-project-dir', p.id)],
+    ['Reload', () => zui.send('reload-project', null)],
+    ['Remove…', () => zui.send('remove-project', p.id)],
+  ];
+  if (!p.isLocal) {
+    items.unshift(
+      ['Edit Prompt…', () => zui.send('edit-local', 'prompt')],
+      ['Edit Instructions…', () => zui.send('edit-local', 'instructions')],
+      ['Edit Design…', () => zui.send('edit-local', 'design')],
+    );
+  }
+  for (const [label, fn] of items) {
+    const btn = document.createElement('button');
+    btn.style.cssText = `display:block;width:100%;text-align:left;background:none;border:none;
+      color:var(--zui-text);font:inherit;font-size:var(--zui-fs-small);
+      padding:5px 12px;cursor:pointer;`;
+    btn.textContent = label;
+    btn.addEventListener('mouseenter', () => btn.style.background = 'var(--zui-bg-hover)');
+    btn.addEventListener('mouseleave', () => btn.style.background = 'none');
+    btn.addEventListener('click', () => { fn(); menu.remove(); });
+    menu.appendChild(btn);
+  }
+  document.body.appendChild(menu);
+  const close = e2 => { if (!menu.contains(e2.target)) { menu.remove(); document.removeEventListener('mousedown', close); } };
+  requestAnimationFrame(() => document.addEventListener('mousedown', close));
+}
+
+function buildSections(tasks) {
+  const sections = new Map();
+  for (const t of tasks) {
+    const key = t.sectionKey || 'main';
+    if (!sections.has(key)) sections.set(key, []);
+    sections.get(key).push(t);
+  }
+  const result = [];
+  for (const [key, tasks] of sections) {
+    let label = key;
+    if (key === 'Done') label = 'Completed';
+    else if (key === 'Archived') label = 'Archived';
+    result.push({ key, label, tasks });
+  }
+  return result;
+}
+
+function renderTaskList() {
+  const emptyEl = document.getElementById('empty-state');
+  const listEl = document.getElementById('task-list');
+
+  if (!state.selectedProject || state.tasks.length === 0) {
+    listEl.innerHTML = '';
+    emptyEl.classList.add('visible');
+    if (state.selectedProject) {
+      emptyEl.querySelector('span').textContent = 'No tasks';
+      emptyEl.querySelector('.empty-hint').textContent = 'Press Space or click + New Task to add one.';
+    } else {
+      emptyEl.querySelector('span').textContent = 'No project selected';
+      emptyEl.querySelector('.empty-hint').textContent = 'Choose a project from the sidebar.';
+    }
+    return;
+  }
+  emptyEl.classList.remove('visible');
+
+  state.sections = buildSections(state.tasks);
+  listEl.innerHTML = '';
+
+  for (const section of state.sections) {
+    const collapsed = state.collapsedSections.has(section.key);
+    const color = branchColor(section.key);
+
+    // Section header
+    const hdr = document.createElement('div');
+    hdr.className = 'section-header';
+    hdr.dataset.section = section.key;
+    let dotHtml = '';
+    if (color) dotHtml = `<span class="branch-dot" style="background:${color}"></span>`;
+    hdr.innerHTML = `
+      ${dotHtml}
+      <span>${esc(section.label)}</span>
+      <span class="section-count">${section.tasks.length}</span>
+      <span class="collapse-arrow">${collapsed ? '▶' : '▼'}</span>`;
+    hdr.addEventListener('click', () => toggleSection(section.key));
+    listEl.appendChild(hdr);
+
+    if (collapsed) continue;
+
+    for (const task of section.tasks) {
+      listEl.appendChild(renderTaskCard(task, color));
+    }
+  }
+}
+
+function renderTaskCard(task, sectionColor) {
+  const card = document.createElement('div');
+  card.className = 'task-card' + (task.done ? ' done' : '') + (task.indentLevel > 0 ? ' indented' : '');
+  card.dataset.taskId = task.id;
+  card.draggable = !task.done && !task.archived;
+
+  const tc = branchColor(task.branch) || sectionColor;
+
+  // Chips
+  let chips = '';
+  if (task.inProgress) chips += chipHtml('inprogress', 'IN PROGRESS');
+  if (task.bug) chips += chipHtml('bug', 'BUG');
+  if (task.locked) chips += chipHtml('locked', 'LOCKED');
+  if (task.commit) chips += chipHtml('commit', 'COMMIT');
+  if (task.build) chips += chipHtml('build', 'BUILD');
+  if (task.release) chips += chipHtml('release', 'RELEASE');
+  if (task.merge) chips += chipHtml('merge', 'MERGE');
+  if (task.isBlocked) chips += chipHtml('blocked', `BLOCKED by ${esc(task.blockedBy)}`);
+  if (task.branch && task.branch.toLowerCase() !== 'main')
+    chips += chipHtml('branch', esc(task.branch));
+  if (task.tags) for (const tag of task.tags) chips += chipHtml('tag', esc(tag));
+
+  // Subtasks mini-list
+  let subtasksHtml = '';
+  if (task.subtasks && task.subtasks.length > 0) {
+    subtasksHtml = '<div class="task-subtasks">';
+    for (let i = 0; i < task.subtasks.length; i++) {
+      const s = task.subtasks[i];
+      subtasksHtml += `<span class="subtask-item${s.done ? ' done-sub' : ''}">
+        <input type="checkbox" ${s.done ? 'checked' : ''}
+          data-task="${task.id}" data-subtask-idx="${i}">
+        <span>${esc(s.text)}</span></span>`;
+    }
+    subtasksHtml += '</div>';
+  }
+
+  const barStyle = tc ? `background:${tc}` : '';
+
+  card.innerHTML = `
+    <div class="task-row">
+      <div class="branch-bar" style="${barStyle}"></div>
+      <span class="drag-handle" title="Drag to reorder">⠿</span>
+      <input type="checkbox" class="task-done-cb" ${task.done ? 'checked' : ''}
+        data-task-id="${task.id}" title="Mark done">
+      <div class="task-body">
+        <div>
+          <span class="task-id">${esc(task.id)}</span>
+          <span class="task-name">${esc(task.name || '(unnamed)')}</span>
+        </div>
+        ${chips ? `<div class="task-chips">${chips}</div>` : ''}
+        ${subtasksHtml}
+      </div>
+      <div class="task-actions">
+        <button data-action="edit" data-task-id="${task.id}">Edit</button>
+        <button data-action="lock" data-task-id="${task.id}" title="${task.locked ? 'Unlock' : 'Lock'}">${task.locked ? '🔒' : '🔓'}</button>
+        ${!task.isLocal ? `<button data-action="run-codex" data-task-id="${task.id}">▶ Codex</button>
+        <button data-action="run-claude" data-task-id="${task.id}">▶ Claude</button>
+        <button data-action="run-agy" data-task-id="${task.id}">▶ AGY</button>` : ''}
+        <button data-action="delete" data-task-id="${task.id}" class="danger">Del</button>
+      </div>
+    </div>`;
+
+  // Done checkbox
+  card.querySelector('.task-done-cb').addEventListener('change', e => {
+    e.stopPropagation();
+    zui.send('toggle-done', task.id);
+  });
+
+  // Subtask checkboxes
+  for (const cb of card.querySelectorAll('[data-subtask-idx]')) {
+    cb.addEventListener('change', e => {
+      e.stopPropagation();
+      zui.send('toggle-subtask', { taskId: task.id, index: parseInt(cb.dataset.subtaskIdx), done: cb.checked });
+    });
+  }
+
+  // Action buttons
+  card.addEventListener('click', e => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    e.stopPropagation();
+    const action = btn.dataset.action;
+    const tid = btn.dataset.taskId;
+    if (action === 'edit') zui.send('open-edit-task', tid);
+    else if (action === 'lock') zui.send('toggle-lock', tid);
+    else if (action === 'delete') zui.send('delete-task', tid);
+    else if (action === 'run-codex') zui.send('run-task-with-agent', { taskId: tid, agent: 'codex' });
+    else if (action === 'run-claude') zui.send('run-task-with-agent', { taskId: tid, agent: 'claude' });
+    else if (action === 'run-agy') zui.send('run-task-with-agent', { taskId: tid, agent: 'agy' });
+  });
+
+  // Double-click opens edit
+  card.addEventListener('dblclick', e => {
+    if (e.target.closest('input, button')) return;
+    zui.send('open-edit-task', task.id);
+  });
+
+  // Drag-and-drop
+  card.addEventListener('dragstart', e => {
+    state.dragTask = task.id;
+    card.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  card.addEventListener('dragend', () => {
+    card.classList.remove('dragging');
+    clearDragOver();
+    state.dragTask = null;
+  });
+  card.addEventListener('dragover', e => {
+    if (!state.dragTask || state.dragTask === task.id) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const rect = card.getBoundingClientRect();
+    const above = e.clientY < rect.top + rect.height / 2;
+    if (state.dragOverTask !== task.id || state.dragAbove !== above) {
+      clearDragOver();
+      state.dragOverTask = task.id;
+      state.dragAbove = above;
+      card.classList.add(above ? 'drag-over-above' : 'drag-over-below');
+    }
+  });
+  card.addEventListener('dragleave', e => {
+    if (!card.contains(e.relatedTarget)) clearDragOver();
+  });
+  card.addEventListener('drop', e => {
+    e.preventDefault();
+    if (!state.dragTask || state.dragTask === task.id) return;
+    const above = state.dragAbove;
+    clearDragOver();
+    zui.send('move-task', { taskId: state.dragTask, targetId: task.id, above });
+    state.dragTask = null;
+  });
+
+  return card;
+}
+
+function clearDragOver() {
+  document.querySelectorAll('.drag-over-above,.drag-over-below').forEach(el => {
+    el.classList.remove('drag-over-above', 'drag-over-below');
+  });
+  state.dragOverTask = null;
+}
+
+function toggleSection(key) {
+  if (state.collapsedSections.has(key)) state.collapsedSections.delete(key);
+  else state.collapsedSections.add(key);
+  renderTaskList();
+}
+
+// ── Task Form ────────────────────────────────────────────────
+function openTaskForm(data) {
+  state.formTask = data;
+  document.getElementById('form-task-id').textContent = data.id || '';
+  document.getElementById('form-title').textContent = data.isNew ? 'New Task' : 'Edit Task';
+  document.getElementById('form-name').value = data.name || '';
+  document.getElementById('form-branch').value = data.branch || 'main';
+  document.getElementById('form-inprogress').checked = !!data.inProgress;
+  document.getElementById('form-done').checked = !!data.done;
+  document.getElementById('form-bug').checked = !!data.bug;
+  document.getElementById('form-locked').checked = !!data.locked;
+  document.getElementById('form-archived').checked = !!data.archived;
+  document.getElementById('form-commit').checked = !!data.commit;
+  document.getElementById('form-build').checked = !!data.build;
+  document.getElementById('form-release').checked = !!data.release;
+  document.getElementById('form-merge').checked = !!data.merge;
+  document.getElementById('form-blocked-by').value = data.blockedBy || '';
+  document.getElementById('form-tags').value = data.tagText || '';
+  document.getElementById('form-prompt').value = data.prompt || '';
+  document.getElementById('form-requirements').value = data.requirements || '';
+  document.getElementById('form-notes').value = data.notes || '';
+  document.getElementById('form-files').value = data.filesChanged || '';
+  document.getElementById('form-error-msg').value = data.errorMessage || '';
+
+  // Show/hide agent-written sections
+  document.getElementById('form-notes-group').style.display = data.hasNotes ? '' : 'none';
+  document.getElementById('form-files-group').style.display = data.hasFilesChanged ? '' : 'none';
+  document.getElementById('form-error-group').style.display = data.hasError ? '' : 'none';
+
+  // Branches datalist
+  const brList = document.getElementById('form-branches-list');
+  brList.innerHTML = (data.knownBranches || ['main']).map(b => `<option value="${esc(b)}">`).join('');
+
+  // Blockers datalist
+  const blList = document.getElementById('form-blockers-list');
+  blList.innerHTML = (data.blockCandidates || []).map(b => `<option value="${esc(b)}">`).join('');
+
+  // Tags datalist
+  const tgList = document.getElementById('form-tags-list');
+  tgList.innerHTML = (data.knownTags || []).map(t => `<option value="${esc(t)}">`).join('');
+
+  // Subtasks
+  renderFormSubtasks(data.subtasks || []);
+
+  // Delete button visibility
+  document.getElementById('form-delete-btn').style.display = data.isNew ? 'none' : '';
+
+  // Show overlay
+  document.getElementById('overlay-scrim').classList.add('visible');
+  document.getElementById('task-form-overlay').classList.add('visible');
+  document.getElementById('form-name').focus();
+}
+
+function renderFormSubtasks(subtasks) {
+  state.formTask.subtasks = subtasks;
+  const ul = document.getElementById('form-subtask-list');
+  ul.innerHTML = '';
+  for (let i = 0; i < subtasks.length; i++) {
+    const s = subtasks[i];
+    const li = document.createElement('li');
+    li.innerHTML = `<input type="checkbox" ${s.done ? 'checked' : ''} data-idx="${i}">
+      <span class="st-text">${esc(s.text)}</span>
+      <button class="st-remove" data-idx="${i}">✕</button>`;
+    li.querySelector('input').addEventListener('change', ev => {
+      state.formTask.subtasks[i].done = ev.target.checked;
+    });
+    li.querySelector('.st-remove').addEventListener('click', () => {
+      state.formTask.subtasks.splice(i, 1);
+      renderFormSubtasks(state.formTask.subtasks);
+    });
+    ul.appendChild(li);
+  }
+}
+
+function closeTaskForm() {
+  state.formTask = null;
+  document.getElementById('overlay-scrim').classList.remove('visible');
+  document.getElementById('task-form-overlay').classList.remove('visible');
+}
+
+function saveTaskForm() {
+  if (!state.formTask) return;
+  const payload = {
+    id: state.formTask.id,
+    isNew: state.formTask.isNew,
+    name: document.getElementById('form-name').value,
+    branch: document.getElementById('form-branch').value || 'main',
+    inProgress: document.getElementById('form-inprogress').checked,
+    done: document.getElementById('form-done').checked,
+    bug: document.getElementById('form-bug').checked,
+    locked: document.getElementById('form-locked').checked,
+    archived: document.getElementById('form-archived').checked,
+    commit: document.getElementById('form-commit').checked,
+    build: document.getElementById('form-build').checked,
+    release: document.getElementById('form-release').checked,
+    merge: document.getElementById('form-merge').checked,
+    blockedBy: document.getElementById('form-blocked-by').value,
+    tagText: document.getElementById('form-tags').value,
+    prompt: document.getElementById('form-prompt').value,
+    requirements: document.getElementById('form-requirements').value,
+    notes: document.getElementById('form-notes').value,
+    filesChanged: document.getElementById('form-files').value,
+    errorMessage: document.getElementById('form-error-msg').value,
+    subtasks: state.formTask.subtasks || [],
+  };
+  zui.send('save-task', payload);
+  closeTaskForm();
+}
+
+// ── Text editor overlay ──────────────────────────────────────
+function openTextEditor(data) {
+  state.textEditor = data;
+  document.getElementById('text-editor-title').textContent = data.title;
+  document.getElementById('text-editor-subtitle').textContent = data.subtitle;
+  document.getElementById('text-editor-content').value = data.current;
+  document.getElementById('overlay-scrim').classList.add('visible');
+  document.getElementById('text-editor-overlay').classList.add('visible');
+  document.getElementById('text-editor-content').focus();
+}
+
+function closeTextEditor() {
+  state.textEditor = null;
+  document.getElementById('overlay-scrim').classList.remove('visible');
+  document.getElementById('text-editor-overlay').classList.remove('visible');
+}
+
+function saveTextEditor() {
+  if (!state.textEditor) return;
+  const value = document.getElementById('text-editor-content').value;
+  zui.send('save-text', { channel: state.textEditor.channel, value });
+  closeTextEditor();
+}
+
+// ── Event wiring ─────────────────────────────────────────────
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Toolbar
+document.getElementById('btn-add-task').addEventListener('click', () => zui.send('add-task', null));
+document.getElementById('btn-deploy-codex').addEventListener('click', () => zui.send('deploy-agent', 'codex'));
+document.getElementById('btn-deploy-claude').addEventListener('click', () => zui.send('deploy-agent', 'claude'));
+document.getElementById('btn-deploy-antigravity').addEventListener('click', () => zui.send('deploy-agent', 'agy'));
+document.getElementById('btn-collapse-all').addEventListener('click', () => zui.send('collapse-all', null));
+document.getElementById('btn-expand-all').addEventListener('click', () => zui.send('expand-all', null));
+document.getElementById('btn-reload').addEventListener('click', () => zui.send('reload-project', null));
+document.getElementById('btn-open-dir').addEventListener('click', () => zui.send('open-project-dir', null));
+document.getElementById('new-task-branch').addEventListener('change', e => zui.send('set-branch', e.target.value));
+document.getElementById('new-task-branch').addEventListener('input', e => zui.send('set-branch', e.target.value));
+
+// Sidebar
+document.getElementById('btn-new-project').addEventListener('click', () => zui.send('new-project', null));
+document.getElementById('btn-new-local').addEventListener('click', () => zui.send('new-local-project', null));
+document.getElementById('btn-save-all').addEventListener('click', () => zui.send('save-all', null));
+document.getElementById('btn-web-server').addEventListener('click', () => zui.send('start-web-server', null));
+document.getElementById('btn-exit').addEventListener('click', () => zui.send('exit', null));
+
+// Menu buttons
+document.getElementById('menu-file').addEventListener('click', e => {
+  showDropMenu(e, [
+    ['New Project…', () => zui.send('new-project', null)],
+    ['New Local List…', () => zui.send('new-local-project', null)],
+    [null], // separator
+    ['Save All', () => zui.send('save-all', null)],
+    ['Save Current', () => zui.send('save-current', null)],
+    ['Reload', () => zui.send('reload-project', null)],
+    [null],
+    ['Start Web Server', () => zui.send('start-web-server', null)],
+    [null],
+    ['Exit', () => zui.send('exit', null)],
+  ]);
+});
+document.getElementById('menu-project').addEventListener('click', e => {
+  showDropMenu(e, [
+    ['Edit Prompt…', () => zui.send('edit-local', 'prompt')],
+    ['Edit Instructions…', () => zui.send('edit-local', 'instructions')],
+    ['Edit Design…', () => zui.send('edit-local', 'design')],
+    [null],
+    ['Edit Global Prompt…', () => zui.send('edit-global', 'prompt')],
+    ['Edit Global Instructions…', () => zui.send('edit-global', 'instructions')],
+    ['Edit Global Design…', () => zui.send('edit-global', 'design')],
+    [null],
+    ['Open Folder', () => zui.send('open-project-dir', null)],
+    ['Remove Project…', () => zui.send('remove-project', null)],
+  ]);
+});
+document.getElementById('menu-agent').addEventListener('click', e => {
+  showDropMenu(e, [
+    ['Deploy Codex to project…', () => zui.send('deploy-agent', 'codex')],
+    ['Deploy Claude to project…', () => zui.send('deploy-agent', 'claude')],
+    ['Deploy Antigravity to project…', () => zui.send('deploy-agent', 'agy')],
+    [null],
+    ['Install Codex CLI', () => zui.send('install-cli', 'codex')],
+    ['Install Claude CLI', () => zui.send('install-cli', 'claude')],
+    ['Install Both', () => zui.send('install-cli', 'both')],
+  ]);
+});
+
+function showDropMenu(triggerEvent, items) {
+  const rect = triggerEvent.currentTarget.getBoundingClientRect();
+  const menu = document.createElement('div');
+  menu.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.bottom}px;
+    background:var(--zui-bg-raised);border:1px solid var(--zui-border-strong);
+    border-radius:var(--zui-radius);z-index:99;min-width:180px;
+    box-shadow:var(--zui-shadow-pop);padding:3px 0;`;
+  for (const item of items) {
+    if (!item || item[0] === null) {
+      const sep = document.createElement('div');
+      sep.style.cssText = 'height:1px;background:var(--zui-border);margin:3px 0;';
+      menu.appendChild(sep);
+      continue;
+    }
+    const [label, fn] = item;
+    const btn = document.createElement('button');
+    btn.style.cssText = `display:block;width:100%;text-align:left;background:none;border:none;
+      color:var(--zui-text);font:inherit;font-size:var(--zui-fs-small);
+      padding:4px 16px;cursor:pointer;`;
+    btn.textContent = label;
+    btn.addEventListener('mouseenter', () => btn.style.background = 'var(--zui-bg-hover)');
+    btn.addEventListener('mouseleave', () => btn.style.background = 'none');
+    btn.addEventListener('click', () => { fn(); menu.remove(); });
+    menu.appendChild(btn);
+  }
+  document.body.appendChild(menu);
+  const close = e => { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('mousedown', close); } };
+  requestAnimationFrame(() => document.addEventListener('mousedown', close));
+}
+
+// Task form buttons
+document.getElementById('form-save-btn').addEventListener('click', saveTaskForm);
+document.getElementById('form-cancel-btn').addEventListener('click', closeTaskForm);
+document.getElementById('form-cancel-btn2').addEventListener('click', closeTaskForm);
+document.getElementById('form-delete-btn').addEventListener('click', () => {
+  if (state.formTask) zui.send('delete-task', state.formTask.id);
+  closeTaskForm();
+});
+document.getElementById('form-add-subtask').addEventListener('click', () => {
+  const input = document.getElementById('form-new-subtask');
+  const text = input.value.trim();
+  if (!text) return;
+  if (!state.formTask.subtasks) state.formTask.subtasks = [];
+  state.formTask.subtasks.push({ text, done: false });
+  renderFormSubtasks(state.formTask.subtasks);
+  input.value = '';
+  input.focus();
+});
+document.getElementById('form-new-subtask').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('form-add-subtask').click();
+});
+document.getElementById('form-run-codex').addEventListener('click', () => {
+  if (state.formTask) zui.send('run-task-with-agent', { taskId: state.formTask.id, agent: 'codex' });
+  closeTaskForm();
+});
+document.getElementById('form-run-claude').addEventListener('click', () => {
+  if (state.formTask) zui.send('run-task-with-agent', { taskId: state.formTask.id, agent: 'claude' });
+  closeTaskForm();
+});
+document.getElementById('form-run-antigravity').addEventListener('click', () => {
+  if (state.formTask) zui.send('run-task-with-agent', { taskId: state.formTask.id, agent: 'agy' });
+  closeTaskForm();
+});
+
+// Text editor buttons
+document.getElementById('text-editor-save').addEventListener('click', saveTextEditor);
+document.getElementById('text-editor-cancel').addEventListener('click', closeTextEditor);
+document.getElementById('text-editor-cancel2').addEventListener('click', closeTextEditor);
+
+// Overlay scrim click closes
+document.getElementById('overlay-scrim').addEventListener('click', () => {
+  if (state.formTask) closeTaskForm();
+  if (state.textEditor) closeTextEditor();
+});
+
+// Quick-add
+document.getElementById('quick-add-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const val = e.target.value.trim();
+    if (val) zui.send('quick-add-commit', val);
+    e.target.value = '';
+  } else if (e.key === 'Escape') {
+    zui.send('quick-add-cancel', null);
+  }
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.target.matches('input, textarea, select')) return;
+  if (e.key === ' ' && !state.formTask && !state.textEditor) {
+    e.preventDefault();
+    zui.send('quick-add-begin', null);
+  }
+  if (e.key === 'Escape') {
+    if (state.formTask) closeTaskForm();
+    else if (state.textEditor) closeTextEditor();
+    else if (state.quickAddActive) zui.send('quick-add-cancel', null);
+  }
+});
+
+// ── Host → UI messages ───────────────────────────────────────
+zui.receive('projects', data => {
+  state.projects = data.projects || [];
+  state.selectedProject = data.selectedProject;
+  renderProjects();
+});
+
+zui.receive('tasks', data => {
+  state.tasks = data.tasks || [];
+  state.knownBranches = data.knownBranches || ['main'];
+  state.knownTags = data.knownTags || [];
+  // Update branch input datalist
+  const br = document.getElementById('new-task-branch');
+  if (data.currentBranch) br.value = data.currentBranch;
+  renderTaskList();
+});
+
+zui.receive('status', text => {
+  document.getElementById('status-text').textContent = text;
+});
+
+zui.receive('open-task-form', data => {
+  openTaskForm(data);
+});
+
+zui.receive('open-text-editor', data => {
+  openTextEditor(data);
+});
+
+zui.receive('close-overlay', () => {
+  closeTaskForm();
+  closeTextEditor();
+});
+
+zui.receive('quick-add-state', active => {
+  state.quickAddActive = !!active;
+  const bar = document.getElementById('quick-add-bar');
+  if (active) {
+    bar.classList.add('visible');
+    document.getElementById('quick-add-input').value = '';
+    document.getElementById('quick-add-input').focus();
+  } else {
+    bar.classList.remove('visible');
+  }
+});
+
+// Signal ready
+zui.send('ui-ready', null);
+</script>
+</body>
+</html>

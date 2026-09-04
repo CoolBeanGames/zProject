@@ -4,12 +4,12 @@
     <name>redesign using zUI</name>
     <prompt>see design.txt and redo the full UI, discard the animations we made previously</prompt>
     <requirements></requirements>
-    <inProgress>false</inProgress>
+    <inProgress>true</inProgress>
     <done>false</done>
     <bug>false</bug>
     <error>false</error>
     <errorMessage></errorMessage>
-    <lockKey></lockKey>
+    <lockKey>ag7k9x2m</lockKey>
     <locked>false</locked>
     <archived>false</archived>
     <blockedBy></blockedBy>
@@ -24,6 +24,14 @@
     <notes></notes>
     <filesChanged></filesChanged>
     <image></image>
+    <subtasks>
+      <subtask done="true">Add zUI as git submodule at third_party/zui and copy ZuiHost.cs into PromptQueue.App</subtask>
+      <subtask done="true">Add WebView2 NuGet package reference to PromptQueue.App.csproj</subtask>
+      <subtask done="true">Author ui/main.html zUI document (holo theme, sidebar + task list + overlays)</subtask>
+      <subtask done="true">Replace XAML MainWindow with WPF window hosting WebView2 + ZuiHost</subtask>
+      <subtask done="true">Wire all VM commands through zui message bus (tasks, projects, flags, subtasks)</subtask>
+      <subtask done="false">Build debug + release, copy outputs, create GitHub release zProject_build2</subtask>
+    </subtasks>
   </task>
   <task id="ZP-86">
     <name>add options to install as well as deploy gemeni ai</name>
