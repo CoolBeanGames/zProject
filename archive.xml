@@ -294,6 +294,90 @@
     <filesChanged>src/PromptQueue.Core/Storage/ProjectStore.cs</filesChanged>
     <image></image>
   </task>
+  <task id="ZP-88">
+    <name>changing how the instructions work</name>
+    <prompt>now when someone wants instructions.txt they will prompt the operator, the operator will then return the global instructions + the local instructions for that project, which will be specific to the project. prompt is always local, and should now contain the instructions on using the operator.</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>true</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <merge>false</merge>
+    <branch>main</branch>
+    <tags></tags>
+    <notes>Added instructions command to operator and updated prompt/instructions</notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-87">
+    <name>crop the attached image and use it for the new app icon</name>
+    <prompt>crop the attached image and use it for the new app icon, crop out any text</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>true</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>true</commit>
+    <build>true</build>
+    <release>true</release>
+    <merge>false</merge>
+    <branch>main</branch>
+    <tags></tags>
+    <notes>Cropped image and updated app.ico</notes>
+    <filesChanged>src/PromptQueue.App/Assets/app.ico</filesChanged>
+    <image>ZP-87.jpg</image>
+    <subtasks>
+      <subtask done="true">crop the image task_images/ZP-87.jpg to remove text and save it as an icon</subtask>
+      <subtask done="true">replace the existing app icon with the cropped image</subtask>
+    </subtasks>
+  </task>
+  <task id="ZP-86">
+    <name>add options to install as well as deploy gemeni ai</name>
+    <prompt>add options to install as well as deploy gemeni ai, same as the others but now gemini is available as a code agent through theapp</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>true</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>true</commit>
+    <build>true</build>
+    <release>true</release>
+    <merge>false</merge>
+    <branch>main</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+    <subtasks>
+      <subtask done="true">Add InstallAntigravityCliCommand and DeployAntigravityCommand to MainViewModel</subtask>
+      <subtask done="true">Wire install-cli 'agy' handler in MainWindow and add agy to deploy/run menus in UI</subtask>
+      <subtask done="true">Build, copy outputs, create GitHub release zProject_build3</subtask>
+    </subtasks>
+  </task>
   <task id="ZP-85">
     <name>redesign using zUI</name>
     <prompt>see design.txt and redo the full UI, discard the animations we made previously</prompt>

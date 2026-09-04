@@ -62,6 +62,18 @@ public static class OperatorEngine
         return OperatorResult.Pass($"{ws.Projects.Count} project(s)", string.Join("\n", lines));
     }
 
+    /// <summary>Returns the combined global and local instructions for a project.</summary>
+    public static OperatorResult Instructions(string projectRef)
+    {
+        var ws = Workspace.Load();
+        var project = ResolveProject(ws, projectRef);
+        if (project == null)
+            return OperatorResult.Fail($"No project matches \"{projectRef}\".");
+
+        var text = (ws.GlobalInstructions + "\n\n" + project.LocalInstructions).Trim();
+        return OperatorResult.Pass($"Instructions for {project.Name}", text);
+    }
+
     /// <summary>Returns a project's whole <c>archive.xml</c> (ZP-72). Empty when there is none.</summary>
     public static OperatorResult GetArchive(string projectRef)
     {

@@ -59,6 +59,7 @@ internal static class Program
     private static OperatorResult Dispatch(string command, string[] a) => command switch
     {
         "read" when a.Length >= 1 => OperatorEngine.Read(a[0]),
+        "instructions" when a.Length >= 1 => OperatorEngine.Instructions(a[0]),
         "get_archive" when a.Length >= 1 => OperatorEngine.GetArchive(a[0]),
         "get_tag" when a.Length >= 2 => OperatorEngine.GetTag(a[0], a[1]),
         "list" => OperatorEngine.List(),
@@ -89,6 +90,7 @@ internal static class Program
         zProject operator
 
           operator read       <project>
+          operator instructions <project>
           operator get_archive <project>
           operator get_tag    <task_id> <field>
           operator list

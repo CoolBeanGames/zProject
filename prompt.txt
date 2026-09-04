@@ -1,1 +1,6 @@
-follow all instructions in instructions.txt to the letter. If you are prompted to follow this file, along with a specific task_ID then complete ONLY that task and finish at that point
+follow all instructions returned by `operator instructions zProject` to the letter. If you are prompted to follow this file, along with a specific task_ID then complete ONLY that task and finish at that point.
+
+You can read the full instructions by running:
+    operator instructions zProject
+
+The operator is a command-line tool (e.g. zProject_operator.exe or operator) used to read and manage tasks. It is essential to use it to avoid concurrency issues.
