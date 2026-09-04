@@ -7,291 +7,23 @@
   <link rel="stylesheet" href="zui/css/themes/holo.css">
   <script src="zui/js/zui.js"></script>
   <style>
-    /* ── App-shell layout ─────────────────────────────────────── */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    html, body {
-      height: 100%;
-      background: var(--zui-bg-app);
-      color: var(--zui-text);
-      font: var(--zui-fw-normal) var(--zui-fs-normal) / var(--zui-lh) var(--zui-font);
-      overflow: hidden;
-    }
-
-    #app {
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-    }
-
-    /* ── Title-bar / menu strip ───────────────────────────────── */
-    #titlebar {
-      display: flex;
-      align-items: center;
-      gap: var(--zui-space-1);
-      padding: 0 var(--zui-space-2);
-      height: 32px;
-      background: var(--zui-bg-surface-alt);
-      border-bottom: 1px solid var(--zui-border);
-      flex-shrink: 0;
-      -webkit-app-region: drag;
-      user-select: none;
-    }
-    #titlebar .app-name {
-      font-size: var(--zui-fs-small);
-      font-weight: var(--zui-fw-medium);
-      color: var(--zui-text-secondary);
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      flex: 0 0 auto;
-      margin-right: var(--zui-space-2);
-    }
-    #titlebar .menu-btn {
-      -webkit-app-region: no-drag;
-      background: none;
-      border: none;
-      color: var(--zui-text-secondary);
-      font: inherit;
-      font-size: var(--zui-fs-small);
-      padding: 0 var(--zui-space-2);
-      height: 26px;
-      cursor: pointer;
-      border-radius: var(--zui-radius);
-    }
-    #titlebar .menu-btn:hover { background: var(--zui-bg-hover); color: var(--zui-text); }
-    #titlebar .sep { flex: 1; }
-    #titlebar .status-text {
-      font-size: var(--zui-fs-small);
-      color: var(--zui-text-secondary);
-      margin-right: var(--zui-space-2);
-    }
-
-    /* ── Body: sidebar + main ──────────────────────────────────── */
-    #body {
-      display: flex;
-      flex: 1;
-      overflow: hidden;
-    }
-
-    /* ── Sidebar ───────────────────────────────────────────────── */
-    #sidebar {
-      width: 192px;
-      flex-shrink: 0;
-      background: var(--zui-bg-surface);
-      border-right: 1px solid var(--zui-border);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-    #sidebar .sidebar-header {
-      padding: var(--zui-space-2) var(--zui-space-3);
-      font-size: var(--zui-fs-small);
-      font-weight: var(--zui-fw-medium);
-      color: var(--zui-label-color);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      border-bottom: 1px solid var(--zui-accent);
-      flex-shrink: 0;
-    }
-    #project-list {
-      flex: 1;
-      overflow-y: auto;
-      list-style: none;
-    }
-    #project-list li {
-      display: flex;
-      align-items: center;
-      padding: var(--zui-space-1) var(--zui-space-3);
-      font-size: var(--zui-fs-normal);
-      cursor: pointer;
-      border-left: 3px solid transparent;
-      user-select: none;
-      gap: var(--zui-space-2);
-    }
-    #project-list li:hover { background: var(--zui-bg-hover); }
-    #project-list li.selected {
-      background: var(--zui-bg-selected);
-      border-left-color: var(--zui-accent);
-      color: var(--zui-text);
-    }
-    #project-list li .proj-name {
-      flex: 1;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    #project-list li .proj-local-badge {
-      font-size: var(--zui-fs-small);
-      color: var(--zui-text-secondary);
-      flex-shrink: 0;
-    }
-
-    #sidebar-footer {
-      border-top: 1px solid var(--zui-border);
-      display: flex;
-      flex-direction: column;
-      gap: 1px;
-      padding: var(--zui-space-1) 0;
-      flex-shrink: 0;
-    }
-    #sidebar-footer button {
-      background: none;
-      border: none;
-      color: var(--zui-text-secondary);
-      font: inherit;
-      font-size: var(--zui-fs-small);
-      text-align: left;
-      padding: var(--zui-space-1) var(--zui-space-3);
-      cursor: pointer;
-      border-radius: 0;
-    }
-    #sidebar-footer button:hover { background: var(--zui-bg-hover); color: var(--zui-text); }
-
-    /* ── Main area ──────────────────────────────────────────────── */
-    #main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      background: var(--zui-bg-app);
-    }
-
-    /* ── Toolbar ────────────────────────────────────────────────── */
-    #toolbar {
-      display: flex;
-      align-items: center;
-      gap: var(--zui-space-2);
-      padding: 0 var(--zui-space-3);
-      height: 36px;
-      background: var(--zui-bg-surface-alt);
-      border-bottom: 1px solid var(--zui-border);
-      flex-shrink: 0;
-    }
-    #toolbar .toolbar-btn {
-      background: var(--zui-bg-surface);
-      border: 1px solid var(--zui-border-strong);
-      color: var(--zui-text);
-      font: inherit;
-      font-size: var(--zui-fs-small);
-      padding: 0 var(--zui-space-2);
-      height: 24px;
-      cursor: pointer;
-      border-radius: var(--zui-radius);
-      white-space: nowrap;
-    }
-    #toolbar .toolbar-btn:hover { background: var(--zui-bg-hover); border-color: var(--zui-accent); }
-    #toolbar .toolbar-btn.primary {
-      background: var(--zui-accent);
-      color: var(--zui-text-on-accent);
-      border-color: var(--zui-accent);
-    }
-    #toolbar .toolbar-btn.primary:hover { background: var(--zui-accent-hover); }
-    #toolbar .sep { width: 1px; height: 20px; background: var(--zui-border); margin: 0 var(--zui-space-1); }
-    #toolbar .branch-input {
-      background: var(--zui-bg-surface);
-      border: 1px solid var(--zui-border-strong);
-      color: var(--zui-text);
-      font: inherit;
-      font-size: var(--zui-fs-small);
-      padding: 0 var(--zui-space-2);
-      height: 24px;
-      border-radius: var(--zui-radius);
-      width: 100px;
-    }
-    #toolbar .branch-label {
-      font-size: var(--zui-fs-small);
-      color: var(--zui-text-secondary);
-    }
-    #toolbar .spacer { flex: 1; }
-
-    /* ── Quick-add bar ─────────────────────────────────────────── */
-    #quick-add-bar {
-      display: none;
-      align-items: center;
-      gap: var(--zui-space-2);
-      padding: var(--zui-space-1) var(--zui-space-3);
-      background: var(--zui-bg-surface-alt);
-      border-bottom: 1px solid var(--zui-border);
-      flex-shrink: 0;
-    }
-    #quick-add-bar.visible { display: flex; }
-    #quick-add-bar label { font-size: var(--zui-fs-small); color: var(--zui-text-secondary); }
-    #quick-add-bar input {
-      flex: 1;
-      background: var(--zui-bg-surface);
-      border: 1px solid var(--zui-accent);
-      color: var(--zui-text);
-      font: inherit;
-      font-size: var(--zui-fs-normal);
-      padding: 0 var(--zui-space-2);
-      height: 26px;
-      border-radius: var(--zui-radius);
-      outline: none;
-    }
-    #quick-add-bar .hint { font-size: var(--zui-fs-small); color: var(--zui-text-secondary); }
-
-    /* ── Task list ───────────────────────────────────────────────── */
-    #task-scroll {
-      flex: 1;
-      overflow-y: auto;
-      overflow-x: hidden;
-    }
-
-    /* Section headers */
-    .section-header {
-      display: flex;
-      align-items: center;
-      gap: var(--zui-space-2);
-      padding: var(--zui-space-1) var(--zui-space-3);
-      font-size: var(--zui-fs-small);
-      font-weight: var(--zui-fw-medium);
-      color: var(--zui-label-color);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      border-bottom: 1px solid var(--zui-accent);
-      background: var(--zui-bg-app);
-      position: sticky;
-      top: 0;
-      z-index: 2;
-      user-select: none;
-      cursor: pointer;
-    }
-    .section-header .branch-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-    .section-header .section-count {
-      color: var(--zui-text-secondary);
-      font-weight: var(--zui-fw-normal);
-      margin-left: auto;
-    }
-    .section-header .collapse-arrow {
-      color: var(--zui-text-secondary);
-      font-size: 10px;
-    }
-
-    /* Task cards ─────────────────────────────────────────────────── */
+    /* Custom task styles on top of zUI */
     .task-card {
       border-bottom: 1px solid var(--zui-border);
       background: var(--zui-bg-surface);
       cursor: pointer;
       user-select: none;
+      display: flex;
+      align-items: flex-start;
+      padding: var(--zui-space-2) var(--zui-space-3);
+      gap: var(--zui-space-2);
+      position: relative;
     }
     .task-card:hover { background: var(--zui-bg-hover); }
     .task-card.selected { background: var(--zui-bg-selected); }
     .task-card.done .task-name { text-decoration: line-through; color: var(--zui-text-secondary); }
     .task-card.indented { margin-left: 20px; }
 
-    .task-row {
-      display: flex;
-      align-items: flex-start;
-      padding: var(--zui-space-2) var(--zui-space-3);
-      gap: var(--zui-space-2);
-    }
-
-    /* Done checkbox */
     .task-done-cb {
       flex-shrink: 0;
       margin-top: 1px;
@@ -301,9 +33,7 @@
       accent-color: var(--zui-accent);
     }
 
-    /* Task body */
     .task-body { flex: 1; min-width: 0; }
-
     .task-id {
       font-size: var(--zui-fs-small);
       color: var(--zui-text-secondary);
@@ -317,20 +47,8 @@
       text-overflow: ellipsis;
     }
 
-    .task-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 3px;
-      margin-top: 3px;
-    }
-    .chip {
-      font-size: 10px;
-      padding: 1px 5px;
-      border-radius: var(--zui-radius);
-      border: 1px solid var(--zui-border-strong);
-      color: var(--zui-text-secondary);
-      white-space: nowrap;
-    }
+    .task-chips { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
+    .chip { font-size: 10px; padding: 1px 5px; border-radius: var(--zui-radius); border: 1px solid var(--zui-border-strong); color: var(--zui-text-secondary); white-space: nowrap; }
     .chip.inprogress { border-color: var(--zui-accent); color: var(--zui-accent); }
     .chip.bug { border-color: var(--zui-error); color: var(--zui-error); }
     .chip.locked { border-color: var(--zui-warn); color: var(--zui-warn); }
@@ -342,454 +60,212 @@
     .chip.blocked { border-color: var(--zui-warn); color: var(--zui-warn); }
     .chip.tag { background: var(--zui-bg-raised); }
 
-    /* Subtask mini-bar */
-    .task-subtasks {
-      margin-top: 4px;
-      display: flex;
-      gap: var(--zui-space-1);
-      flex-wrap: wrap;
-    }
-    .subtask-item {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 11px;
-      color: var(--zui-text-secondary);
-    }
-    .subtask-item input[type=checkbox] {
-      width: 11px;
-      height: 11px;
-      accent-color: var(--zui-accent);
-      cursor: pointer;
-    }
+    .task-subtasks { margin-top: 4px; display: flex; gap: var(--zui-space-1); flex-wrap: wrap; }
+    .subtask-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--zui-text-secondary); }
+    .subtask-item input[type=checkbox] { width: 11px; height: 11px; accent-color: var(--zui-accent); cursor: pointer; }
     .subtask-item.done-sub { text-decoration: line-through; opacity: 0.5; }
 
-    /* Task action buttons */
-    .task-actions {
-      display: flex;
-      align-items: center;
-      gap: var(--zui-space-1);
-      flex-shrink: 0;
-      opacity: 0;
-      transition: opacity var(--zui-dur-fast);
-    }
+    .task-actions { display: flex; align-items: center; gap: var(--zui-space-1); flex-shrink: 0; opacity: 0; transition: opacity var(--zui-dur-fast); }
     .task-card:hover .task-actions { opacity: 1; }
-    .task-actions button {
-      background: none;
-      border: 1px solid var(--zui-border-strong);
-      color: var(--zui-text-secondary);
-      font: inherit;
-      font-size: 11px;
-      padding: 0 5px;
-      height: 20px;
-      cursor: pointer;
-      border-radius: var(--zui-radius);
-    }
+    .task-actions button { background: none; border: 1px solid var(--zui-border-strong); color: var(--zui-text-secondary); font: inherit; font-size: 11px; padding: 0 5px; height: 20px; cursor: pointer; border-radius: var(--zui-radius); }
     .task-actions button:hover { background: var(--zui-bg-raised); color: var(--zui-text); border-color: var(--zui-accent); }
     .task-actions button.danger:hover { border-color: var(--zui-error); color: var(--zui-error); }
 
-    /* Branch color bar at left of task card (non-main only) */
-    .task-card .branch-bar {
-      width: 3px;
-      background: transparent;
-      flex-shrink: 0;
-      align-self: stretch;
-      border-radius: 0;
-    }
+    .branch-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: transparent; }
 
-    /* Drag handle indicator */
-    .task-card .drag-handle {
-      color: var(--zui-text-disabled);
-      font-size: 11px;
-      flex-shrink: 0;
-      cursor: grab;
-      padding: 0 2px;
-      opacity: 0;
-    }
+    .drag-handle { color: var(--zui-text-disabled); font-size: 11px; flex-shrink: 0; cursor: grab; padding: 0 2px; opacity: 0; }
     .task-card:hover .drag-handle { opacity: 1; }
     .task-card.dragging { opacity: 0.4; }
     .task-card.drag-over-above { border-top: 2px solid var(--zui-accent); }
     .task-card.drag-over-below { border-bottom: 2px solid var(--zui-accent); }
 
-    /* ── Empty/placeholder ──────────────────────────────────────── */
-    #empty-state {
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: var(--zui-space-3);
-      height: 100%;
-      color: var(--zui-text-secondary);
-      font-size: var(--zui-fs-normal);
-    }
-    #empty-state.visible { display: flex; }
-    #empty-state .empty-hint { font-size: var(--zui-fs-small); }
-
-    /* ── Overlay scrim + modal ───────────────────────────────────── */
-    #overlay-scrim {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: var(--zui-scrim);
-      z-index: 10;
-    }
+    #quick-add-bar { display: none; }
+    #quick-add-bar.visible { display: flex; }
+    #overlay-scrim { display: none; position: fixed; inset: 0; background: var(--zui-scrim); z-index: 10; }
     #overlay-scrim.visible { display: block; }
-
-    /* ── Task form overlay ──────────────────────────────────────── */
-    #task-form-overlay {
-      display: none;
-      position: fixed;
-      top: 0; right: 0; bottom: 0;
-      width: 440px;
-      background: var(--zui-bg-surface);
-      border-left: 1px solid var(--zui-border-strong);
-      z-index: 11;
-      flex-direction: column;
-      overflow: hidden;
-    }
-    #task-form-overlay.visible { display: flex; }
-
-    .form-header {
-      display: flex;
-      align-items: center;
-      gap: var(--zui-space-2);
-      padding: var(--zui-space-2) var(--zui-space-3);
-      border-bottom: 1px solid var(--zui-border);
-      background: var(--zui-bg-surface-alt);
-      flex-shrink: 0;
-    }
-    .form-header h2 {
-      flex: 1;
-      font-size: var(--zui-fs-medium);
-      font-weight: var(--zui-fw-medium);
-    }
-    .form-header .form-id {
-      font-size: var(--zui-fs-small);
-      color: var(--zui-text-secondary);
-    }
-    .form-body {
-      flex: 1;
-      overflow-y: auto;
-      padding: var(--zui-space-3);
-      display: flex;
-      flex-direction: column;
-      gap: var(--zui-space-3);
-    }
-    .form-footer {
-      display: flex;
-      gap: var(--zui-space-2);
-      padding: var(--zui-space-2) var(--zui-space-3);
-      border-top: 1px solid var(--zui-border);
-      background: var(--zui-bg-surface-alt);
-      flex-shrink: 0;
-      justify-content: flex-end;
-    }
-
-    .field-group { display: flex; flex-direction: column; gap: 5px; }
-    .field-group label {
-      font-size: var(--zui-fs-small);
-      color: var(--zui-text-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-    }
-    .field-group input[type=text],
-    .field-group textarea,
-    .field-group select {
-      background: var(--zui-bg-raised);
-      border: 1px solid var(--zui-border-strong);
-      color: var(--zui-text);
-      font: inherit;
-      font-size: var(--zui-fs-normal);
-      padding: var(--zui-space-1) var(--zui-space-2);
-      border-radius: var(--zui-radius);
-      outline: none;
-      width: 100%;
-    }
-    .field-group input[type=text]:focus,
-    .field-group textarea:focus,
-    .field-group select:focus { border-color: var(--zui-accent); }
-    .field-group textarea { resize: vertical; min-height: 60px; }
-
-    .flag-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--zui-space-2);
-      align-items: center;
-    }
-    .flag-cb {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      font-size: var(--zui-fs-small);
-      cursor: pointer;
-    }
-    .flag-cb input { accent-color: var(--zui-accent); }
-
-    .subtask-list { list-style: none; display: flex; flex-direction: column; gap: 3px; }
-    .subtask-list li {
-      display: flex;
-      align-items: center;
-      gap: var(--zui-space-2);
-      font-size: var(--zui-fs-small);
-    }
-    .subtask-list li input[type=checkbox] { accent-color: var(--zui-accent); }
-    .subtask-list li .st-text { flex: 1; }
-    .subtask-list li .st-remove {
-      background: none;
-      border: none;
-      color: var(--zui-text-secondary);
-      cursor: pointer;
-      font-size: 12px;
-      padding: 0 3px;
-    }
-    .subtask-list li .st-remove:hover { color: var(--zui-error); }
-
-    .add-subtask-row {
-      display: flex;
-      gap: var(--zui-space-2);
-    }
-    .add-subtask-row input {
-      flex: 1;
-      background: var(--zui-bg-raised);
-      border: 1px solid var(--zui-border-strong);
-      color: var(--zui-text);
-      font: inherit;
-      font-size: var(--zui-fs-small);
-      padding: 2px var(--zui-space-2);
-      border-radius: var(--zui-radius);
-      outline: none;
-    }
-    .add-subtask-row input:focus { border-color: var(--zui-accent); }
-
-    /* ── Text editor overlay ─────────────────────────────────────── */
-    #text-editor-overlay {
-      display: none;
-      position: fixed;
-      inset: 60px 40px;
-      background: var(--zui-bg-surface);
-      border: 1px solid var(--zui-border-strong);
-      border-radius: var(--zui-radius-lg);
-      box-shadow: var(--zui-shadow-modal);
-      z-index: 11;
-      flex-direction: column;
-      overflow: hidden;
-    }
-    #text-editor-overlay.visible { display: flex; }
-    #text-editor-overlay .form-header { }
-    #text-editor-subtitle {
-      font-size: var(--zui-fs-small);
-      color: var(--zui-text-secondary);
-      padding: 2px var(--zui-space-3) var(--zui-space-1);
-      border-bottom: 1px solid var(--zui-border);
-      background: var(--zui-bg-surface-alt);
-      flex-shrink: 0;
-    }
-    #text-editor-overlay textarea {
-      flex: 1;
-      resize: none;
-      background: var(--zui-bg-surface);
-      border: none;
-      color: var(--zui-text);
-      font: var(--zui-fw-normal) var(--zui-fs-small) / 1.6 var(--zui-font-mono);
-      padding: var(--zui-space-3);
-      outline: none;
-    }
-
-    /* Buttons (reuse zui style) */
-    .btn {
-      background: var(--zui-bg-raised);
-      border: 1px solid var(--zui-border-strong);
-      color: var(--zui-text);
-      font: inherit;
-      font-size: var(--zui-fs-small);
-      padding: 0 var(--zui-space-3);
-      height: 26px;
-      cursor: pointer;
-      border-radius: var(--zui-radius);
-    }
-    .btn:hover { background: var(--zui-bg-active); border-color: var(--zui-accent); }
-    .btn.primary {
-      background: var(--zui-accent);
-      border-color: var(--zui-accent);
-      color: var(--zui-text-on-accent);
-    }
-    .btn.primary:hover { background: var(--zui-accent-hover); }
-    .btn.danger { }
-    .btn.danger:hover { border-color: var(--zui-error); color: var(--zui-error); }
-
-    /* Scrollbar */
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--zui-scrollbar-thumb); border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: var(--zui-scrollbar-thumb-hover); }
-  </style>
+    #task-form-overlay, #text-editor-overlay { display: none; }
+    #task-form-overlay.visible, #text-editor-overlay.visible { display: flex; }
+    #text-editor-overlay textarea { flex: 1; resize: none; border: none; background: transparent; color: var(--zui-text); padding: var(--zui-space-3); outline: none; font-family: var(--zui-font-mono); font-size: var(--zui-fs-small); line-height: 1.6; }
+    #empty-state { display: none; }
+    #empty-state.visible { display: flex; }
+    .proj-local-badge { font-size: var(--zui-fs-small); color: var(--zui-text-secondary); float:right; }
+    .section-header { display: flex; align-items: center; gap: var(--zui-space-2); padding: var(--zui-space-1) var(--zui-space-3); font-size: var(--zui-fs-small); font-weight: var(--zui-fw-medium); color: var(--zui-label-color); text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 1px solid var(--zui-accent); background: var(--zui-bg-app); position: sticky; top: 0; z-index: 2; user-select: none; cursor: pointer; }
+    .section-header .branch-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .section-header .section-count { color: var(--zui-text-secondary); font-weight: var(--zui-fw-normal); margin-left: auto; }
+    .section-header .collapse-arrow { color: var(--zui-text-secondary); font-size: 10px; }
+</style>
 </head>
 <body>
-<div id="app">
+<div class="zui-window" id="app">
 
-  <!-- ── Title-bar ──────────────────────────────────────────────── -->
-  <div id="titlebar">
-    <span class="app-name">zProject</span>
-    <button class="menu-btn" id="menu-file">File</button>
-    <button class="menu-btn" id="menu-project">Project</button>
-    <button class="menu-btn" id="menu-agent">Agent</button>
-    <span class="sep"></span>
-    <span class="status-text" id="status-text">Ready</span>
+  <!-- 1. title bar -->
+  <div class="zui-titlebar" id="titlebar">
+    <span>zProject</span>
+    <span class="zui-spacer"></span>
+    <span id="status-text" class="zui-text-secondary zui-t-small" style="margin-right:12px">Ready</span>
   </div>
 
-  <!-- ── Body ───────────────────────────────────────────────────── -->
-  <div id="body">
+  <!-- 2. application menu -->
+  <div class="zui-menubar" id="menubar">
+    <div class="zui-menubar__item" id="menu-file">File</div>
+    <div class="zui-menubar__item" id="menu-project">Project</div>
+    <div class="zui-menubar__item" id="menu-agent">Agent</div>
+  </div>
 
-    <!-- Sidebar -->
-    <div id="sidebar">
-      <div class="sidebar-header">Projects</div>
-      <ul id="project-list"></ul>
-      <div id="sidebar-footer">
-        <button id="btn-new-project">+ Add Project</button>
-        <button id="btn-new-local">+ Local List</button>
-        <button id="btn-save-all">Save All</button>
-        <button id="btn-web-server">Start Web Server</button>
-        <button id="btn-exit">Exit</button>
+  <!-- 4. workspace -->
+  <div class="zui-workspace">
+    <nav class="zui-sidebar" style="width:192px">
+      <div class="zui-section-label">Projects</div>
+      <div id="project-list" class="zui-scroll zui-fill zui-list"></div>
+      <div style="border-top:1px solid var(--zui-border);padding:4px 0">
+        <button id="btn-new-project" class="zui-sidebar__item" style="text-align:left;border:none;background:none;width:100%">+ Add Project</button>
+        <button id="btn-new-local" class="zui-sidebar__item" style="text-align:left;border:none;background:none;width:100%">+ Local List</button>
+        <button id="btn-save-all" class="zui-sidebar__item" style="text-align:left;border:none;background:none;width:100%">Save All</button>
+        <button id="btn-web-server" class="zui-sidebar__item" style="text-align:left;border:none;background:none;width:100%">Start Web Server</button>
+        <button id="btn-exit" class="zui-sidebar__item" style="text-align:left;border:none;background:none;width:100%">Exit</button>
       </div>
-    </div>
-
-    <!-- Main -->
-    <div id="main">
-
+    </nav>
+    <div class="zui-fill zui-scroll" style="display:flex;flex-direction:column;">
       <!-- Toolbar -->
-      <div id="toolbar">
-        <button class="toolbar-btn primary" id="btn-add-task">+ New Task</button>
-        <div class="sep"></div>
-        <button class="toolbar-btn" id="btn-deploy-codex">▶ Codex</button>
-        <button class="toolbar-btn" id="btn-deploy-claude">▶ Claude</button>
-        <button class="toolbar-btn" id="btn-deploy-antigravity">▶ Antigravity</button>
-        <div class="sep"></div>
-        <button class="toolbar-btn" id="btn-collapse-all">Collapse All</button>
-        <button class="toolbar-btn" id="btn-expand-all">Expand All</button>
-        <div class="sep"></div>
-        <span class="branch-label">Branch:</span>
-        <input type="text" class="branch-input" id="new-task-branch" value="main" title="Branch for new tasks">
-        <div class="spacer"></div>
-        <button class="toolbar-btn" id="btn-reload">Reload</button>
-        <button class="toolbar-btn" id="btn-open-dir">Open Folder</button>
+      <div class="zui-row zui-gap-2 zui-items-center" style="padding:4px 8px;border-bottom:1px solid var(--zui-border);background:var(--zui-bg-surface-alt);flex-shrink:0;">
+        <button class="zui-btn zui-btn--primary" id="btn-add-task">+ New Task</button>
+        <span class="zui-sep--v" style="height:16px"></span>
+        <button class="zui-btn" id="btn-deploy-codex">▶ Codex</button>
+        <button class="zui-btn" id="btn-deploy-claude">▶ Claude</button>
+        <button class="zui-btn" id="btn-deploy-antigravity">▶ Antigravity</button>
+        <span class="zui-sep--v" style="height:16px"></span>
+        <button class="zui-btn" id="btn-collapse-all">Collapse All</button>
+        <button class="zui-btn" id="btn-expand-all">Expand All</button>
+        <span class="zui-sep--v" style="height:16px"></span>
+        <span class="zui-t-small zui-text-secondary">Branch:</span>
+        <input type="text" class="zui-input" id="new-task-branch" value="main" style="width:100px">
+        <span class="zui-spacer"></span>
+        <button class="zui-btn" id="btn-reload">Reload</button>
+        <button class="zui-btn" id="btn-open-dir">Open Folder</button>
       </div>
 
       <!-- Quick-add bar -->
-      <div id="quick-add-bar">
-        <label>New task:</label>
-        <input type="text" id="quick-add-input" placeholder="Task name…">
-        <span class="hint">Enter — add · Esc — cancel</span>
+      <div id="quick-add-bar" class="zui-row zui-gap-2 zui-items-center" style="padding:4px 8px;border-bottom:1px solid var(--zui-border);background:var(--zui-bg-surface-alt);flex-shrink:0;">
+        <span class="zui-t-small zui-text-secondary">New task:</span>
+        <input type="text" class="zui-input zui-fill" id="quick-add-input" placeholder="Task name…">
+        <span class="zui-t-small zui-text-secondary">Enter — add · Esc — cancel</span>
       </div>
 
       <!-- Task scroll area -->
-      <div id="task-scroll">
-        <div id="empty-state" class="visible">
+      <div id="task-scroll" class="zui-scroll zui-fill" style="position:relative;">
+        <div id="empty-state" class="zui-center zui-fill zui-col zui-gap-3" style="color:var(--zui-text-secondary);position:absolute;inset:0;">
           <span>No project selected</span>
-          <span class="empty-hint">Choose a project from the sidebar or add one with + Add Project</span>
+          <span class="empty-hint zui-t-small">Choose a project from the sidebar or add one with + Add Project</span>
         </div>
         <div id="task-list"></div>
       </div>
-
-    </div><!-- /main -->
-  </div><!-- /body -->
-
-</div><!-- /app -->
+    </div>
+  </div>
+</div>
 
 <!-- ── Overlay scrim ────────────────────────────────────────────── -->
 <div id="overlay-scrim"></div>
 
 <!-- ── Task form overlay ────────────────────────────────────────── -->
-<div id="task-form-overlay">
-  <div class="form-header">
-    <span class="form-id" id="form-task-id"></span>
-    <h2 id="form-title">Task</h2>
-    <button class="btn" id="form-cancel-btn">✕</button>
+<div id="task-form-overlay" class="zui-panel" style="position:fixed;top:0;right:0;bottom:0;width:440px;border-left:1px solid var(--zui-border-strong);z-index:11;">
+  <div class="zui-panel__header">
+    <span id="form-task-id" class="zui-text-secondary zui-t-small" style="margin-right:8px"></span>
+    <span id="form-title" style="flex:1">Task</span>
+    <button class="zui-btn" id="form-cancel-btn">✕</button>
   </div>
-  <div class="form-body" id="form-body">
-    <div class="field-group">
-      <label>Name</label>
-      <input type="text" id="form-name" placeholder="Task name">
+  <div class="zui-panel__body zui-scroll" id="form-body" style="padding:12px;display:flex;flex-direction:column;gap:12px">
+    <div class="zui-col zui-gap-1">
+      <label class="zui-t-small zui-text-secondary">Name</label>
+      <input type="text" class="zui-input" id="form-name" placeholder="Task name">
     </div>
-    <div class="field-group">
-      <label>Branch</label>
-      <input type="text" id="form-branch" placeholder="main" list="form-branches-list">
+    <div class="zui-col zui-gap-1">
+      <label class="zui-t-small zui-text-secondary">Branch</label>
+      <input type="text" class="zui-input" id="form-branch" placeholder="main" list="form-branches-list">
       <datalist id="form-branches-list"></datalist>
     </div>
-    <div class="field-group">
-      <label>Flags</label>
-      <div class="flag-row">
-        <label class="flag-cb"><input type="checkbox" id="form-inprogress"> In Progress</label>
-        <label class="flag-cb"><input type="checkbox" id="form-done"> Done</label>
-        <label class="flag-cb"><input type="checkbox" id="form-bug"> Bug</label>
-        <label class="flag-cb"><input type="checkbox" id="form-locked"> Locked</label>
-        <label class="flag-cb"><input type="checkbox" id="form-archived"> Archived</label>
-        <label class="flag-cb"><input type="checkbox" id="form-commit"> Commit</label>
-        <label class="flag-cb"><input type="checkbox" id="form-build"> Build</label>
-        <label class="flag-cb"><input type="checkbox" id="form-release"> Release</label>
-        <label class="flag-cb"><input type="checkbox" id="form-merge"> Merge</label>
+    <div class="zui-col zui-gap-1">
+      <label class="zui-t-small zui-text-secondary">Flags</label>
+      <div class="zui-row zui-gap-2" style="flex-wrap:wrap">
+        <label class="zui-check"><input type="checkbox" id="form-inprogress"> In Progress</label>
+        <label class="zui-check"><input type="checkbox" id="form-done"> Done</label>
+        <label class="zui-check"><input type="checkbox" id="form-bug"> Bug</label>
+        <label class="zui-check"><input type="checkbox" id="form-locked"> Locked</label>
+        <label class="zui-check"><input type="checkbox" id="form-archived"> Archived</label>
+        <label class="zui-check"><input type="checkbox" id="form-commit"> Commit</label>
+        <label class="zui-check"><input type="checkbox" id="form-build"> Build</label>
+        <label class="zui-check"><input type="checkbox" id="form-release"> Release</label>
+        <label class="zui-check"><input type="checkbox" id="form-merge"> Merge</label>
       </div>
     </div>
-    <div class="field-group">
-      <label>Blocked By</label>
-      <input type="text" id="form-blocked-by" placeholder="Task ID" list="form-blockers-list">
+    <div class="zui-col zui-gap-1">
+      <label class="zui-t-small zui-text-secondary">Blocked By</label>
+      <input type="text" class="zui-input" id="form-blocked-by" placeholder="Task ID" list="form-blockers-list">
       <datalist id="form-blockers-list"></datalist>
     </div>
-    <div class="field-group">
-      <label>Tags</label>
-      <input type="text" id="form-tags" placeholder="comma-separated tags" list="form-tags-list">
+    <div class="zui-col zui-gap-1">
+      <label class="zui-t-small zui-text-secondary">Tags</label>
+      <input type="text" class="zui-input" id="form-tags" placeholder="comma-separated tags" list="form-tags-list">
       <datalist id="form-tags-list"></datalist>
     </div>
-    <div class="field-group">
-      <label>Prompt</label>
-      <textarea id="form-prompt" placeholder="Task description for the agent…" rows="4"></textarea>
+    <div class="zui-col zui-gap-1">
+      <label class="zui-t-small zui-text-secondary">Prompt</label>
+      <textarea class="zui-textarea" id="form-prompt" placeholder="Task description for the agent…" rows="4"></textarea>
     </div>
-    <div class="field-group">
-      <label>Requirements</label>
-      <textarea id="form-requirements" placeholder="Specific requirements…" rows="3"></textarea>
+    <div class="zui-col zui-gap-1">
+      <label class="zui-t-small zui-text-secondary">Requirements</label>
+      <textarea class="zui-textarea" id="form-requirements" placeholder="Specific requirements…" rows="3"></textarea>
     </div>
-    <div class="field-group" id="form-notes-group">
-      <label>Notes (agent-written)</label>
-      <textarea id="form-notes" rows="3"></textarea>
+    <div class="zui-col zui-gap-1" id="form-notes-group">
+      <label class="zui-t-small zui-text-secondary">Notes (agent-written)</label>
+      <textarea class="zui-textarea" id="form-notes" rows="3"></textarea>
     </div>
-    <div class="field-group" id="form-files-group">
-      <label>Files Changed (agent-written)</label>
-      <textarea id="form-files" rows="2"></textarea>
+    <div class="zui-col zui-gap-1" id="form-files-group">
+      <label class="zui-t-small zui-text-secondary">Files Changed (agent-written)</label>
+      <textarea class="zui-textarea" id="form-files" rows="2"></textarea>
     </div>
-    <div class="field-group" id="form-error-group">
-      <label>Error Message</label>
-      <textarea id="form-error-msg" rows="2"></textarea>
+    <div class="zui-col zui-gap-1" id="form-error-group">
+      <label class="zui-t-small zui-text-secondary">Error Message</label>
+      <textarea class="zui-textarea" id="form-error-msg" rows="2"></textarea>
     </div>
-    <div class="field-group">
-      <label>Subtasks</label>
-      <ul class="subtask-list" id="form-subtask-list"></ul>
-      <div class="add-subtask-row">
-        <input type="text" id="form-new-subtask" placeholder="New subtask…">
-        <button class="btn" id="form-add-subtask">Add</button>
+    <div class="zui-col zui-gap-1">
+      <label class="zui-t-small zui-text-secondary">Subtasks</label>
+      <ul style="list-style:none;display:flex;flex-direction:column;gap:3px;padding:0;margin:0" id="form-subtask-list"></ul>
+      <div class="zui-row zui-gap-2">
+        <input type="text" class="zui-input zui-fill" id="form-new-subtask" placeholder="New subtask…">
+        <button class="zui-btn" id="form-add-subtask">Add</button>
       </div>
     </div>
-    <div class="field-group">
-      <label>Run with agent</label>
-      <div class="flag-row">
-        <button class="btn" id="form-run-codex">▶ Codex</button>
-        <button class="btn" id="form-run-claude">▶ Claude</button>
-        <button class="btn" id="form-run-antigravity">▶ Antigravity</button>
+    <div class="zui-col zui-gap-1">
+      <label class="zui-t-small zui-text-secondary">Run with agent</label>
+      <div class="zui-row zui-gap-2">
+        <button class="zui-btn" id="form-run-codex">▶ Codex</button>
+        <button class="zui-btn" id="form-run-claude">▶ Claude</button>
+        <button class="zui-btn" id="form-run-antigravity">▶ Antigravity</button>
       </div>
     </div>
   </div>
-  <div class="form-footer">
-    <button class="btn danger" id="form-delete-btn">Delete</button>
-    <div style="flex:1"></div>
-    <button class="btn" id="form-cancel-btn2">Cancel</button>
-    <button class="btn primary" id="form-save-btn">Save</button>
+  <div class="zui-row zui-gap-2" style="padding:8px 12px;border-top:1px solid var(--zui-border);background:var(--zui-bg-surface-alt)">
+    <button class="zui-btn" id="form-delete-btn" style="color:var(--zui-error)">Delete</button>
+    <span class="zui-spacer"></span>
+    <button class="zui-btn" id="form-cancel-btn2">Cancel</button>
+    <button class="zui-btn zui-btn--primary" id="form-save-btn">Save</button>
   </div>
 </div>
 
 <!-- ── Text editor overlay ──────────────────────────────────────── -->
-<div id="text-editor-overlay">
-  <div class="form-header">
-    <h2 id="text-editor-title">Edit</h2>
-    <button class="btn" id="text-editor-cancel">✕</button>
+<div id="text-editor-overlay" class="zui-panel" style="position:fixed;inset:60px 40px;border-radius:var(--zui-radius-lg);box-shadow:var(--zui-shadow-modal);z-index:11;display:none;flex-direction:column">
+  <div class="zui-panel__header">
+    <span id="text-editor-title" style="flex:1">Edit</span>
+    <button class="zui-btn" id="text-editor-cancel">✕</button>
   </div>
+  <div id="text-editor-subtitle" class="zui-t-small zui-text-secondary" style="padding:2px 12px 4px;border-bottom:1px solid var(--zui-border);background:var(--zui-bg-surface-alt)"></div>
+  <textarea id="text-editor-content"></textarea>
+  <div class="zui-row zui-gap-2 zui-justify-end" style="padding:8px 12px;border-top:1px solid var(--zui-border);background:var(--zui-bg-surface-alt)">
+    <button class="zui-btn" id="text-editor-cancel2">Cancel</button>
+    <button class="zui-btn zui-btn--primary" id="text-editor-save">Save</button>
+  </div>
+</div>
+
   <div id="text-editor-subtitle"></div>
   <textarea id="text-editor-content"></textarea>
   <div class="form-footer">
