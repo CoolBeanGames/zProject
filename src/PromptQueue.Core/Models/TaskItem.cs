@@ -30,6 +30,8 @@ public sealed class TaskItem : Observable
     private bool _commit;
     private bool _build;
     private bool _release;
+    private bool _merge;
+    private string _branch = "main";
     private string _tagText = "";
     private string _notes = "";
     private string _filesChanged = "";
@@ -206,20 +208,19 @@ public sealed class TaskItem : Observable
         !Done && Error ? 1 :
         Done ? 3 : 2;
 
-    /// <summary>Human-readable section name, used to group the task list.</summary>
-    public string SectionKey => SectionRank switch
-    {
-        0 => "Bugs",
-        1 => "Needs attention",
-        3 => "Completed",
-        4 => "Archived",
-        _ => "Active",
-    };
+    public string BranchDisplay => string.IsNullOrWhiteSpace(Branch) ? "main" : Branch;
+
+    /// <summary>Human-readable section / branch category name, used to group the task list (ZP-83).</summary>
+    public string SectionKey =>
+        Archived ? "Archived" :
+        Done ? "Completed" :
+        BranchDisplay;
 
     private void RaiseSection()
     {
         Raise(nameof(SectionRank));
         Raise(nameof(SectionKey));
+        Raise(nameof(BranchDisplay));
         Raise(nameof(StatusText));
     }
 
@@ -262,6 +263,27 @@ public sealed class TaskItem : Observable
     {
         get => _release;
         set => Set(ref _release, value);
+    }
+
+    /// <summary>When set, instructs the agent to merge the task's branch once completed (ZP-83).</summary>
+    public bool Merge
+    {
+        get => _merge;
+        set => Set(ref _merge, value);
+    }
+
+    /// <summary>The project branch this task belongs to (default "main", ZP-83).</summary>
+    public string Branch
+    {
+        get => string.IsNullOrWhiteSpace(_branch) ? "main" : _branch;
+        set
+        {
+            if (Set(ref _branch, string.IsNullOrWhiteSpace(value) ? "main" : value.Trim()))
+            {
+                Raise(nameof(Branch));
+                RaiseSection();
+            }
+        }
     }
 
     /// <summary>
@@ -436,6 +458,8 @@ public sealed class TaskItem : Observable
             Commit = Commit,
             Build = Build,
             Release = Release,
+            Merge = Merge,
+            Branch = Branch,
             TagText = TagText,
             Notes = Notes,
             FilesChanged = FilesChanged,
@@ -467,6 +491,8 @@ public sealed class TaskItem : Observable
         Commit = other.Commit;
         Build = other.Build;
         Release = other.Release;
+        Merge = other.Merge;
+        Branch = other.Branch;
         TagText = other.TagText;
         Notes = other.Notes;
         FilesChanged = other.FilesChanged;

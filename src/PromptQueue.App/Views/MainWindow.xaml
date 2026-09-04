@@ -26,6 +26,7 @@
         <app:ChevronGlyphConverter x:Key="ChevronGlyph"/>
         <app:IndentConverter x:Key="Indent"/>
         <app:PathToImageConverter x:Key="PathImage"/>
+        <app:BranchColorConverter x:Key="BranchColor"/>
 
         <!-- ===================== TEXT EDITOR OVERLAY ===================== -->
         <DataTemplate DataType="{x:Type vm:TextEditorViewModel}">
@@ -72,6 +73,9 @@
                             <CheckBox Content="Release" VerticalAlignment="Center" Margin="12,0,0,0"
                                       IsChecked="{Binding Release}"
                                       ToolTip="Produce a release build (builds/release) once this task is done"/>
+                            <CheckBox Content="Merge" VerticalAlignment="Center" Margin="12,0,0,0"
+                                      IsChecked="{Binding Merge}"
+                                      ToolTip="Merge the branch into main once this task is done"/>
                         </StackPanel>
                     </Grid>
 
@@ -166,6 +170,11 @@
                                     </DockPanel>
                                 </StackPanel>
                             </Grid>
+
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="Branch" Margin="0,12,0,3"/>
+                            <TextBox Text="{Binding Branch, UpdateSourceTrigger=PropertyChanged}"
+                                     b:GhostCompletion.Suggestions="{Binding KnownBranches}"
+                                     ToolTip="Branch name (default 'main') — press Tab to accept suggestion"/>
 
                             <TextBlock Style="{StaticResource FieldLabel}" Text="Tags (comma separated)" Margin="0,12,0,3"/>
                             <TextBox Text="{Binding TagText, UpdateSourceTrigger=PropertyChanged}"
@@ -369,6 +378,11 @@
                                          ToolTip="Tags for new tasks (comma separated) — press Tab to accept the greyed suggestion"
                                          b:GhostCompletion.Suggestions="{Binding DataContext.KnownTags, RelativeSource={RelativeSource AncestorType=Window}}"
                                          Text="{Binding DataContext.NewTaskTagText, RelativeSource={RelativeSource AncestorType=Window}, UpdateSourceTrigger=PropertyChanged}"/>
+                                <TextBlock Text="BRANCH" VerticalAlignment="Center" Margin="8,0,4,0" Style="{StaticResource SectionHeading}"/>
+                                <TextBox Width="110" Margin="0,0,0,0" VerticalContentAlignment="Center"
+                                         ToolTip="Branch for new tasks (default: main) — press Tab to accept suggestion"
+                                         b:GhostCompletion.Suggestions="{Binding DataContext.KnownBranches, RelativeSource={RelativeSource AncestorType=Window}}"
+                                         Text="{Binding DataContext.NewTaskBranch, RelativeSource={RelativeSource AncestorType=Window}, UpdateSourceTrigger=PropertyChanged}"/>
                                 <Border Width="1" Background="{StaticResource BorderBrush}" Margin="10,2"/>
                                 <TextBlock Text="DEPLOY" VerticalAlignment="Center" Margin="0,0,8,0"
                                            Style="{StaticResource SectionHeading}"/>
@@ -472,6 +486,22 @@
                                                                             Visibility="Collapsed"
                                                                             Command="{Binding DataContext.ToggleCompletedCollapsedCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                                             Content="{Binding DataContext.CompletedCollapsed, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource ShowHide}}"/>
+                                                                    <Border x:Name="BranchBar" Width="8" Height="14" CornerRadius="2" Margin="0,0,8,0"
+                                                                            Background="{Binding Name, Converter={StaticResource BranchColor}}"
+                                                                            VerticalAlignment="Center">
+                                                                        <Border.Style>
+                                                                            <Style TargetType="Border">
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding Name}" Value="Completed">
+                                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                    </DataTrigger>
+                                                                                    <DataTrigger Binding="{Binding Name}" Value="Archived">
+                                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </Border.Style>
+                                                                    </Border>
                                                                     <TextBlock x:Name="SectionLabel"
                                                                                Style="{StaticResource SectionHeading}"
                                                                                VerticalAlignment="Center"
@@ -713,11 +743,15 @@
                                                 </Grid>
                                             </Button>
 
-                                            <!-- done -->
-                                            <CheckBox Grid.Column="2" VerticalAlignment="Top" Margin="6,2,0,0"
-                                                      IsChecked="{Binding Done}"
-                                                      ToolTip="Done"
-                                                      Checked="TaskDone_Changed" Unchecked="TaskDone_Changed"/>
+                                            <!-- done & branch banner (ZP-83) -->
+                                            <StackPanel Grid.Column="2" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,2,0,0">
+                                                <CheckBox IsChecked="{Binding Done}"
+                                                          ToolTip="Done"
+                                                          Checked="TaskDone_Changed" Unchecked="TaskDone_Changed"/>
+                                                <Border Height="6" Width="20" CornerRadius="2" Margin="0,4,0,0"
+                                                        Background="{Binding Branch, Converter={StaticResource BranchColor}}"
+                                                        ToolTip="{Binding Branch, StringFormat='Branch: {0}'}"/>
+                                            </StackPanel>
 
                                             <!-- name / id / status (always shown) -->
                                             <StackPanel Grid.Column="3" VerticalAlignment="Top" Margin="4,1,6,0">
@@ -763,7 +797,7 @@
                                                            Visibility="{Binding HasDates, Converter={StaticResource BoolVis}}"
                                                            Text="{Binding DatesSummary, Mode=OneWay}"/>
 
-                                                <!-- at-a-glance status chips (ZP-25) -->
+                                                <!-- at-a-glance status chips (ZP-25 / ZP-83) -->
                                                 <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
                                                     <StackPanel.Visibility>
                                                         <MultiBinding Converter="{StaticResource AllEmpty}" ConverterParameter="invert">
@@ -772,6 +806,7 @@
                                                             <Binding Path="Commit"/>
                                                             <Binding Path="Build"/>
                                                             <Binding Path="Release"/>
+                                                            <Binding Path="Merge"/>
                                                         </MultiBinding>
                                                     </StackPanel.Visibility>
                                                     <Border Style="{StaticResource StatusChip}"
@@ -806,9 +841,15 @@
                                                         <TextBlock Text="RELEASE" Style="{StaticResource StatusChipText}"
                                                                    Foreground="{StaticResource AccentBrush}"/>
                                                     </Border>
+                                                    <Border Style="{StaticResource StatusChip}"
+                                                            BorderBrush="{StaticResource AccentBrush}"
+                                                            Visibility="{Binding Merge, Converter={StaticResource BoolVis}}">
+                                                        <TextBlock Text="MERGE" Style="{StaticResource StatusChipText}"
+                                                                   Foreground="{StaticResource AccentBrush}"/>
+                                                    </Border>
                                                 </StackPanel>
 
-                                                <!-- editable flag checkboxes on an expanded card (ZP-75) -->
+                                                <!-- editable flag checkboxes on an expanded card (ZP-75 / ZP-83) -->
                                                 <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                                                     <CheckBox Content="bug" Tag="bug" FontSize="10" Margin="0,0,10,0"
                                                               IsChecked="{Binding Bug}" Click="TaskFlag_Click"/>
@@ -816,8 +857,10 @@
                                                               IsChecked="{Binding Commit}" Click="TaskFlag_Click"/>
                                                     <CheckBox Content="build" Tag="build" FontSize="10" Margin="0,0,10,0"
                                                               IsChecked="{Binding Build}" Click="TaskFlag_Click"/>
-                                                    <CheckBox Content="release" Tag="release" FontSize="10"
+                                                    <CheckBox Content="release" Tag="release" FontSize="10" Margin="0,0,10,0"
                                                               IsChecked="{Binding Release}" Click="TaskFlag_Click"/>
+                                                    <CheckBox Content="merge" Tag="merge" FontSize="10"
+                                                              IsChecked="{Binding Merge}" Click="TaskFlag_Click"/>
                                                 </StackPanel>
 
                                                 <!-- colour-coded, collapsable tag chips (ZP-26 / ZP-33) -->

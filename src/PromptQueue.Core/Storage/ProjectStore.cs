@@ -127,10 +127,19 @@ public static class ProjectStore
 
         // ZP-71: active tasks -> tasks.xml, archived tasks -> archive.xml, so
         // tasks.xml stays small. Order is renumbered within each file.
-        var active = project.Tasks.Where(t => !t.Archived).ToList();
+        // ZP-82/83: Stable-sort active tasks by Branch (main first) then SectionRank (bugs -> errors -> active)
+        // so tasks.xml file order matches the UI, branch categories and bug priority rules.
+        var active = project.Tasks.Where(t => !t.Archived)
+            .OrderBy(t => t.Branch.Equals("main", StringComparison.OrdinalIgnoreCase) ? "" : t.Branch, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(t => t.SectionRank)
+            .ToList();
         var archived = project.Tasks.Where(t => t.Archived).ToList();
         for (int i = 0; i < active.Count; i++) active[i].Order = i;
         for (int i = 0; i < archived.Count; i++) archived[i].Order = i;
+
+        project.Tasks.Clear();
+        foreach (var t in active) project.Tasks.Add(t);
+        foreach (var t in archived) project.Tasks.Add(t);
 
         var tasksPath = Path.Combine(project.Directory, TaskXmlSerializer.FileName);
         var archivePath = Path.Combine(project.Directory, TaskXmlSerializer.ArchiveFileName);

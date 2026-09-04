@@ -368,7 +368,8 @@ public static class OperatorEngine
                     return OperatorResult.Fail($"\"{job.Arg(1)}\" is not an index.");
                 var old = project!.Tasks.IndexOf(task);
                 project.Tasks.RemoveAt(old);
-                index = Math.Clamp(index, 0, project.Tasks.Count);
+                var maxIndex = task.Archived ? project.Tasks.Count : project.Tasks.Count(t => !t.Archived);
+                index = Math.Clamp(index, 0, maxIndex);
                 project.Tasks.Insert(index, task);
                 touched.Add(project);
                 return OperatorResult.Pass($"Moved {task.Id} to {index}");

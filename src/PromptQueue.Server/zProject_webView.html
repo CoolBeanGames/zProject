@@ -262,10 +262,16 @@ async function newProject(local){
   r.ok ? render() : toast(r.message, true);
 }
 
-const SECTIONS = [
-  ['Bugs','s-bug'], ['Needs attention','s-err'], ['Active','s-active'],
-  ['Completed','s-done'], ['Archived','s-arch'],
-];
+function branchColor(name){
+  const str = (name || 'main').trim().toLowerCase();
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++){
+    h = Math.imul(h ^ str.charCodeAt(i), 16777619);
+  }
+  const hue = Math.abs(h % 360);
+  return `hsl(${hue}, 65%, 55%)`;
+}
+
 const SECT_CLASS = { 'Bugs':'s-bug','Needs attention':'s-err','Completed':'s-done','Archived':'s-arch' };
 
 async function renderList(pi){
@@ -275,7 +281,27 @@ async function renderList(pi){
     (groups.get(t.sectionKey) || groups.set(t.sectionKey, []).get(t.sectionKey)).push(t);
   }
   let body = '';
-  for (const [key] of SECTIONS){
+  // Categorize like branches together; new branch = new category (ZP-83)
+  const branchNames = [];
+  for (const t of data.tasks){
+    if (t.sectionKey !== 'Completed' && t.sectionKey !== 'Archived'){
+      if (!branchNames.includes(t.sectionKey)) branchNames.push(t.sectionKey);
+    }
+  }
+  branchNames.sort((a,b) => a.toLowerCase() === 'main' ? -1 : b.toLowerCase() === 'main' ? 1 : a.localeCompare(b));
+
+  for (const b of branchNames){
+    const items = groups.get(b);
+    if (!items || !items.length) continue;
+    body += `<div class="grp" style="display:flex;align-items:center;gap:6px;">
+      <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${branchColor(b)};flex:none;"></span>
+      <span>${esc(b)}</span> <span class="c">${items.length}</span>
+    </div><div class="queue">`;
+    for (const t of items) body += row(pi, t);
+    body += `</div>`;
+  }
+
+  for (const key of ['Completed', 'Archived']){
     const items = groups.get(key);
     if (!items || !items.length) continue;
     body += `<div class="grp">${esc(key)} <span class="c">${items.length}</span></div><div class="queue">`;
@@ -298,10 +324,12 @@ async function renderList(pi){
 
 function row(pi, t){
   const sc = SECT_CLASS[t.sectionKey] || 's-active';
-  const state = t.inProgress ? 'in progress' : t.statusText.toLowerCase();
+  const state = t.inProgress ? 'in progress' : (t.done ? 'done' : t.statusText.toLowerCase());
   const prog = (t.subtasks && t.subtasks.length)
     ? `<span class="prog">${t.subtasks.filter(s=>s.done).length}/${t.subtasks.length}</span>` : '';
+  const branchBanner = t.branch ? `<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${branchColor(t.branch)};margin-right:6px;flex:none;" title="Branch: ${esc(t.branch)}"></span>` : '';
   return `<div class="q ${sc}" data-id="${av(t.id)}">
+    ${branchBanner}
     <span class="nm">${esc(t.displayName)}</span>
     <span class="rt">${prog}<span class="state">${esc(state)}</span></span>
   </div>`;
@@ -311,7 +339,7 @@ function row(pi, t){
 const BLANK = { id:'', name:'', prompt:'', requirements:'', tags:[], blockedBy:'',
   dateStarted:'', dueDate:'', notes:'', filesChanged:'', errorMessage:'',
   bug:false, done:false, inProgress:false, locked:false, error:false, archived:false,
-  commit:false, build:false, release:false, subtasks:[] };
+  commit:false, build:false, release:false, merge:false, branch:'main', subtasks:[] };
 
 async function renderTask(pi, tid){
   const isNew = tid === 'new';
@@ -340,6 +368,8 @@ async function renderTask(pi, tid){
         <textarea id="f_prompt" placeholder="What the agent should do">${esc(t.prompt)}</textarea></div>
       <div class="field"><label for="f_requirements">Requirements</label>
         <textarea id="f_requirements" placeholder="What must be true when it's done">${esc(t.requirements)}</textarea></div>
+      <div class="field"><label for="f_branch">Branch</label>
+        <input type="text" id="f_branch" value="${av(t.branch || 'main')}" placeholder="Branch (default: main)"></div>
       <div class="field"><label for="f_tags">Tags</label>
         <input type="text" id="f_tags" value="${av((t.tags||[]).join(', '))}" placeholder="comma, separated"></div>
       <div class="two">
@@ -357,6 +387,7 @@ async function renderTask(pi, tid){
         ${flag('commit','Commit')}
         ${flag('build','Build')}
         ${flag('release','Release')}
+        ${flag('merge','Merge')}
         ${flag('error','Error','warn')}
         ${flag('archived','Archived')}
       </div>
@@ -438,13 +469,14 @@ async function saveTask(pi, pname, isNew, t, orig){
   const val = id => g(id) ? g(id).value.trim() : '';
   const text = {
     name: val('f_name'), prompt: g('f_prompt').value, requirements: g('f_requirements').value,
+    branch: val('f_branch') || 'main',
     tags: val('f_tags').split(',').map(s=>s.trim()).filter(Boolean).join(', '),
     blockedBy: val('f_blockedBy'), dueDate: val('f_dueDate'),
     dateStarted: val('f_dateStarted'), notes: g('f_notes') ? g('f_notes').value : orig.notes,
     filesChanged: g('f_filesChanged') ? g('f_filesChanged').value : orig.filesChanged,
     errorMessage: g('f_errorMessage') ? val('f_errorMessage') : orig.errorMessage,
   };
-  const BOOLS = ['bug','inProgress','done','locked','commit','build','release','error','archived'];
+  const BOOLS = ['bug','inProgress','done','locked','commit','build','release','merge','error','archived'];
 
   const btn = g('save'); btn.disabled = true; btn.textContent = 'Saving…';
 
@@ -458,6 +490,7 @@ async function saveTask(pi, pname, isNew, t, orig){
   const pairs = [];
   const put = (k,v) => { pairs.push(k, String(v)); };
   if (!isNew){ put('name', text.name); put('prompt', text.prompt); }
+  put('branch', text.branch);
   put('requirements', text.requirements);
   put('tags', text.tags);
   put('blockedBy', text.blockedBy);

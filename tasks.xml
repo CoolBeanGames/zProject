@@ -1,2 +1,130 @@
 <?xml version="1.0" encoding="utf-8"?>
-<tasks project="zProject" nextIndex="81" />
+<tasks project="zProject" nextIndex="89">
+  <task id="ZP-84">
+    <name>Instructions update</name>
+    <prompt>Update global instructions to include references to the new branch system. Also add instructions that all agents should create sub tasks when starting a new task and ensure that they check off each sub task as they finish it using the operator.
+
+After global instructions is complete push changes to all existing projects</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>true</commit>
+    <build>true</build>
+    <release>true</release>
+    <merge>false</merge>
+    <branch>main</branch>
+    <tags>Instructions</tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-85">
+    <name>redesign using zUI</name>
+    <prompt>see design.txt and redo the full UI, discard the animations we made previously</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>true</commit>
+    <build>true</build>
+    <release>true</release>
+    <merge>false</merge>
+    <branch>main</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-86">
+    <name>add options to install as well as deploy gemeni ai</name>
+    <prompt>add options to install as well as deploy gemeni ai, same as the others but now gemini is available as a code agent through theapp</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>true</commit>
+    <build>true</build>
+    <release>true</release>
+    <merge>false</merge>
+    <branch>main</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-87">
+    <name>crop the attached image and use it for the new app icon</name>
+    <prompt>crop the attached image and use it for the new app icon, crop out any text</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>true</commit>
+    <build>true</build>
+    <release>true</release>
+    <merge>false</merge>
+    <branch>main</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image>ZP-87.jpg</image>
+  </task>
+  <task id="ZP-88">
+    <name>changing how the instructions work</name>
+    <prompt>now when someone wants instructions.txt they will prompt the operator, the operator will then return the global instructions + the local instructions for that project, which will be specific to the project. prompt is always local, and should now contain the instructions on using the operator.</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <merge>false</merge>
+    <branch>main</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+</tasks>

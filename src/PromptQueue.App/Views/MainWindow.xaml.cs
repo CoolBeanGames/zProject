@@ -270,6 +270,8 @@ public partial class MainWindow : Window
         _ghost = null;
         _adornerLayer = null;
 
+        var others = VisibleContainers();
+
         foreach (var c in AllContainers())
         {
             if (c.RenderTransform is TranslateTransform tt)
@@ -291,28 +293,46 @@ public partial class MainWindow : Window
         _insertIndex = -1;
 
         if (commit && task != null && target >= 0)
-            Vm?.MoveTaskToIndex(task, target);
+        {
+            var targetBefore = target < others.Count ? (others[target].DataContext as TaskItem) : null;
+            var targetAfter = target > 0 ? (others[target - 1].DataContext as TaskItem) : null;
+            Vm?.MoveTaskRelative(task, targetBefore, targetAfter);
+        }
     }
 
     // ---- helpers --------------------------------------------------
 
     private List<ListBoxItem> AllContainers()
     {
-        // Iterate items (not indices): with grouping the top-level generator
-        // yields GroupItems, but ContainerFromItem still resolves the row.
         var list = new List<ListBoxItem>();
-        foreach (var item in TaskList.Items)
-        {
-            if (TaskList.ItemContainerGenerator.ContainerFromItem(item) is ListBoxItem c)
-                list.Add(c);
-        }
+        CollectContainers(TaskList, list);
         return list;
     }
 
+    private static void CollectContainers(DependencyObject parent, List<ListBoxItem> list)
+    {
+        int count = VisualTreeHelper.GetChildrenCount(parent);
+        for (int i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is ListBoxItem lbi)
+                list.Add(lbi);
+            else
+                CollectContainers(child, list);
+        }
+    }
+
     private List<ListBoxItem> VisibleContainers()
-        => AllContainers()
-            .Where(c => c.Visibility == Visibility.Visible && !ReferenceEquals(c, _dragContainer))
+    {
+        var dragBranch = (_dragTask?.Branch ?? "main").Trim();
+        return AllContainers()
+            .Where(c => c.Visibility == Visibility.Visible && !ReferenceEquals(c, _dragContainer)
+                && c.DataContext is TaskItem t
+                && string.Equals(string.IsNullOrWhiteSpace(t.Branch) ? "main" : t.Branch,
+                                 string.IsNullOrWhiteSpace(dragBranch) ? "main" : dragBranch,
+                                 StringComparison.OrdinalIgnoreCase))
             .ToList();
+    }
 
     // ---- source-row collapse / restore (ZP-64) --------------------
 
@@ -324,10 +344,15 @@ public partial class MainWindow : Window
             row.Visibility = Visibility.Collapsed;
             return;
         }
+        row.Tag = "collapsing";
         var dur = TimeSpan.FromMilliseconds(140);
         var ease = new CubicEase { EasingMode = EasingMode.EaseInOut };
         var height = new DoubleAnimation(h, 0, dur) { EasingFunction = ease };
-        height.Completed += (_, _) => row.Visibility = Visibility.Collapsed;
+        height.Completed += (_, _) =>
+        {
+            if (Equals(row.Tag, "collapsing"))
+                row.Visibility = Visibility.Collapsed;
+        };
         row.BeginAnimation(FrameworkElement.HeightProperty, height);
         row.BeginAnimation(UIElement.OpacityProperty,
             new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(90)));
@@ -335,6 +360,7 @@ public partial class MainWindow : Window
 
     private static void RestoreRow(ListBoxItem row)
     {
+        row.Tag = null;
         row.BeginAnimation(FrameworkElement.HeightProperty, null);
         row.BeginAnimation(UIElement.OpacityProperty, null);
         row.Height = double.NaN;

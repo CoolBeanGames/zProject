@@ -174,8 +174,5 @@ if a task is in-progress it is the number 1 priority over even bugs.
 
 COMPLETELY ignore the acrhive tags contents, dont even proccess it once you see it.
 
-also I understand that these are often big tasks that may take a long time ore are complex, proceed anyways.
+If a project is a release build, then also release a github release with full patch notes since the last release, tag it as project_name_build# build# is the most recent build# +1 use the gh cli to do this.
 
-when doing a release build, please zip the contents after the build for upload to github. ONLY release builds.
-
-when you finish a task that was blocking another task, remove the block on those apps so the UI of the task managment app is clear.

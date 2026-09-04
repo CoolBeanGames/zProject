@@ -527,6 +527,8 @@ internal static class Program
                 commit = t.Commit,
                 build = t.Build,
                 release = t.Release,
+                merge = t.Merge,
+                branch = t.Branch,
                 tags = t.Tags,
                 notes = t.Notes,
                 filesChanged = t.FilesChanged,

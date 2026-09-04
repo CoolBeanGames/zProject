@@ -26,6 +26,7 @@ public sealed class MainViewModel : Observable
     private bool _completedCollapsed;
     private bool _archivedCollapsed = true;   // ZP-53: archived list starts collapsed
     private string _newTaskTagText = "";
+    private string _newTaskBranch = "main";
     private bool _quickAddActive;
     private string _quickAddText = "";
 
@@ -189,11 +190,21 @@ public sealed class MainViewModel : Observable
     /// <summary>Every distinct tag used anywhere in the selected project (for autocomplete).</summary>
     public ObservableCollection<string> KnownTags { get; } = new();
 
+    /// <summary>Every distinct branch used anywhere in the selected project (for autocomplete, ZP-83).</summary>
+    public ObservableCollection<string> KnownBranches { get; } = new();
+
     /// <summary>The header "tags" field — applied to newly created tasks.</summary>
     public string NewTaskTagText
     {
         get => _newTaskTagText;
         set => Set(ref _newTaskTagText, value);
+    }
+
+    /// <summary>The branch field — applied to newly created tasks (default "main", ZP-83).</summary>
+    public string NewTaskBranch
+    {
+        get => string.IsNullOrWhiteSpace(_newTaskBranch) ? "main" : _newTaskBranch;
+        set => Set(ref _newTaskBranch, value);
     }
 
     // ---- Quick add (ZP-57): press Space -> type a name -> Enter ----
@@ -235,7 +246,10 @@ public sealed class MainViewModel : Observable
             {
                 var created = OperatorEngine.NewTask(p.Name, name);
                 if (created.Ok && !string.IsNullOrEmpty(created.Output))
+                {
                     OperatorEngine.Sync(created.Output, "locked", "true");   // ZP-57: locked by default
+                    OperatorEngine.Sync(created.Output, "branch", NewTaskBranch);
+                }
                 return created;
             },
             r => r.Ok ? $"Added task {r.Output}" : $"Operator: {r.Message}");
@@ -255,6 +269,21 @@ public sealed class MainViewModel : Observable
         KnownTags.Clear();
         foreach (var t in tags)
             KnownTags.Add(t);
+    }
+
+    private void RefreshKnownBranches()
+    {
+        var branches = SelectedProject?.Tasks
+            .Select(t => t.Branch)
+            .Concat(new[] { "main" })
+            .Where(b => !string.IsNullOrWhiteSpace(b))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(b => b.Equals("main", StringComparison.OrdinalIgnoreCase) ? "" : b, StringComparer.OrdinalIgnoreCase)
+            .ToList() ?? new List<string> { "main" };
+
+        KnownBranches.Clear();
+        foreach (var b in branches)
+            KnownBranches.Add(b);
     }
 
     public object? Overlay
@@ -497,14 +526,22 @@ public sealed class MainViewModel : Observable
         }
     }
 
+    /// <summary>The current active project branch (ZP-83).</summary>
+    public string CurrentBranch =>
+        SelectedProject?.Tasks.FirstOrDefault(t => !t.Done && !t.Archived)?.Branch ??
+        "main";
+
     /// <summary>
     /// Opens a terminal in the selected project's directory and starts the agent
-    /// pointed at its prompt.txt so it works the task queue (ZP-42).
+    /// pointed at its prompt.txt so it works the task queue on the active branch (ZP-42 / ZP-83).
     /// </summary>
     private void DeployAgent(string agent)
-        => LaunchAgent(agent,
-            "Read prompt.txt in this directory and follow it exactly, then work the task queue.",
-            p => $"Deployed {agent} to \"{p.Name}\"");
+    {
+        var branch = CurrentBranch;
+        LaunchAgent(agent,
+            $"Read prompt.txt in this directory and follow it exactly for branch '{branch}'. Work through all tasks on that branch.",
+            p => $"Deployed {agent} to \"{p.Name}\" (branch: {branch})");
+    }
 
     /// <summary>
     /// "Run only this with Codex / Claude Code" from a task's right-click menu
@@ -520,9 +557,9 @@ public sealed class MainViewModel : Observable
             return;
         }
         LaunchAgent(agent,
-            $"Read prompt.txt in this directory and follow it exactly for task {task.Id} only. " +
+            $"Read prompt.txt in this directory and follow it exactly for task {task.Id} on branch '{task.Branch}' only. " +
             $"Complete ONLY task {task.Id}, then stop.",
-            _ => $"Running {agent} on {task.Id} only");
+            _ => $"Running {agent} on {task.Id} (branch: {task.Branch}) only");
     }
 
     private void LaunchAgent(string agent, string boot, Func<Project, string> status)
@@ -630,16 +667,22 @@ public sealed class MainViewModel : Observable
         view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(TaskItem.SectionKey)));
         _tasksView = view;
         RefreshKnownTags();
+        RefreshKnownBranches();
         Raise(nameof(TasksView));
     }
 
     /// <summary>
-    /// Stable-orders the project's tasks by section rank: error-and-unfinished
-    /// first, then active, then completed. Order within a section is preserved.
+    /// Stable-orders the project's tasks by section rank and branch (ZP-82 / ZP-83):
+    /// active tasks first (sorted by branch, main first, then bugs/errors/active),
+    /// followed by completed and archived tasks.
     /// </summary>
     public static void SortIntoSections(Project project)
     {
-        var sorted = project.Tasks.OrderBy(t => t.SectionRank).ToList();
+        var sorted = project.Tasks
+            .OrderBy(t => t.Archived ? 2 : t.Done ? 1 : 0)
+            .ThenBy(t => t.Archived || t.Done ? "" : (t.BranchDisplay.Equals("main", StringComparison.OrdinalIgnoreCase) ? "!" : t.BranchDisplay), StringComparer.OrdinalIgnoreCase)
+            .ThenBy(t => t.SectionRank)
+            .ToList();
         for (int i = 0; i < sorted.Count; i++)
         {
             var current = project.Tasks.IndexOf(sorted[i]);
@@ -787,8 +830,30 @@ public sealed class MainViewModel : Observable
         {
             if (x is not TaskItem a || y is not TaskItem b)
                 return 0;
-            var s = a.SectionRank.CompareTo(b.SectionRank);
-            return s != 0 ? s : a.DisplayOrder.CompareTo(b.DisplayOrder);
+
+            if (a.Archived != b.Archived)
+                return a.Archived ? 1 : -1;
+
+            if (a.Done != b.Done)
+                return a.Done ? 1 : -1;
+
+            if (!a.Archived && !a.Done)
+            {
+                var aIsMain = a.BranchDisplay.Equals("main", StringComparison.OrdinalIgnoreCase);
+                var bIsMain = b.BranchDisplay.Equals("main", StringComparison.OrdinalIgnoreCase);
+                if (aIsMain != bIsMain)
+                    return aIsMain ? -1 : 1;
+
+                var branchCmp = string.Compare(a.BranchDisplay, b.BranchDisplay, StringComparison.OrdinalIgnoreCase);
+                if (branchCmp != 0)
+                    return branchCmp;
+
+                var s = a.SectionRank.CompareTo(b.SectionRank);
+                if (s != 0)
+                    return s;
+            }
+
+            return a.DisplayOrder.CompareTo(b.DisplayOrder);
         }
     }
 
@@ -801,7 +866,7 @@ public sealed class MainViewModel : Observable
             return;
 
         var newId = project.MintTaskId();
-        var seed = new TaskItem { TagText = NewTaskTagText.Trim() };
+        var seed = new TaskItem { TagText = NewTaskTagText.Trim(), Branch = NewTaskBranch };
         Overlay = new TaskFormViewModel(
             isNew: true,
             id: newId,
@@ -892,6 +957,70 @@ public sealed class MainViewModel : Observable
         ApplyViaOperator(
             _ => OperatorEngine.Move(task.Id, target),
             r => r.Ok ? $"Moved {task.Id} to position {target + 1}" : $"Operator: {r.Message}");
+    }
+
+    /// <summary>
+    /// Moves <paramref name="task"/> relative to <paramref name="targetBefore"/> or
+    /// <paramref name="targetAfter"/> within its own section (and branch).
+    /// </summary>
+    public void MoveTaskRelative(TaskItem task, TaskItem? targetBefore, TaskItem? targetAfter)
+    {
+        var project = SelectedProject;
+        if (project == null)
+            return;
+
+        var oldIndex = project.Tasks.IndexOf(task);
+        if (oldIndex < 0)
+            return;
+
+        var activeTasks = project.Tasks.Where(t => !t.Archived).ToList();
+
+        // Peers are strictly tasks within the SAME branch and same section rank (ZP-83)
+        var peers = activeTasks.Where(t =>
+            !ReferenceEquals(t, task) &&
+            t.SectionRank == task.SectionRank &&
+            string.Equals(t.BranchDisplay, task.BranchDisplay, StringComparison.OrdinalIgnoreCase)
+        ).ToList();
+
+        if (peers.Count == 0)
+            return;
+
+        int targetIndex;
+        var temp = new List<TaskItem>(project.Tasks);
+        temp.RemoveAt(oldIndex);
+
+        if (targetBefore != null && peers.Contains(targetBefore))
+        {
+            targetIndex = temp.IndexOf(targetBefore);
+        }
+        else if (targetAfter != null && peers.Contains(targetAfter))
+        {
+            targetIndex = temp.IndexOf(targetAfter) + 1;
+        }
+        else if (targetBefore != null && (targetBefore.SectionRank > task.SectionRank ||
+                 !string.Equals(targetBefore.BranchDisplay, task.BranchDisplay, StringComparison.OrdinalIgnoreCase)))
+        {
+            var lastPeer = peers.Last();
+            targetIndex = temp.IndexOf(lastPeer) + 1;
+        }
+        else if (targetAfter != null && (targetAfter.SectionRank < task.SectionRank ||
+                 !string.Equals(targetAfter.BranchDisplay, task.BranchDisplay, StringComparison.OrdinalIgnoreCase)))
+        {
+            var firstPeer = peers.First();
+            targetIndex = temp.IndexOf(firstPeer);
+        }
+        else
+        {
+            return;
+        }
+
+        targetIndex = Math.Clamp(targetIndex, 0, temp.Count);
+        if (targetIndex == oldIndex)
+            return;
+
+        ApplyViaOperator(
+            _ => OperatorEngine.Move(task.Id, targetIndex),
+            r => r.Ok ? $"Moved {task.Id} to position {targetIndex + 1}" : $"Operator: {r.Message}");
     }
 
     private void ToggleDone(TaskItem? task)

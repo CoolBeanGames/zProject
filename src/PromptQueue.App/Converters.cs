@@ -245,3 +245,51 @@ public sealed class SingleLinePreviewConverter : IValueConverter
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         => Binding.DoNothing;
 }
+
+/// <summary>Maps a branch name to a distinct, rich accent colour for the card branch banner (ZP-83).</summary>
+public sealed class BranchColorConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        var branch = (value as string ?? "").Trim().ToLowerInvariant();
+        if (string.IsNullOrEmpty(branch)) branch = "main";
+        unchecked
+        {
+            uint h = 2166136261;
+            foreach (var c in branch)
+                h = (h ^ c) * 16777619;
+            var hue = h % 360;
+            var (r, g, b) = HslToRgb(hue, 0.65, 0.55);
+            return new SolidColorBrush(Color.FromRgb(r, g, b));
+        }
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => Binding.DoNothing;
+
+    private static (byte, byte, byte) HslToRgb(double h, double s, double l)
+    {
+        h /= 360.0;
+        double r, g, b;
+        if (s == 0) r = g = b = l;
+        else
+        {
+            double q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+            double p = 2 * l - q;
+            r = Hue(p, q, h + 1.0 / 3);
+            g = Hue(p, q, h);
+            b = Hue(p, q, h - 1.0 / 3);
+        }
+        return ((byte)Math.Round(r * 255), (byte)Math.Round(g * 255), (byte)Math.Round(b * 255));
+
+        static double Hue(double p, double q, double t)
+        {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1.0 / 6) return p + (q - p) * 6 * t;
+            if (t < 1.0 / 2) return q;
+            if (t < 2.0 / 3) return p + (q - p) * (2.0 / 3 - t) * 6;
+            return p;
+        }
+    }
+}

@@ -1,501 +1,181 @@
-# UI DESIGN STANDARD
+# zUI — TOOLCHAIN GUIDE
 
-This document defines the visual design language for this project.
+zUI is a themeable UI subsystem that sits on top of a host application (a music
+app, a game engine, a project-management app, …) so every one of them presents
+the same UI. This file tells an agent working in one of those projects how to
+pull zUI in and use it. The visual rules are in Part 2.
 
-Treat these rules as requirements whenever creating, modifying, or extending
-the user interface. New UI should look as though it was part of the original
-application from the beginning.
+Repo: https://github.com/CoolBeanGames/zUI
+Reference docs (read these before extending anything):
+  README.md                     overview + architecture
+  core/PROTOCOL.md              host <-> UI message + component-IO contract
+  core/css/THEMES.md            theme catalogue + how to add one
+  core/css/TYPOGRAPHY.md        the type token system
+  compiler/GRAMMAR.md           the ZSL / ZML UI language
+  core/icons/README.md          the icon set
 
-Do NOT redesign the application's visual identity unless explicitly instructed.
+--------------------------------------------------------------------------------
+# PART 1 — USING zUI
 
-## OVERALL DESIGN
+## 1. Get it
 
-The application uses a restrained, native-desktop productivity-app aesthetic.
+Vendor it as a git submodule (preferred) or a plain clone:
 
-Think:
+    git submodule add https://github.com/CoolBeanGames/zUI.git third_party/zui
+    git -C third_party/zui checkout main
 
-- Windows desktop application
-- Music/library management software
-- Clean utility application
-- Light, neutral interface
-- Information-dense without feeling cluttered
-- Minimal decoration
-- Subtle visual hierarchy
-- Functionality prioritized over ornamentation
+Everything the host needs is under `core/` (CSS + one JS file) plus one binding:
 
-Do NOT make the application look like:
-- A website
-- A mobile app
-- A modern SaaS dashboard
-- A gaming launcher
-- A highly stylized application
-- Material Design
-- Fluent Design taken to an exaggerated degree
+    core/css/zui.css              single stylesheet entry point
+    core/css/themes/holo.css      default theme (dark Android-Holo look)
+    core/css/themes/clean.css     light alternative
+    core/js/zui.js                runtime
+    core/icons/                   icon sprite (+ sprite.js loader)
+    bindings/csharp/ZUI.csproj    .NET host binding (WebView2)
+    bindings/cpp/                 C++ host binding (WebView2 backend included)
 
-Avoid unnecessary visual effects.
+## 2. Embed it
 
-No gradients unless specifically requested.
-No glassmorphism.
-No large rounded cards.
-No oversized controls.
-No giant headings.
-No excessive whitespace.
-No floating UI elements.
-No decorative shadows unless extremely subtle.
-No pill-shaped controls unless their function specifically calls for one.
+zUI renders inside a web view the host owns. Pick the binding for your language;
+both embed the identical `core/` assets, so the result is pixel-identical.
 
-The UI should feel like a polished native Windows utility.
+C# (WinForms/WPF + WebView2):
 
----
+    var ui = new ZUI.ZuiHost(webView2Control);
+    await ui.InitializeAsync();
+    await ui.LoadAsync("ui/main.html");        // your zUI document
+    ui.On("save", json => Save(json));
+    ui.Send("theme", "holo");
 
-# COLOR PALETTE
+C++ (Win32 + WebView2):
 
-Use an overwhelmingly neutral palette.
+    zui::Host ui(hwnd);
+    ui.set_core_root("zui");
+    ui.load("ui/main.html");
+    ui.on("save", [](const std::string& j){ save(j); });
+    ui.send("theme", "\"holo\"");
 
-Main application background:
-- Very light gray / off-white
+Runnable end-to-end examples: `samples/csharp/`, `samples/cpp/`. The C# sample
+builds with `build.ps1`.
 
-Primary content surfaces:
-- White or extremely light gray
+A zUI document is a normal HTML file that links the core:
 
-Secondary surfaces:
-- Slightly darker neutral gray
+    <html data-zui-theme="holo">
+    <link rel="stylesheet" href="zui/css/zui.css">
+    <link rel="stylesheet" href="zui/css/themes/holo.css">
+    <script src="zui/icons/sprite.js"></script>
+    <script src="zui/js/zui.js"></script>
 
-Borders and separators:
-- Thin, low-contrast light gray
+## 3. Author the UI
 
-Primary text:
-- Dark charcoal / near-black
+Write screens in **ZSL** (brace) or **ZML** (angle-bracket) — same tree, same
+output, auto-detected — and compile ahead of time (never interpreted at runtime):
 
-Secondary text:
-- Medium gray
+    py third_party/zui/compiler/zslc.py ui/main.zml --backend html   -o ui/main.html
+    py third_party/zui/compiler/zslc.py ui/main.zml --backend csharp -o Ui.g.cs
+    py third_party/zui/compiler/zslc.py ui/main.zml --backend cpp    -o ui.g.cpp
 
-Disabled/inactive text:
-- Light gray
+Layout is flow/flex (no x/y): nest `row` / `col`, mark the stretchy one `fill`,
+use `sidebar` / `splitter` / `grid`, the `gap-*` / `pad-*` scale, and
+`panel` for bordered regions. See `compiler/GRAMMAR.md` for every node.
 
-Accent color:
-- Muted, desaturated blue
+## 4. Talk to it
 
-The accent should be used sparingly for:
-- Selected navigation items
-- Active tabs
-- Device-connected states
-- Important interactive state
+One JSON channel: `zui.send(channel, payload)` / `zui.receive(channel, fn)` in
+the page; `host.Send` / `host.On` (C#) or `ui.send` / `ui.on` (C++) on the host.
 
-Do not flood large portions of the interface with the accent color.
+Read or write ANY component tagged `data-zui-id` (ZSL/ZML `export="name"`):
 
-Selection backgrounds should generally be a very pale version of the accent.
+    zui.values() / zui.field(id) / zui.set(id, value)     // in the page
+    channels: value, set, set-many, query, submit          // over the bus
 
----
+Covers text, checkbox, radio, select, progress, button clicks/state, sliders and
+scroll positions, both directions. Full table in `core/PROTOCOL.md`.
 
-# TYPOGRAPHY
+## 5. Keep it consistent
 
-Use the platform-native/default Windows UI font where practical.
+- `build.ps1 -Config test` runs the compiler tests, the runtime IO self-test and
+  `tests/check-tokens.py` (which fails if any component CSS hard-codes a colour).
+- When you add a reusable widget: give it an IO adapter in `core/js/zui.js`, a
+  row in `core/PROTOCOL.md`, and a token-only stylesheet (no literal colours).
+- A new theme is ONE file re-declaring the tokens — never touch component CSS.
 
-Prefer approximately:
-- Segoe UI
-- System UI fallback
+--------------------------------------------------------------------------------
+# PART 2 — VISUAL DESIGN STANDARD
 
-Typography should be compact and utilitarian.
+Treat these as requirements whenever creating or modifying UI. New UI must look
+like it was there from the start. Do NOT redesign the visual identity unless
+explicitly told to.
 
-Normal interface text:
-~12-14 px equivalent
+The structure, spacing, typography, density and interaction rules apply to every
+theme; only the palette changes between them.
 
-Section labels:
-Small and understated
+## Identity
 
-Page headings:
-Approximately 20-24 px equivalent
+Default theme **holo** — Google's Android Holo: dark chrome (`#0c0c0c` app,
+`#1b1b1b` surfaces), Holo-blue `#33b5e5` accent, thin `#2c2c2c` dividers,
+uppercase accent-coloured section headers with an underline rule, blue-tinted
+selection with a left accent bar, light text.
 
-Do NOT use extremely large typography.
+Alternative theme **clean** — a light, neutral "native Windows utility" palette
+(off-white app, white surfaces, muted desaturated-blue accent).
 
-Use font weight rather than dramatic size changes to establish hierarchy.
+Both should feel: CLEAN · QUIET · FAST · NATIVE · COMPACT · ORGANIZED ·
+FUNCTIONAL. Not: FLASHY · WEB-LIKE · MOBILE-FIRST · CARD-HEAVY · OVERSIZED ·
+DECORATIVE.
 
-Primary page headings may use medium/semi-bold weight.
+Avoid: gradients (except the very subtle ones already in tokens), glassmorphism,
+large rounded cards, oversized controls, giant headings, excessive whitespace,
+floating elements, decorative shadows, pill controls without a functional reason.
 
-Navigation and normal controls should generally use regular weight.
+## Structure
 
-Small category headings such as:
+Strong horizontal hierarchy, separated by thin borders not big containers:
+  native title bar → application menu → primary nav strip → workspace →
+  status/device bar → contextual/playback bar.
 
-LIBRARY
-PLAYLISTS
+Sidebars are narrow and functional (the `tree` component); square selection,
+pale-accent highlight, small secondary section headings.
 
-should be small, subtle, and may use uppercase styling.
+Main content is panels / columns / lists / grids / tables that share one
+background and are divided by 1px borders — never independent floating cards.
 
----
+## Type
 
-# WINDOW STRUCTURE
+Platform-native UI font (Segoe UI first), no web fonts. Compact scale
+(11 / 13 / 14 / 20px). Hierarchy from **weight**, not dramatic size jumps.
+Never hard-code font metrics — use the `--zui-fs-*` tokens.
 
-The interface follows a strong horizontal hierarchy.
+## Controls
 
-Typical structure:
+Buttons: compact, rectangular, thin border, very light fill, minimal radius —
+not web CTAs. Inputs: white/light fill, thin border, small radius, compact
+height — not giant/mobile. Tables: compact rows, subtle separators, clear
+headings, left-aligned; highlight rows only for a functional reason (selection,
+missing metadata, error). No decorative zebra striping.
 
-1. Native window title bar
-2. Traditional application menu
-3. Primary navigation tabs
-4. Main workspace
-5. Device/status bar
-6. Playback or contextual controls
+## Spacing & borders
 
-Keep these areas visually distinct using subtle separators rather than large
-containers.
+Spacing scale: 4 / 8 / 12 / 16 / 24 px (`--zui-space-*`). Use borders heavily
+but subtly (1px, low-contrast, `--zui-border`). Information density like a
+desktop productivity app, not a touch UI.
 
----
+## Iconography
 
-# MENU BAR
+Small, monochrome, line-based, consistent weight, from `core/icons/` — never
+emoji as UI icons, never mixed icon styles.
 
-Use a traditional desktop menu.
+## Interaction
 
-Example:
+Behave like a desktop app: right-click context menus, double-click actions, drag
+and drop, keyboard shortcuts incl. Ctrl+Z / Ctrl+Y, Tab order, multi / shift /
+ctrl selection, rename-in-place, tooltips, standard Windows key behaviour. All of
+this is centralised in `core/js/zui.js` — reuse it, don't reimplement.
 
-File
-Edit
-View
-Playback
-Help
+## Consistency rule
 
-Keep it compact and native-looking.
-
-Do not replace traditional menus with oversized toolbar buttons.
-
----
-
-# PRIMARY NAVIGATION
-
-Primary application sections appear in a horizontal navigation strip.
-
-Example:
-
-Music
-Podcasts
-Download
-iPod
-
-Navigation items should consist of:
-- Small icon
-- Short text label
-
-Use generous but not excessive horizontal spacing.
-
-The selected section should be recognizable through a subtle accent or
-background treatment.
-
-Do not use large tab buttons.
-
----
-
-# SIDEBAR
-
-Sidebars should be narrow and functional.
-
-Example hierarchy:
-
-LIBRARY
-
-Artists
-Albums
-Genres
-Songs
-
-
-PLAYLISTS
-
-Playlist A
-Playlist B
-
-Selected items use a very pale accent-colored rectangular background.
-
-Corners should be square or only very slightly rounded.
-
-Avoid card-style navigation.
-
-Section headings should be small and visually secondary.
-
----
-
-# MAIN CONTENT
-
-Content should be arranged using panels, columns, lists, grids, and tables.
-
-Panels should generally:
-- Share the same background
-- Be separated using thin borders
-- Avoid looking like independent floating cards
-
-Example music browser layout:
-
-| Sidebar | Artists | Albums | Tracks |
-
-The interface should visually communicate hierarchy through alignment,
-spacing, borders, and typography rather than decoration.
-
----
-
-# TABLES AND LISTS
-
-Tables are an important part of the design language.
-
-Use:
-- Compact rows
-- Thin or subtle separators
-- Clear column headings
-- Left-aligned text by default
-- Minimal decoration
-
-Example columns:
-
-#
-Name
-Artist
-Album
-Genre
-Plays
-
-Do not make tables look like spreadsheets unless specifically required.
-
-Avoid heavy grid lines.
-
-Highlight rows ONLY when there is a functional reason such as:
-- Selection
-- Missing metadata
-- Error/warning state
-
-Do NOT alternate row colors merely for decoration unless explicitly requested.
-
----
-
-# BUTTONS
-
-Buttons should resemble restrained desktop application controls.
-
-Characteristics:
-- Compact
-- Rectangular
-- Thin neutral border
-- Very light background
-- Small amount of padding
-- Minimal corner radius
-
-Buttons should not look like large web CTA buttons.
-
-Primary and secondary actions should generally remain visually restrained.
-
-Examples:
-
-Edit metadata
-Eject
-Sync all
-+ New playlist
-
-Icon-only buttons are appropriate for universally recognizable actions such as
-playback controls.
-
----
-
-# INPUT FIELDS
-
-Text boxes, search fields, selectors, etc. should use:
-
-- White/light background
-- Thin gray border
-- Small corner radius or square corners
-- Compact height
-- Standard desktop padding
-
-Avoid giant search bars or mobile-style inputs.
-
----
-
-# EMPTY STATES
-
-Empty states should remain understated.
-
-Center a small icon with a short explanation.
-
-Example:
-
-[ music icon ]
-
-Drop music here to add it
-
-or choose File -> Add files to library
-
-Do not turn empty states into large illustrated onboarding screens.
-
----
-
-# STATUS / DEVICE BAR
-
-Connected hardware should have a persistent status area.
-
-When disconnected:
-- Neutral gray
-- Clearly indicate disconnected state
-
-When connected:
-- May use the application's muted blue accent
-- Show device name
-- Capacity
-- Remaining storage
-- Relevant actions
-
-Example:
-
-● HAPTICS' IPOD  •  238.2 GB capacity  •  234.6 GB free
-
-Actions such as Eject and Sync should remain aligned consistently.
-
----
-
-# PLAYBACK BAR
-
-Playback controls should remain compact and visually secondary to the main
-workspace.
-
-Typical layout:
-
-Previous
-Play
-Pause
-Stop
-Next
-
-Additional information may include:
-
-Album artwork
-Current track
-Current time
-Total time
-Progress
-Track number / queue length
-Shuffle
-Repeat
-
-Do not make the player dominate the application.
-
-This is primarily a library-management application with playback capability,
-not a full-screen music player.
-
----
-
-# SPACING
-
-Use consistent, relatively compact spacing.
-
-Approximate conceptual spacing system:
-
-4px  - tiny internal separation
-8px  - standard compact spacing
-12px - normal component spacing
-16px - section spacing
-24px - major content separation
-
-Avoid enormous empty gaps.
-
-Information density should resemble a traditional desktop productivity
-application rather than a touch-first interface.
-
----
-
-# BORDERS
-
-Use borders heavily but subtly to establish structure.
-
-Typical border:
-1px low-contrast neutral gray
-
-Use borders for:
-- Panel separation
-- Tables
-- Input fields
-- Buttons
-- Toolbars
-- Status areas
-
-Avoid thick borders.
-
----
-
-# ICONOGRAPHY
-
-Icons should be:
-- Small
-- Simple
-- Mostly monochrome
-- Line-based or restrained filled icons
-- Consistent in visual weight
-
-Do not use colorful emoji as application icons.
-
-Do not mix radically different icon styles.
-
----
-
-# INTERACTION PHILOSOPHY
-
-The UI should behave like a desktop application.
-
-Support where appropriate:
-
-- Right-click context menus
-- Double-click actions
-- Drag and drop
-- Keyboard shortcuts
-- Ctrl+Z / Ctrl+Y
-- Tab navigation
-- Multi-selection
-- Shift selection
-- Ctrl selection
-- Rename-in-place
-- Tooltips
-- Standard Windows keyboard behavior
-
-Do not assume touchscreen interaction.
-
-Mouse and keyboard are the primary input mechanisms.
-
----
-
-# CRITICAL CONSISTENCY RULE
-
-Before implementing ANY new UI:
-
-1. Inspect existing UI components.
-2. Reuse existing styles/resources/components whenever possible.
-3. Match existing spacing and sizing.
-4. Match existing typography.
-5. Match existing border treatments.
-6. Match existing interaction behavior.
-7. Do not introduce a new visual pattern when an existing one can be reused.
-
-When there is ambiguity, prefer consistency with existing UI over creating
-something new.
-
-The goal is that a user should NOT be able to tell which screens were created
-at different times or by different AI agents.
-
-If implementing a feature requires a new reusable UI pattern, create it as a
-shared component/style so subsequent features can reuse it.
-
----
-
-# DESIGN PRINCIPLE
-
-This application should feel:
-
-CLEAN
-QUIET
-FAST
-NATIVE
-COMPACT
-ORGANIZED
-FUNCTIONAL
-
-It should NOT feel:
-
-FLASHY
-WEB-LIKE
-MOBILE-FIRST
-CARD-HEAVY
-OVERSIZED
-DECORATIVE
+Before building any new UI: inspect existing components, reuse existing
+styles/patterns, match existing spacing/sizing/typography/borders/behaviour. If
+a feature needs a new reusable pattern, add it as a shared component + token-only
+stylesheet so later work reuses it. A user must not be able to tell which screens
+were built at different times or by different agents.

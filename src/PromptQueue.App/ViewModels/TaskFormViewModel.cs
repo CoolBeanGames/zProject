@@ -31,6 +31,8 @@ public sealed class TaskFormViewModel : Observable
     private bool _commit;
     private bool _build;
     private bool _release;
+    private bool _merge;
+    private string _branch;
     private string _tagText;
     private string _notes;
     private string _filesChanged;
@@ -74,12 +76,22 @@ public sealed class TaskFormViewModel : Observable
         _commit = source?.Commit ?? false;
         _build = source?.Build ?? false;
         _release = source?.Release ?? false;
+        _merge = source?.Merge ?? false;
+        _branch = string.IsNullOrWhiteSpace(source?.Branch) ? "main" : source.Branch;
         _tagText = source?.TagText ?? "";
         _notes = source?.Notes ?? "";
         _filesChanged = source?.FilesChanged ?? "";
         _image = source?.Image ?? "";
         _onSave = onSave;
         _onClose = onClose;
+
+        KnownBranches = (peers ?? Enumerable.Empty<TaskItem>())
+            .Select(t => t.Branch)
+            .Concat(new[] { "main", _branch })
+            .Where(b => !string.IsNullOrWhiteSpace(b))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(b => b.Equals("main", StringComparison.OrdinalIgnoreCase) ? "" : b, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
         KnownTags = (peers ?? Enumerable.Empty<TaskItem>())
             .SelectMany(t => t.Tags)
@@ -301,6 +313,21 @@ public sealed class TaskFormViewModel : Observable
         set => Set(ref _release, value);
     }
 
+    public bool Merge
+    {
+        get => _merge;
+        set => Set(ref _merge, value);
+    }
+
+    /// <summary>The project branch for this task (default 'main').</summary>
+    public string Branch
+    {
+        get => _branch;
+        set => Set(ref _branch, value);
+    }
+
+    public IReadOnlyList<string> KnownBranches { get; }
+
     /// <summary>Comma-separated tags for this task.</summary>
     public string TagText
     {
@@ -392,6 +419,8 @@ public sealed class TaskFormViewModel : Observable
         task.Commit = Commit;
         task.Build = Build;
         task.Release = Release;
+        task.Merge = Merge;
+        task.Branch = string.IsNullOrWhiteSpace(Branch) ? "main" : Branch.Trim();
         task.TagText = TagText.Trim();
         task.Notes = Notes;
         task.FilesChanged = FilesChanged;
