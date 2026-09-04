@@ -593,7 +593,7 @@ public sealed class MainViewModel : Observable
             var authority = agent switch
             {
                 "claude" => "--dangerously-skip-permissions",
-                "agy"    => "--dangerous-mode",
+                "agy"    => "--dangerously-skip-permissions",
                 _        => "--dangerously-bypass-approvals-and-sandbox",  // codex
             };
             var psCommand = $"Set-Location -LiteralPath '{dir}'; & {agent} {authority} '{bootArg}'";
