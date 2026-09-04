@@ -294,6 +294,39 @@
     <filesChanged>src/PromptQueue.Core/Storage/ProjectStore.cs</filesChanged>
     <image></image>
   </task>
+  <task id="ZP-85">
+    <name>redesign using zUI</name>
+    <prompt>see design.txt and redo the full UI, discard the animations we made previously</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>true</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>true</commit>
+    <build>true</build>
+    <release>true</release>
+    <merge>false</merge>
+    <branch>main</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+    <subtasks>
+      <subtask done="true">Add zUI as git submodule at third_party/zui and copy ZuiHost.cs into PromptQueue.App</subtask>
+      <subtask done="true">Add WebView2 NuGet package reference to PromptQueue.App.csproj</subtask>
+      <subtask done="true">Author ui/main.html zUI document (holo theme, sidebar + task list + overlays)</subtask>
+      <subtask done="true">Replace XAML MainWindow with WPF window hosting WebView2 + ZuiHost</subtask>
+      <subtask done="true">Wire all VM commands through zui message bus (tasks, projects, flags, subtasks)</subtask>
+      <subtask done="true">Build debug + release, copy outputs, create GitHub release zProject_build2</subtask>
+    </subtasks>
+  </task>
   <task id="ZP-84">
     <name>Instructions update</name>
     <prompt>Update global instructions to include references to the new branch system. Also add instructions that all agents should create sub tasks when starting a new task and ensure that they check off each sub task as they finish it using the operator.

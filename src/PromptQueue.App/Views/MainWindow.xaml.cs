@@ -213,7 +213,7 @@ public partial class MainWindow : Window
             var agent = p.GetString() ?? "codex";
             if (agent == "codex")        Vm?.DeployCodexCommand.Execute(null);
             else if (agent == "claude")  Vm?.DeployClaudeCommand.Execute(null);
-            else if (agent == "agy")     DeployAntigravity();
+            else if (agent == "agy")     Vm?.DeployAntigravityCommand.Execute(null); // ZP-86
         }));
         _ui.On("run-task-with-agent", p => Dispatcher.Invoke(() =>
         {
@@ -223,7 +223,7 @@ public partial class MainWindow : Window
                 string.Equals(t.Id, taskId, StringComparison.OrdinalIgnoreCase));
             if (agent == "codex")        Vm?.RunTaskWithCodexCommand.Execute(task);
             else if (agent == "claude")  Vm?.RunTaskWithClaudeCommand.Execute(task);
-            else if (agent == "agy" && task != null) DeployAntigravityForTask(task);
+            else if (agent == "agy")     Vm?.RunTaskWithAntigravityCommand.Execute(task); // ZP-86
         }));
         _ui.On("install-cli", p => Dispatcher.Invoke(() =>
         {
@@ -231,6 +231,7 @@ public partial class MainWindow : Window
             if (which == "codex")        Vm?.InstallCodexCliCommand.Execute(null);
             else if (which == "claude")  Vm?.InstallClaudeCliCommand.Execute(null);
             else if (which == "both")    Vm?.InstallBothCliCommand.Execute(null);
+            else if (which == "agy")     Vm?.InstallAntigravityCliCommand.Execute(null); // ZP-86
         }));
 
         // Quick-add
@@ -446,52 +447,7 @@ public partial class MainWindow : Window
         }
     }
 
-    // ── Antigravity deployment ────────────────────────────────────────────
 
-    private void DeployAntigravity()
-    {
-        var project = Vm?.SelectedProject;
-        if (project == null) return;
-        var branch = Vm?.CurrentBranch ?? "main";
-        LaunchAgentProcess("agy",
-            $"--dangerous-mode read prompt.txt in this directory and follow it exactly for branch '{branch}'. Work through all tasks on that branch.",
-            project);
-    }
-
-    private void DeployAntigravityForTask(TaskItem task)
-    {
-        var project = Vm?.SelectedProject;
-        if (project == null) return;
-        LaunchAgentProcess("agy",
-            $"--dangerous-mode read prompt.txt in this directory and follow it exactly for task {task.Id} on branch '{task.Branch}' only. Complete ONLY task {task.Id}, then stop.",
-            project);
-    }
-
-    private void LaunchAgentProcess(string exe, string args, PromptQueue.Core.Models.Project project)
-    {
-        if (!Directory.Exists(project.Directory))
-        {
-            MessageBox.Show($"The project directory does not exist:\n{project.Directory}", "zProject");
-            return;
-        }
-        try
-        {
-            var dir = project.Directory.Replace("'", "''");
-            var escapedArgs = args.Replace("'", "''");
-            var psCmd = $"Set-Location -LiteralPath '{dir}'; & {exe} {escapedArgs}";
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = "powershell.exe",
-                Arguments = $"-NoExit -ExecutionPolicy Bypass -Command \"{psCmd}\"",
-                UseShellExecute = true,
-                WorkingDirectory = project.Directory,
-            });
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show(ex.Message, "zProject", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
 
     // ── ViewModel property change monitoring ──────────────────────────────
 

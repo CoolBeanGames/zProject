@@ -52,11 +52,18 @@ public sealed class MainViewModel : Observable
             "npm install -g @anthropic-ai/claude-code", "Install Claude Code"));
         InstallBothCliCommand = new RelayCommand(() => RunInTerminal(
             "npm install -g @openai/codex @anthropic-ai/claude-code", "Install both AI CLIs"));
+        // ZP-86: Antigravity (agy) — install via its own npm package if available,
+        // otherwise guide the user to use the Antigravity CLI directly.
+        InstallAntigravityCliCommand = new RelayCommand(() => RunInTerminal(
+            "agy --version || echo \"Antigravity (agy) is part of the Antigravity IDE. Visit https://antigravity.dev for installation.\"",
+            "Check Antigravity CLI"));
 
         DeployCodexCommand = new RelayCommand(() => DeployAgent("codex"), CanDeployAgent);
         DeployClaudeCommand = new RelayCommand(() => DeployAgent("claude"), CanDeployAgent);
+        DeployAntigravityCommand = new RelayCommand(() => DeployAgent("agy"), CanDeployAgent);
         RunTaskWithCodexCommand = new RelayCommand(p => DeployAgentForTask("codex", p as TaskItem));
         RunTaskWithClaudeCommand = new RelayCommand(p => DeployAgentForTask("claude", p as TaskItem));
+        RunTaskWithAntigravityCommand = new RelayCommand(p => DeployAgentForTask("agy", p as TaskItem));
 
         EditGlobalDesignCommand = new RelayCommand(() => EditText(
             "Global Design", "Default design requirements for every project",
@@ -318,10 +325,13 @@ public sealed class MainViewModel : Observable
     public RelayCommand InstallCodexCliCommand { get; }
     public RelayCommand InstallClaudeCliCommand { get; }
     public RelayCommand InstallBothCliCommand { get; }
+    public RelayCommand InstallAntigravityCliCommand { get; }   // ZP-86
     public RelayCommand DeployCodexCommand { get; }
     public RelayCommand DeployClaudeCommand { get; }
+    public RelayCommand DeployAntigravityCommand { get; }       // ZP-86
     public RelayCommand RunTaskWithCodexCommand { get; }
     public RelayCommand RunTaskWithClaudeCommand { get; }
+    public RelayCommand RunTaskWithAntigravityCommand { get; }  // ZP-86
 
     public RelayCommand EditGlobalDesignCommand { get; }
     public RelayCommand EditGlobalInstructionsCommand { get; }
@@ -579,10 +589,13 @@ public sealed class MainViewModel : Observable
             // ZP-56: deploy the agent through PowerShell instead of cmd.exe.
             var dir = project.Directory.Replace("'", "''");
             var bootArg = boot.Replace("'", "''");
-            // ZP-73: run with full authority — no permission / approval prompts.
-            var authority = agent == "claude"
-                ? "--dangerously-skip-permissions"
-                : "--dangerously-bypass-approvals-and-sandbox";
+            // ZP-73 / ZP-86: run with full authority — no permission / approval prompts.
+            var authority = agent switch
+            {
+                "claude" => "--dangerously-skip-permissions",
+                "agy"    => "--dangerous-mode",
+                _        => "--dangerously-bypass-approvals-and-sandbox",  // codex
+            };
             var psCommand = $"Set-Location -LiteralPath '{dir}'; & {agent} {authority} '{bootArg}'";
 
             Process.Start(new ProcessStartInfo
@@ -1113,6 +1126,7 @@ public sealed class MainViewModel : Observable
         AddTaskCommand.RaiseCanExecuteChanged();
         DeployCodexCommand.RaiseCanExecuteChanged();
         DeployClaudeCommand.RaiseCanExecuteChanged();
+        DeployAntigravityCommand.RaiseCanExecuteChanged();  // ZP-86
         OpenProjectDirectoryCommand.RaiseCanExecuteChanged();
         CollapseAllCommand.RaiseCanExecuteChanged();
         ExpandAllCommand.RaiseCanExecuteChanged();
