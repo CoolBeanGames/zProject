@@ -118,7 +118,7 @@
   <div class="zui-workspace">
     <nav class="zui-sidebar" style="width:192px">
       <div class="zui-section-label">Projects</div>
-      <div id="project-list" class="zui-scroll zui-fill zui-list"></div>
+      <div id="project-list" class="zui-scroll-y zui-fill zui-list"></div>
       <div style="border-top:1px solid var(--zui-border);padding:8px;display:flex;flex-direction:column;gap:4px">
         <button id="btn-new-project" class="zui-btn zui-justify-start">+ Add Project</button>
         <button id="btn-new-local" class="zui-btn zui-justify-start">+ Local List</button>
@@ -127,7 +127,7 @@
         <button id="btn-exit" class="zui-btn zui-justify-start">Exit</button>
       </div>
     </nav>
-    <div class="zui-fill zui-scroll" style="display:flex;flex-direction:column;">
+    <div class="zui-fill zui-scroll-y" style="display:flex;flex-direction:column;">
       <!-- Toolbar -->
       <div class="zui-row zui-gap-2 zui-items-center" style="padding:4px 8px;border-bottom:1px solid var(--zui-border);background:var(--zui-bg-surface-alt);flex-shrink:0;">
         <button class="zui-btn zui-btn--primary" id="btn-add-task">+ New Task</button>
@@ -154,7 +154,7 @@
       </div>
 
       <!-- Task scroll area -->
-      <div id="task-scroll" class="zui-scroll zui-fill" style="position:relative;">
+      <div id="task-scroll" class="zui-scroll-y zui-fill" style="position:relative;">
         <div id="empty-state" class="zui-center zui-fill zui-col zui-gap-3" style="color:var(--zui-text-secondary);position:absolute;inset:0;">
           <span>No project selected</span>
           <span class="empty-hint zui-t-small">Choose a project from the sidebar or add one with + Add Project</span>
@@ -175,7 +175,7 @@
     <span id="form-title" style="flex:1">Task</span>
     <button class="zui-btn" id="form-cancel-btn">✕</button>
   </div>
-  <div class="zui-panel__body zui-scroll" id="form-body" style="padding:12px;display:flex;flex-direction:column;gap:12px">
+  <div class="zui-panel__body zui-scroll-y" id="form-body" style="padding:12px;display:flex;flex-direction:column;gap:12px">
     <div class="zui-col zui-gap-1">
       <label class="zui-t-small zui-text-secondary">Name</label>
       <input type="text" class="zui-input" id="form-name" placeholder="Task name">
@@ -311,22 +311,22 @@ function chipHtml(cls, label) {
 
 // ── Render ───────────────────────────────────────────────────
 function renderProjects() {
-  const ul = document.getElementById('project-list');
-  ul.innerHTML = '';
-  for (const p of state.projects) {
-    const li = document.createElement('li');
-    if (state.selectedProject && p.id === state.selectedProject) li.classList.add('selected');
-    li.dataset.id = p.id;
-    li.innerHTML = `<span class="proj-name" title="${esc(p.name)}">${esc(p.name)}</span>`;
-    if (p.isLocal) li.innerHTML += `<span class="proj-local-badge">local</span>`;
-    li.addEventListener('click', () => zui.send('select-project', p.id));
-    li.addEventListener('contextmenu', e => {
-      e.preventDefault();
-      showProjectContextMenu(e, p);
-    });
-    ul.appendChild(li);
+    const list = document.getElementById('project-list');
+    list.innerHTML = '';
+    for (const p of state.projects) {
+      const el = document.createElement('div');
+      el.className = 'zui-sidebar__item' + (state.selectedProject && p.id === state.selectedProject ? ' zui-active' : '');
+      el.dataset.id = p.id;
+      el.innerHTML = `<span class="zui-tree__label" style="flex:1" title="${esc(p.name)}">${esc(p.name)}</span>`;
+      if (p.isLocal) el.innerHTML += `<span class="proj-local-badge">local</span>`;
+      el.addEventListener('click', () => zui.send('select-project', p.id));
+      el.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        showProjectContextMenu(e, p);
+      });
+      list.appendChild(el);
+    }
   }
-}
 
 function showProjectContextMenu(e, p) {
   // Simple inline context menu
