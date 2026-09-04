@@ -294,6 +294,40 @@
     <filesChanged>src/PromptQueue.Core/Storage/ProjectStore.cs</filesChanged>
     <image></image>
   </task>
+  <task id="ZP-84">
+    <name>Instructions update</name>
+    <prompt>Update global instructions to include references to the new branch system. Also add instructions that all agents should create sub tasks when starting a new task and ensure that they check off each sub task as they finish it using the operator.
+
+After global instructions is complete push changes to all existing projects</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>true</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>true</commit>
+    <build>true</build>
+    <release>true</release>
+    <merge>false</merge>
+    <branch>main</branch>
+    <tags>Instructions</tags>
+    <notes>Updated global instructions to include references to the project branch system and merge flags, and added mandatory instructions requiring all agents to create concrete subtasks when beginning any task and immediately check them off as each subtask finishes using the operator. Pushed updated global instructions to global.instructions.txt and data.cfg, and pushed updated instructions.txt to all existing projects (zEngine, htunes, launcher, zUI, zEdit). Produced debug and release builds, and published GitHub release.</notes>
+    <filesChanged>instructions.txt, data.cfg, C:\Users\haptic\AppData\Local\PromptQueue\global.instructions.txt, all existing registered project instructions.txt</filesChanged>
+    <image></image>
+    <subtasks>
+      <subtask done="true">Update global instructions with branch system and merge flag documentation</subtask>
+      <subtask done="true">Add mandatory agent subtask creation and immediate checkoff via operator</subtask>
+      <subtask done="true">Push updated global instructions to global.instructions.txt and data.cfg</subtask>
+      <subtask done="true">Push updated instructions to all existing projects</subtask>
+      <subtask done="true">Build debug and release builds, create GitHub release</subtask>
+    </subtasks>
+  </task>
   <task id="ZP-83">
     <name>Branch support</name>
     <prompt>We need to add support for setting a task to be on a certain project branch. Agents will be aware of what branch they are currently working on. And will work through all tasks on that branch.

@@ -1,16 +1,24 @@
-=== MARKING PROGRESS (do this - it is being skipped) ===
+=== MARKING PROGRESS & SUBTASKS (do this - it is being skipped) ===
 
 For EVERY task, before you touch any file:
   1. take the task with `operator agent_lock <task_id> <yourkey>` (this also sets
      <inProgress>true</inProgress>), or if you are hand-editing, set
      <inProgress>true</inProgress> in tasks.xml and SAVE.
+  2. ALWAYS create subtasks breaking down the task before starting implementation:
+     `operator new_subtask <task_id> "<clear step description>"`
+     Every agent starting a task must create subtasks that outline the required steps.
+  3. Work through the subtasks in order. As each subtask is completed, IMMEDIATELY
+     check it off using the operator:
+     `operator subtask_done <task_id> <index> true`
+     Tick each subtask the moment it is finished. NEVER batch subtask checkoffs
+     at the end.
 This is not optional and it is not a batch step at the end - do it as the first
-action on the task, so anyone watching the queue can see which task is live.
+action on the task, so anyone watching the queue can see live subtask progress.
 When the task is finished set <done>true</done> AND <inProgress>false</inProgress>
-and SAVE. If a task has subtasks, tick each <subtask> the moment it is done and
-SAVE again. Never leave a task you are working on with <inProgress>false</inProgress>.
+and SAVE. A task is NOT complete until all of its subtasks are checked off.
+Never leave a task you are working on with <inProgress>false</inProgress>.
 
-=== END MARKING PROGRESS ===
+=== END MARKING PROGRESS & SUBTASKS ===
 
 === THE OPERATOR ===
 
@@ -48,8 +56,8 @@ Changes (queued through the lock):
 <project> is a project name, its id prefix, or a directory path. <task_id> is
 looked up across every registered project. <field> is a tasks.xml element name:
 name, prompt, requirements, inProgress, done, bug, error, errorMessage, lockKey,
-locked, archived, blockedBy, dateStarted, dueDate, commit, build, release, tags,
-notes, filesChanged, image.
+locked, archived, blockedBy, dateStarted, dueDate, commit, build, release, merge,
+branch, tags, notes, filesChanged, image.
 
 WHEN TO USE IT
   - ALWAYS use `new_task` to create a task. Never hand-write a <task> block or
@@ -145,6 +153,24 @@ name.
 
 === END TASK IMAGES ===
 
+=== PROJECT BRANCHES & MERGING ===
+
+Tasks support project branches. The default branch is "main".
+  - A task's branch is stored in the <branch> element (e.g. <branch>feature-auth</branch>).
+  - Agents are aware of the branch they are working on and must work through all tasks
+    on that branch before switching branches.
+  - In the UI and web view, tasks are categorized by branch. Tasks cannot be dragged
+    or moved between branches; dragging and reordering is strictly restricted within
+    the task's own branch.
+  - Tasks can have a <merge> flag (<merge>true</merge>). When <merge> is true on a task,
+    the agent must merge the task's branch into main (or the target branch) once that task
+    is completed.
+  - Use the operator to manage branch and merge:
+      operator sync <id> branch <branch_name>
+      operator sync <id> merge true|false
+
+=== END PROJECT BRANCHES & MERGING ===
+
 === ADDING & REFINING TASKS ===
 
 You have full access to add and create new tasks as needed, to split an existing
@@ -158,13 +184,15 @@ only rules:
 
 read through tasks.xml and complete tasks in the order they are presented. work through the list until reaching the end or you run out of usage. as you finish a task update the xml to mark it as done, as you begin mark it as in-progress. save the xml every time you make a change.
 
+when starting any task, create subtasks breaking down the work using `operator new_subtask <id> <text>`. as each subtask is completed, check it off immediately using `operator subtask_done <id> <index> true`. a task is NOT complete until all subtasks are finished and checked off.
+
+if a task has a branch specified, agents must be branch-aware and complete tasks on that branch. if <merge> is true, merge the branch into main upon completion.
+
 if a task has the tag commit set to true then commit the project and push to github with a meaningful message of all the changes made. Add notes about the changes you made, log all files, and move on to the next task.
 
 the task is NOT complete unless the requirements have been met, if a task is impossible to complete add an "error" flag, set it to true, and add error message text in before saving XML and end execution of tasks there, notifiying your chat of the error and the taskID. 
 
 if the task has a build tag set to true, the project should be built to project_root/builds/debug, if you need to test build to project_root/builds/test, if it has a release tag set use project_root/builds/release
-
-if a task has subtasks it is NOT complete until all subtasks are, check them off as you complete them saving after each one.
 
 if a task is a bug, it takes top priority.
 

@@ -1,32 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <tasks project="zProject" nextIndex="89">
-  <task id="ZP-84">
-    <name>Instructions update</name>
-    <prompt>Update global instructions to include references to the new branch system. Also add instructions that all agents should create sub tasks when starting a new task and ensure that they check off each sub task as they finish it using the operator.
-
-After global instructions is complete push changes to all existing projects</prompt>
-    <requirements></requirements>
-    <inProgress>false</inProgress>
-    <done>false</done>
-    <bug>false</bug>
-    <error>false</error>
-    <errorMessage></errorMessage>
-    <lockKey></lockKey>
-    <locked>false</locked>
-    <archived>false</archived>
-    <blockedBy></blockedBy>
-    <dateStarted></dateStarted>
-    <dueDate></dueDate>
-    <commit>true</commit>
-    <build>true</build>
-    <release>true</release>
-    <merge>false</merge>
-    <branch>main</branch>
-    <tags>Instructions</tags>
-    <notes></notes>
-    <filesChanged></filesChanged>
-    <image></image>
-  </task>
   <task id="ZP-85">
     <name>redesign using zUI</name>
     <prompt>see design.txt and redo the full UI, discard the animations we made previously</prompt>
