@@ -8,6 +8,7 @@
   <script src="../zui/icons/sprite.js"></script>
   <script src="../zui/js/zui.js"></script>
   <style>
+    html, body { overflow: hidden; height: 100%; }
     /* Custom task styles on top of zUI */
     .task-card {
       border-bottom: 1px solid var(--zui-border);
@@ -118,12 +119,12 @@
     <nav class="zui-sidebar" style="width:192px">
       <div class="zui-section-label">Projects</div>
       <div id="project-list" class="zui-scroll zui-fill zui-list"></div>
-      <div style="border-top:1px solid var(--zui-border);padding:4px 0">
-        <button id="btn-new-project" class="zui-sidebar__item" style="text-align:left;border:none;background:none;width:100%">+ Add Project</button>
-        <button id="btn-new-local" class="zui-sidebar__item" style="text-align:left;border:none;background:none;width:100%">+ Local List</button>
-        <button id="btn-save-all" class="zui-sidebar__item" style="text-align:left;border:none;background:none;width:100%">Save All</button>
-        <button id="btn-web-server" class="zui-sidebar__item" style="text-align:left;border:none;background:none;width:100%">Start Web Server</button>
-        <button id="btn-exit" class="zui-sidebar__item" style="text-align:left;border:none;background:none;width:100%">Exit</button>
+      <div style="border-top:1px solid var(--zui-border);padding:8px;display:flex;flex-direction:column;gap:4px">
+        <button id="btn-new-project" class="zui-btn zui-justify-start">+ Add Project</button>
+        <button id="btn-new-local" class="zui-btn zui-justify-start">+ Local List</button>
+        <button id="btn-save-all" class="zui-btn zui-justify-start">Save All</button>
+        <button id="btn-web-server" class="zui-btn zui-justify-start">Start Web Server</button>
+        <button id="btn-exit" class="zui-btn zui-justify-start">Exit</button>
       </div>
     </nav>
     <div class="zui-fill zui-scroll" style="display:flex;flex-direction:column;">
@@ -254,7 +255,7 @@
 </div>
 
 <!-- ── Text editor overlay ──────────────────────────────────────── -->
-<div id="text-editor-overlay" class="zui-panel" style="position:fixed;inset:60px 40px;border-radius:var(--zui-radius-lg);box-shadow:var(--zui-shadow-modal);z-index:11;display:none;flex-direction:column">
+<div id="text-editor-overlay" class="zui-panel" style="position:fixed;inset:60px 40px;border-radius:var(--zui-radius-lg);box-shadow:var(--zui-shadow-modal);z-index:11;flex-direction:column">
   <div class="zui-panel__header">
     <span id="text-editor-title" style="flex:1">Edit</span>
     <button class="zui-btn" id="text-editor-cancel">✕</button>
@@ -267,13 +268,7 @@
   </div>
 </div>
 
-  <div id="text-editor-subtitle"></div>
-  <textarea id="text-editor-content"></textarea>
-  <div class="form-footer">
-    <button class="btn" id="text-editor-cancel2">Cancel</button>
-    <button class="btn primary" id="text-editor-save">Save</button>
-  </div>
-</div>
+  
 
 <script>
 // ════════════════════════════════════════════════════════════
