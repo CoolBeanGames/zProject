@@ -1,8 +1,110 @@
 <?xml version="1.0" encoding="utf-8"?>
-<tasks project="zProject" nextIndex="112">
-  <task id="ZP-92">
-    <name>update webserve ui to use new design</name>
-    <prompt>update the webserve to use the same holo design language as the main app, do not process past this point, await hearing back from me.</prompt>
+<tasks project="zProject" nextIndex="116">
+  <task id="ZP-112">
+    <name>issue with antigravity</name>
+    <prompt>Error: unexpected argument "Read prompt.txt in this directory and follow it exactly for branch 'main'. Work through all tasks on that branch.".
+Prompts are read only from -p/--print, -i/--prompt-interactive, or stdin, so this argument would have been ignored.
+PS C:\Users\haptic\Documents\git\zShot&gt;</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>true</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <merge>false</merge>
+    <branch>main</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-113">
+    <name>operator</name>
+    <prompt>please add operator to path on first launch, ask for permissions if needed (UAC or otherwise) but please automate that</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>true</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>true</commit>
+    <build>true</build>
+    <release>true</release>
+    <merge>false</merge>
+    <branch>main</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-114">
+    <name>dragging inside of a branch</name>
+    <prompt>dragging tasks around inside a branch doesnt work right</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>true</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <merge>false</merge>
+    <branch>main</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-115">
+    <name>Server wont connect</name>
+    <prompt>via mobile device, says host not found no matter how long i let it set</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>true</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <merge>false</merge>
+    <branch>main</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-93">
+    <name>merge back into main</name>
+    <prompt>if i approve the build, merge it back in</prompt>
     <requirements></requirements>
     <inProgress>true</inProgress>
     <done>false</done>
@@ -18,68 +120,18 @@
     <commit>true</commit>
     <build>true</build>
     <release>true</release>
-    <merge>false</merge>
-    <branch>ui-redesign</branch>
-    <tags>ui,webserver</tags>
-    <notes>Converted the web server UI from its standalone light palette to the shared zUI Holo design system while preserving all existing mobile task-management behavior. The page now loads packaged zUI CSS/runtime assets and uses Holo tokens for surfaces, typography, accent rules, controls, task states, focus, and feedback. Added responsive narrow-screen refinements and secure server-side /zui asset delivery with MIME types, caching, missing-file handling, and traversal containment. Verified Release and standalone server builds, JavaScript syntax, Holo token resolution, live page/API/asset responses, error paths, and desktop/narrow headless rendering.</notes>
-    <filesChanged>src/PromptQueue.Server/zProject_webView.html; src/PromptQueue.Server/Program.cs; src/PromptQueue.Server/PromptQueue.Server.csproj; tasks.xml</filesChanged>
-    <image></image>
-    <subtasks>
-      <subtask done="true">Audit the current web UI, server endpoints, and behavior against the main application Holo interface</subtask>
-      <subtask done="true">Update the web UI to the shared zUI Holo design while preserving its task-management capabilities</subtask>
-      <subtask done="true">Verify responsive rendering, JavaScript behavior, server APIs, and the required release build</subtask>
-      <subtask done="false">Record metadata, commit and push the web UI update, and publish the next GitHub release with patch notes</subtask>
-    </subtasks>
-  </task>
-  <task id="ZP-109">
-    <name>await approval</name>
-    <prompt>stop execution and wait for me to approve changes before continuing</prompt>
-    <requirements></requirements>
-    <inProgress>false</inProgress>
-    <done>false</done>
-    <bug>false</bug>
-    <error>false</error>
-    <errorMessage></errorMessage>
-    <lockKey></lockKey>
-    <locked>false</locked>
-    <archived>false</archived>
-    <blockedBy></blockedBy>
-    <dateStarted></dateStarted>
-    <dueDate></dueDate>
-    <commit>false</commit>
-    <build>false</build>
-    <release>false</release>
-    <merge>false</merge>
-    <branch>ui-redesign</branch>
-    <tags></tags>
-    <notes></notes>
-    <filesChanged></filesChanged>
-    <image></image>
-  </task>
-  <task id="ZP-93">
-    <name>merge back into main</name>
-    <prompt>if i approve the build, merge it back in</prompt>
-    <requirements></requirements>
-    <inProgress>false</inProgress>
-    <done>false</done>
-    <bug>false</bug>
-    <error>false</error>
-    <errorMessage></errorMessage>
-    <lockKey></lockKey>
-    <locked>false</locked>
-    <archived>false</archived>
-    <blockedBy></blockedBy>
-    <dateStarted></dateStarted>
-    <dueDate></dueDate>
-    <commit>true</commit>
-    <build>true</build>
-    <release>true</release>
     <merge>true</merge>
     <branch>ui-redesign</branch>
     <tags>Branches</tags>
     <notes></notes>
     <filesChanged></filesChanged>
     <image></image>
+    <subtasks>
+      <subtask done="true">Verify the approved ui-redesign branch state and preserve outstanding task metadata before merging</subtask>
+      <subtask done="false">Merge ui-redesign into main and push the integrated branch without including unrelated worktree changes</subtask>
+      <subtask done="false">Build and validate the merged main branch in the required release output directory</subtask>
+      <subtask done="false">Record completion, push final metadata, and publish the next GitHub release with merge patch notes</subtask>
+    </subtasks>
   </task>
   <task id="ZP-111">
     <name>Branch selection</name>
@@ -91,7 +143,7 @@
     <error>false</error>
     <errorMessage></errorMessage>
     <lockKey></lockKey>
-    <locked>true</locked>
+    <locked>false</locked>
     <archived>false</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
@@ -116,7 +168,7 @@
     <error>false</error>
     <errorMessage></errorMessage>
     <lockKey></lockKey>
-    <locked>true</locked>
+    <locked>false</locked>
     <archived>false</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
@@ -141,7 +193,7 @@
     <error>false</error>
     <errorMessage></errorMessage>
     <lockKey></lockKey>
-    <locked>true</locked>
+    <locked>false</locked>
     <archived>false</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
@@ -166,7 +218,7 @@
     <error>false</error>
     <errorMessage></errorMessage>
     <lockKey></lockKey>
-    <locked>true</locked>
+    <locked>false</locked>
     <archived>false</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
@@ -191,14 +243,14 @@
     <error>false</error>
     <errorMessage></errorMessage>
     <lockKey></lockKey>
-    <locked>true</locked>
+    <locked>false</locked>
     <archived>false</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
-    <commit>false</commit>
-    <build>false</build>
-    <release>false</release>
+    <commit>true</commit>
+    <build>true</build>
+    <release>true</release>
     <merge>false</merge>
     <branch>update-2</branch>
     <tags></tags>
