@@ -230,8 +230,8 @@ function toast(msg, isErr){
   setTimeout(() => t.remove(), isErr ? 4500 : 1800);
 }
 
-async function getProject(pi){
-  if (cache.pi === pi && cache.data) return cache.data;
+async function getProject(pi, forceReload = false){
+  if (!forceReload && cache.pi === pi && cache.data) return cache.data;
   const data = await (await fetch('/api/project/' + pi)).json();
   cache = { pi, data };
   return data;
@@ -288,7 +288,9 @@ function branchColor(name){
 const SECT_CLASS = { 'Bugs':'s-bug','Needs attention':'s-err','Completed':'s-done','Archived':'s-arch' };
 
 async function renderList(pi){
-  const data = await getProject(pi);
+  // Opening a task list is an explicit refresh boundary. Bypass the page cache
+  // every time; the API re-reads tasks.xml/archive.xml before responding.
+  const data = await getProject(pi, true);
   const groups = new Map();
   for (const t of data.tasks){
     (groups.get(t.sectionKey) || groups.set(t.sectionKey, []).get(t.sectionKey)).push(t);

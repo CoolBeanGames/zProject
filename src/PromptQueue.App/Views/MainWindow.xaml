@@ -4,6 +4,7 @@
         xmlns:wf="clr-namespace:System.Windows.Forms;assembly=System.Windows.Forms"
         xmlns:wfh="clr-namespace:System.Windows.Forms.Integration;assembly=WindowsFormsIntegration"
         Title="zProject"
+        Icon="Assets/app.ico"
         Width="1280" Height="800"
         MinWidth="640" MinHeight="480"
         WindowStyle="SingleBorderWindow"

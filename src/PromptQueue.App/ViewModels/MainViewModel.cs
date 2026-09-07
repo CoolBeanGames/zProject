@@ -157,13 +157,24 @@ public sealed class MainViewModel : Observable
         get => _selectedProject;
         set
         {
-            if (Set(ref _selectedProject, value))
+            // A sidebar click means "open this task list", even when it is the
+            // project that is already selected. Always re-read first so changes
+            // made by the operator or another client are visible immediately.
+            if (value != null)
+                ProjectStore.ReloadInto(value);
+
+            var selectionChanged = Set(ref _selectedProject, value);
+            CloseOverlay();
+            RebuildTasksView();
+
+            if (selectionChanged)
             {
-                CloseOverlay();
-                RebuildTasksView();
                 Raise(nameof(HasSelectedProject));
                 RefreshCommandStates();
             }
+
+            if (value != null)
+                StatusText = $"Opened and reloaded \"{value.Name}\" from disk";
         }
     }
 
