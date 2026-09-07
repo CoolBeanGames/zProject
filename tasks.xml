@@ -102,37 +102,6 @@ PS C:\Users\haptic\Documents\git\zShot&gt;</prompt>
     <filesChanged></filesChanged>
     <image></image>
   </task>
-  <task id="ZP-93">
-    <name>merge back into main</name>
-    <prompt>if i approve the build, merge it back in</prompt>
-    <requirements></requirements>
-    <inProgress>true</inProgress>
-    <done>false</done>
-    <bug>false</bug>
-    <error>false</error>
-    <errorMessage></errorMessage>
-    <lockKey>cx9K4mQ7vL2</lockKey>
-    <locked>false</locked>
-    <archived>false</archived>
-    <blockedBy></blockedBy>
-    <dateStarted></dateStarted>
-    <dueDate></dueDate>
-    <commit>true</commit>
-    <build>true</build>
-    <release>true</release>
-    <merge>true</merge>
-    <branch>ui-redesign</branch>
-    <tags>Branches</tags>
-    <notes></notes>
-    <filesChanged></filesChanged>
-    <image></image>
-    <subtasks>
-      <subtask done="true">Verify the approved ui-redesign branch state and preserve outstanding task metadata before merging</subtask>
-      <subtask done="false">Merge ui-redesign into main and push the integrated branch without including unrelated worktree changes</subtask>
-      <subtask done="false">Build and validate the merged main branch in the required release output directory</subtask>
-      <subtask done="false">Record completion, push final metadata, and publish the next GitHub release with merge patch notes</subtask>
-    </subtasks>
-  </task>
   <task id="ZP-111">
     <name>Branch selection</name>
     <prompt>at the top bar we can type in a branch to make new tasks in, lets change this to a drop down (that you can also type in)</prompt>
