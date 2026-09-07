@@ -1,35 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <tasks project="zProject" nextIndex="124">
-  <task id="ZP-104">
-    <name>Reload when opening a project</name>
-    <prompt>the task list should refresh / reload as soon as i open the task list every single time</prompt>
-    <requirements></requirements>
-    <inProgress>true</inProgress>
-    <done>false</done>
-    <bug>false</bug>
-    <error>false</error>
-    <errorMessage></errorMessage>
-    <lockKey>cx9K4mQ7vL2</lockKey>
-    <locked>false</locked>
-    <archived>false</archived>
-    <blockedBy></blockedBy>
-    <dateStarted></dateStarted>
-    <dueDate></dueDate>
-    <commit>true</commit>
-    <build>true</build>
-    <release>false</release>
-    <merge>false</merge>
-    <branch>update-2</branch>
-    <tags></tags>
-    <notes>Desktop project selection now reloads the selected project from disk on every open, including repeat clicks on the already-selected sidebar item, then rebuilds and pushes the task view. Mobile task-list routing now force-fetches the project endpoint on every list open instead of returning cached data; the endpoint already reloads project files before responding. Verified zero-warning Debug solution build, mobile JavaScript syntax, diff checks, and Debug publishes for app/operator/server.</notes>
-    <filesChanged>src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.Server/zProject_webView.html; src/PromptQueue.App/Assets/app.ico; src/PromptQueue.App/Views/MainWindow.xaml; tasks.xml</filesChanged>
-    <image></image>
-    <subtasks>
-      <subtask done="true">Trace every desktop and mobile project-opening path and the current reload behavior</subtask>
-      <subtask done="true">Reload project data before rendering whenever a task list is opened</subtask>
-      <subtask done="false">Verify repeated project opens, build Debug artifacts, record metadata, and commit/push update-2</subtask>
-    </subtasks>
-  </task>
   <task id="ZP-103">
     <name>Notes</name>
     <prompt>add a new "notes" feature, when used it just gives the agent information. subtasks below will list the things to show or enable for it.</prompt>
