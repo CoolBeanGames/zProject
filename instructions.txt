@@ -21,3 +21,5 @@ if a non-priority task is in-progress it takes priority over bugs and other ordi
 COMPLETELY ignore the acrhive tags contents, dont even proccess it once you see it.
 
 If a project is a release build, then also release a github release with full patch notes since the last release, tag it as project_name_build# build# is the most recent build# +1 use the gh cli to do this.
+
+NOTES are informational queue items whose XML contains a <note> element instead of a <prompt>. Read each note when you reach it; do not take an agent lock, set in-progress, create subtasks, add agent notes/files-changed metadata, build, commit, release, or otherwise process it as a task. Keep its name and branch unchanged. If <clearAfterReading>true</clearAfterReading>, archive it immediately after reading with `operator archive <note_id>`; if false, leave it unchanged and continue to the next queue item. A user may mark a note done manually.

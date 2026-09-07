@@ -38,6 +38,9 @@ public sealed class TaskItem : Observable
     private string _filesChanged = "";
     private string _image = "";
     private string _imagePath = "";
+    private bool _isNote;
+    private string _note = "";
+    private bool _clearAfterReading;
     private int _order;
     private bool _collapsed;
 
@@ -60,6 +63,27 @@ public sealed class TaskItem : Observable
 
     /// <summary>True when a distinct <see cref="Name"/> is set (so the id is worth showing too).</summary>
     public bool HasName => !string.IsNullOrWhiteSpace(Name);
+
+    /// <summary>True for an informational queue note rather than an actionable task.</summary>
+    public bool IsNote
+    {
+        get => _isNote;
+        set => Set(ref _isNote, value);
+    }
+
+    /// <summary>Content of a first-class queue note.</summary>
+    public string Note
+    {
+        get => _note;
+        set => Set(ref _note, value);
+    }
+
+    /// <summary>When true, an agent archives this note immediately after reading it.</summary>
+    public bool ClearAfterReading
+    {
+        get => _clearAfterReading;
+        set => Set(ref _clearAfterReading, value);
+    }
 
     /// <summary>Prompt text passed to the agent that processes this task.</summary>
     public string Prompt
@@ -451,6 +475,9 @@ public sealed class TaskItem : Observable
         {
             Id = Id,
             Name = Name,
+            IsNote = IsNote,
+            Note = Note,
+            ClearAfterReading = ClearAfterReading,
             Prompt = Prompt,
             Requirements = Requirements,
             InProgress = InProgress,
@@ -485,6 +512,9 @@ public sealed class TaskItem : Observable
     {
         Id = other.Id;
         Name = other.Name;
+        IsNote = other.IsNote;
+        Note = other.Note;
+        ClearAfterReading = other.ClearAfterReading;
         Prompt = other.Prompt;
         Requirements = other.Requirements;
         InProgress = other.InProgress;

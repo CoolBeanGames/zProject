@@ -14,6 +14,9 @@ public static class TaskFields
         new(StringComparer.OrdinalIgnoreCase)
         {
             ["name"] = (t, v) => t.Name = v,
+            ["isnote"] = (t, v) => t.IsNote = Bool(v),
+            ["note"] = (t, v) => t.Note = v,
+            ["clearafterreading"] = (t, v) => t.ClearAfterReading = Bool(v),
             ["prompt"] = (t, v) => t.Prompt = v,
             ["requirements"] = (t, v) => t.Requirements = v,
             ["inprogress"] = (t, v) => t.InProgress = Bool(v),
@@ -52,7 +55,9 @@ public static class TaskFields
             ["files_changed"] = "fileschanged",
             ["files"] = "fileschanged",
             ["tag"] = "tags",
-            ["note"] = "notes",
+            ["is_note"] = "isnote",
+            ["clear_after_reading"] = "clearafterreading",
+            ["agent_notes"] = "notes",
         };
 
     /// <summary>The set of recognised field names (canonical spelling).</summary>
@@ -62,6 +67,9 @@ public static class TaskFields
         new(StringComparer.OrdinalIgnoreCase)
         {
             ["name"] = t => t.Name,
+            ["isnote"] = t => t.IsNote ? "true" : "false",
+            ["note"] = t => t.Note,
+            ["clearafterreading"] = t => t.ClearAfterReading ? "true" : "false",
             ["prompt"] = t => t.Prompt,
             ["requirements"] = t => t.Requirements,
             ["inprogress"] = t => t.InProgress ? "true" : "false",

@@ -146,6 +146,7 @@ public partial class MainWindow : Window
 
         // Task list actions
         _ui.On("add-task",        _ => Dispatcher.Invoke(() => Vm?.AddTaskCommand.Execute(null)));
+        _ui.On("add-note",        _ => Dispatcher.Invoke(() => Vm?.AddNoteCommand.Execute(null)));
         _ui.On("open-edit-task",  p => Dispatcher.Invoke(() =>
         {
             var id = p.GetString();
@@ -328,6 +329,9 @@ public partial class MainWindow : Window
         {
             id           = t.Id,
             name         = t.Name,
+            isNote       = t.IsNote,
+            note         = t.Note,
+            clearAfterReading = t.ClearAfterReading,
             prompt       = t.Prompt,
             requirements = t.Requirements,
             inProgress   = t.InProgress,
@@ -388,6 +392,9 @@ public partial class MainWindow : Window
                 isNew        = form.IsNew,
                 id           = form.Id,
                 name         = form.Name,
+                isNote       = form.IsNote,
+                note         = form.Note,
+                clearAfterReading = form.ClearAfterReading,
                 branch       = form.Branch,
                 inProgress   = form.InProgress,
                 done         = form.Done,
@@ -480,6 +487,9 @@ public partial class MainWindow : Window
         if (Vm?.Overlay is TaskFormViewModel form)
         {
             form.Name         = p.GetProperty("name").GetString()         ?? "";
+            form.IsNote       = p.TryGetProperty("isNote", out var isNote) && isNote.GetBoolean();
+            form.Note         = p.TryGetProperty("note", out var note) ? note.GetString() ?? "" : "";
+            form.ClearAfterReading = p.TryGetProperty("clearAfterReading", out var clear) && clear.GetBoolean();
             form.Branch       = p.GetProperty("branch").GetString()        ?? "main";
             form.InProgress   = p.GetProperty("inProgress").GetBoolean();
             form.Done         = p.GetProperty("done").GetBoolean();

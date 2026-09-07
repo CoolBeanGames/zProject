@@ -116,6 +116,10 @@ public static class OperatorEngine
     public static OperatorResult NewTask(string projectRef, string name, string prompt = "")
         => Enqueue(new OperatorJob("new_task", projectRef, name, prompt));
 
+    /// <summary>Queues creation of a first-class informational note.</summary>
+    public static OperatorResult NewNote(string projectRef, string name, string note = "")
+        => Enqueue(new OperatorJob("new_note", projectRef, name, note));
+
     /// <summary>
     /// Queues creation of a new project. With no directory it is created under
     /// <c>&lt;workspace root&gt;/projects/&lt;name&gt;</c>. The directory is returned in the output.
@@ -313,11 +317,31 @@ public static class OperatorEngine
                 return OperatorResult.Pass($"Created {task.Id}", task.Id);
             }
 
+            case "new_note":
+            {
+                var project = ResolveProject(ws, job.Arg(0));
+                if (project == null)
+                    return OperatorResult.Fail($"No project matches \"{job.Arg(0)}\".");
+                var note = new TaskItem
+                {
+                    Id = project.MintTaskId(),
+                    Name = job.Arg(1),
+                    IsNote = true,
+                    Note = job.Arg(2),
+                    Order = project.Tasks.Count,
+                };
+                project.Tasks.Add(note);
+                touched.Add(project);
+                return OperatorResult.Pass($"Created note {note.Id}", note.Id);
+            }
+
             case "new_subtask":
             {
                 var (project, task) = ResolveTask(ws, job.Arg(0));
                 if (task == null)
                     return OperatorResult.Fail($"No task \"{job.Arg(0)}\".");
+                if (task.IsNote)
+                    return OperatorResult.Fail($"{task.Id} is an informational note and cannot have subtasks.");
                 task.Subtasks.Add(new Subtask { Text = job.Arg(1) });
                 touched.Add(project!);
                 return OperatorResult.Pass($"{task.Id} +subtask");
@@ -380,6 +404,8 @@ public static class OperatorEngine
                 var (project, task) = ResolveTask(ws, job.Arg(0));
                 if (task == null)
                     return OperatorResult.Fail($"No task \"{job.Arg(0)}\".");
+                if (task.IsNote)
+                    return OperatorResult.Fail($"{task.Id} is an informational note; read it without taking an agent lock.");
                 var key = job.Arg(1).Trim();
                 if (key.Length == 0)
                     return OperatorResult.Fail("A lock key is required.");
@@ -433,7 +459,9 @@ public static class OperatorEngine
                     return OperatorResult.Pass($"{task.Id} is already in that position");
                 if (task.Archived || target.Archived || task.Done || target.Done)
                     return OperatorResult.Fail("Only active tasks can be reordered.");
-                if (task.Priority != target.Priority || task.SectionRank != target.SectionRank ||
+                if (task.IsNote && !target.Priority && target.SectionRank == 2)
+                    task.Branch = target.Branch;
+                else if (task.Priority != target.Priority || task.SectionRank != target.SectionRank ||
                     !string.Equals(task.BranchDisplay, target.BranchDisplay, StringComparison.OrdinalIgnoreCase))
                     return OperatorResult.Fail("Tasks can only be reordered within the same branch and priority group.");
 
@@ -491,7 +519,7 @@ public static class OperatorEngine
     private static int ApplyBranchLock(Project project, string branch, bool locked)
     {
         var branchTasks = project.Tasks.Where(t =>
-            !t.Done && !t.Archived &&
+            !t.IsNote && !t.Done && !t.Archived &&
             string.Equals(t.BranchDisplay, branch, StringComparison.OrdinalIgnoreCase)).ToList();
         foreach (var task in branchTasks)
             task.Locked = locked;

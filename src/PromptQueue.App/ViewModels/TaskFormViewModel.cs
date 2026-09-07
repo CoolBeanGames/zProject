@@ -14,6 +14,9 @@ namespace PromptQueue.App.ViewModels;
 public sealed class TaskFormViewModel : Observable
 {
     private string _name;
+    private bool _isNote;
+    private string _note;
+    private bool _clearAfterReading;
     private string _prompt;
     private string _requirements;
     private bool _inProgress;
@@ -60,6 +63,9 @@ public sealed class TaskFormViewModel : Observable
         Id = id;
         _projectDirectory = projectDirectory;
         _name = source?.Name ?? "";
+        _isNote = source?.IsNote ?? false;
+        _note = source?.Note ?? "";
+        _clearAfterReading = source?.ClearAfterReading ?? false;
         _prompt = source?.Prompt ?? "";
         _requirements = source?.Requirements ?? "";
         _inProgress = source?.InProgress ?? false;
@@ -210,6 +216,24 @@ public sealed class TaskFormViewModel : Observable
     {
         get => _name;
         set => Set(ref _name, value);
+    }
+
+    public bool IsNote
+    {
+        get => _isNote;
+        set => Set(ref _isNote, value);
+    }
+
+    public string Note
+    {
+        get => _note;
+        set => Set(ref _note, value);
+    }
+
+    public bool ClearAfterReading
+    {
+        get => _clearAfterReading;
+        set => Set(ref _clearAfterReading, value);
     }
 
     public string Prompt
@@ -412,6 +436,9 @@ public sealed class TaskFormViewModel : Observable
     public void ApplyTo(TaskItem task)
     {
         task.Name = Name.Trim();
+        task.IsNote = IsNote;
+        task.Note = IsNote ? Note.Trim() : "";
+        task.ClearAfterReading = IsNote && ClearAfterReading;
         task.Prompt = Prompt.Trim();
         task.Requirements = Requirements.Trim();
         task.InProgress = InProgress;
@@ -435,7 +462,33 @@ public sealed class TaskFormViewModel : Observable
         task.FilesChanged = FilesChanged;
         task.Image = Image;
 
+        if (IsNote)
+        {
+            task.Prompt = "";
+            task.Requirements = "";
+            task.InProgress = false;
+            task.Priority = false;
+            task.Bug = false;
+            task.Error = false;
+            task.ErrorMessage = "";
+            task.LockKey = "";
+            task.Locked = false;
+            task.BlockedBy = "";
+            task.DateStarted = null;
+            task.DueDate = null;
+            task.Commit = false;
+            task.Build = false;
+            task.Release = false;
+            task.Merge = false;
+            task.TagText = "";
+            task.Notes = "";
+            task.FilesChanged = "";
+            task.Image = "";
+        }
+
         task.Subtasks.Clear();
+        if (IsNote)
+            return;
         foreach (var s in Subtasks.Where(s => !string.IsNullOrWhiteSpace(s.Text)))
             task.Subtasks.Add(new Subtask { Text = s.Text.Trim(), Done = s.Done });
     }

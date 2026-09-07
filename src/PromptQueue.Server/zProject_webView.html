@@ -89,6 +89,10 @@
   .q.s-err{border-left-color:var(--st-err); background:var(--st-err-wash)}
   .q.s-done{border-left-color:var(--st-done)}
   .q.s-hold{border-left-color:var(--st-hold)}
+  .q.note{align-items:flex-start; background:color-mix(in srgb,var(--accent) 9%,var(--surface))}
+  .qnote{flex:1; min-width:0}
+  .qnote .nm{display:block; font-weight:600}
+  .qnote .body{color:var(--ink-2); font-size:13px; white-space:pre-wrap; overflow-wrap:anywhere; max-height:5.8em; overflow:auto; margin-top:3px}
   .q .nm{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
   .q.s-done .nm, .q.s-arch .nm{text-decoration:line-through; color:var(--ink-2)}
   .q .rt{font-size:12px; color:var(--ink-2); white-space:nowrap; display:flex; align-items:center; gap:8px}
@@ -332,10 +336,12 @@ async function renderList(pi){
     <div class="bar">
       <button class="lead" onclick="goPicker()">‹ Projects</button>
       <h1>${esc(data.name)}</h1>
+      <button class="act" id="nn">New note</button>
       <button class="act primary" id="nt">New task</button>
     </div>
     <main class="view">${body}</main>`;
   document.getElementById('nt').onclick = () => goTask(pi, 'new');
+  document.getElementById('nn').onclick = () => goTask(pi, 'new-note');
   app.querySelectorAll('.q').forEach(el => el.onclick = () => goTask(pi, el.dataset.id));
   app.querySelectorAll('[data-branch-lock]').forEach(el => el.onclick = async e => {
     e.stopPropagation();
@@ -353,9 +359,9 @@ function row(pi, t){
   const prog = (t.subtasks && t.subtasks.length)
     ? `<span class="prog">${t.subtasks.filter(s=>s.done).length}/${t.subtasks.length}</span>` : '';
   const branchBanner = t.branch ? `<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${branchColor(t.branch)};margin-right:6px;flex:none;" title="Branch: ${esc(t.branch)}"></span>` : '';
-  return `<div class="q ${sc}" data-id="${av(t.id)}">
+  return `<div class="q ${sc}${t.isNote ? ' note' : ''}" data-id="${av(t.id)}">
     ${branchBanner}
-    <span class="nm">${esc(t.displayName)}</span>
+    ${t.isNote ? `<span class="qnote"><span class="nm">${esc(t.displayName)}</span><span class="body">${esc(t.note || '')}</span></span>` : `<span class="nm">${esc(t.displayName)}</span>`}
     <span class="rt">${prog}<span class="state">${esc(state)}</span></span>
   </div>`;
 }
@@ -363,12 +369,15 @@ function row(pi, t){
 /* ---- task page ---- */
 const BLANK = { id:'', name:'', prompt:'', requirements:'', tags:[], blockedBy:'',
   dateStarted:'', dueDate:'', notes:'', filesChanged:'', errorMessage:'',
+  isNote:false, note:'', clearAfterReading:false,
   priority:false, bug:false, done:false, inProgress:false, locked:false, error:false, archived:false,
   commit:false, build:false, release:false, merge:false, branch:'main', subtasks:[] };
 
 async function renderTask(pi, tid){
-  const isNew = tid === 'new';
+  const isNewNote = tid === 'new-note';
+  const isNew = tid === 'new' || isNewNote;
   let t = JSON.parse(JSON.stringify(BLANK)), pname = '';
+  t.isNote = isNewNote;
   const data = await getProject(pi).catch(() => null);
   if (data) pname = data.name;
   if (!isNew){
@@ -377,6 +386,7 @@ async function renderTask(pi, tid){
     t = JSON.parse(JSON.stringify(found));   // edit a copy — the list cache stays clean until Save
   }
   const orig = JSON.parse(JSON.stringify(t));
+  if (t.isNote) return renderNote(pi, pname, isNew, t, orig);
   const flag = (k,label,cls='') =>
     `<button class="flag ${cls}" data-f="${k}" aria-pressed="${!!t[k]}">${label}</button>`;
   const agentOpen = t.notes || t.filesChanged || t.errorMessage;
@@ -491,6 +501,51 @@ async function renderTask(pi, tid){
   };
   document.getElementById('save').onclick = () => saveTask(pi, pname, isNew, t, orig);
   if (isNew) document.getElementById('f_name').focus();
+}
+
+function renderNote(pi, pname, isNew, t, orig){
+  app.innerHTML = `
+    <div class="bar">
+      <button class="lead" id="back">‹ ${isNew ? 'Cancel' : esc(pname || 'Back')}</button>
+      <h1>${isNew ? 'New note' : esc(t.id)}</h1>
+    </div>
+    <main class="view">
+      <div class="field"><label for="n_name">Name</label>
+        <input type="text" id="n_name" value="${av(t.name)}" placeholder="Short title"></div>
+      <div class="field big"><label for="n_note">Note</label>
+        <textarea id="n_note" placeholder="Information for the agent">${esc(t.note || '')}</textarea></div>
+      <div class="field"><label for="n_branch">Branch</label>
+        <input type="text" id="n_branch" value="${av(t.branch || 'main')}" placeholder="Branch"></div>
+      <div class="field">
+        <label><input type="checkbox" id="n_done" ${t.done ? 'checked' : ''}> Done</label>
+        <label><input type="checkbox" id="n_clear" ${t.clearAfterReading ? 'checked' : ''}> Clear after reading</label>
+      </div>
+      ${isNew ? '' : '<button class="danger" id="del">Delete this note</button>'}
+      <div class="actionbar"><button id="cancel">Cancel</button><button class="save" id="save">${isNew ? 'Create note' : 'Save'}</button></div>
+    </main>`;
+  const back = () => goList(pi);
+  document.getElementById('back').onclick = back;
+  document.getElementById('cancel').onclick = back;
+  if (!isNew) document.getElementById('del').onclick = async () => {
+    if (!confirm('Delete ' + t.id + '?')) return;
+    const r = await op('delete', t.id);
+    if (r.ok){ cache.data = null; toast('Deleted ' + t.id); goList(pi); } else toast(r.message, true);
+  };
+  document.getElementById('save').onclick = async () => {
+    const name = document.getElementById('n_name').value.trim();
+    const note = document.getElementById('n_note').value;
+    const branch = document.getElementById('n_branch').value.trim() || 'main';
+    const done = document.getElementById('n_done').checked;
+    const clear = document.getElementById('n_clear').checked;
+    let id = t.id;
+    const created = isNew ? await op('new_note', pname, name || '(note)', note) : {ok:true};
+    if (!created.ok){ toast(created.message, true); return; }
+    if (isNew) id = (created.output || '').trim();
+    const saved = await op('sync_many', id, 'name', name, 'note', note, 'branch', branch, 'done', done, 'clearAfterReading', clear);
+    if (!saved.ok){ toast(saved.message, true); return; }
+    cache.data = null; toast(isNew ? 'Note created' : 'Saved'); goList(pi);
+  };
+  document.getElementById(isNew ? 'n_name' : 'n_note').focus();
 }
 
 async function saveTask(pi, pname, isNew, t, orig){

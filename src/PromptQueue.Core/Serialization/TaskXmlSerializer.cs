@@ -55,6 +55,18 @@ public static class TaskXmlSerializer
 
     private static XElement TaskToElement(TaskItem task)
     {
+        if (task.IsNote)
+        {
+            return new XElement("task",
+                new XAttribute("id", task.Id),
+                new XElement("name", task.Name),
+                new XElement("note", task.Note),
+                new XElement("done", task.Done),
+                new XElement("archived", task.Archived),
+                new XElement("branch", task.Branch),
+                new XElement("clearAfterReading", task.ClearAfterReading));
+        }
+
         var el = new XElement("task",
             new XAttribute("id", task.Id),
             new XElement("name", task.Name),
@@ -127,6 +139,9 @@ public static class TaskXmlSerializer
             {
                 Id = (string?)el.Attribute("id") ?? "",
                 Name = (string?)el.Element("name") ?? "",
+                IsNote = el.Element("note") != null || ParseBool(el.Element("isNote")),
+                Note = (string?)el.Element("note") ?? "",
+                ClearAfterReading = ParseBool(el.Element("clearAfterReading")),
                 Prompt = (string?)el.Element("prompt") ?? "",
                 Requirements = (string?)el.Element("requirements") ?? "",
                 InProgress = ParseBool(el.Element("inProgress")),
@@ -201,7 +216,7 @@ public static class TaskXmlSerializer
     /// <summary>Elements whose content is free text an agent might not escape.</summary>
     private static readonly string[] TextElements =
     {
-        "name", "prompt", "requirements", "errorMessage",
+        "name", "note", "prompt", "requirements", "errorMessage",
         "blockedBy", "tags", "notes", "filesChanged", "lockKey", "image",
     };
 

@@ -81,6 +81,8 @@
     .task-card.drag-over-above { border-top: 2px solid var(--zui-accent); }
     .task-card.drag-over-below { border-bottom: 2px solid var(--zui-accent); }
     .task-card.priority { background: color-mix(in srgb, var(--zui-error) 24%, var(--zui-bg-surface)); border-color: var(--zui-error); }
+    .task-card.note { background: color-mix(in srgb, var(--zui-accent) 9%, var(--zui-bg-surface)); }
+    .note-content { margin-top:var(--zui-space-1); color:var(--zui-text-secondary); white-space:pre-wrap; overflow-wrap:anywhere; max-height:5.4em; overflow:auto; padding-right:var(--zui-space-1); }
 
     #quick-add-bar { display: none; }
     #quick-add-bar.visible { display: flex; }
@@ -142,6 +144,7 @@
       <!-- Toolbar -->
       <div class="zui-row zui-gap-2 zui-items-center" style="padding:4px 8px;border-bottom:1px solid var(--zui-border);background:var(--zui-bg-surface-alt);flex-shrink:0;">
         <button class="zui-btn zui-btn--primary" id="btn-add-task">+ New Task</button>
+        <button class="zui-btn" id="btn-add-note">+ New Note</button>
         <span class="zui-sep--v" style="height:16px"></span>
         <button class="zui-btn" id="btn-deploy-codex">▶ Codex</button>
         <button class="zui-btn" id="btn-deploy-claude">▶ Claude</button>
@@ -199,40 +202,44 @@
       <input type="text" class="zui-input" id="form-branch" placeholder="main" list="form-branches-list">
       <datalist id="form-branches-list"></datalist>
     </div>
-    <div class="zui-col zui-gap-1">
+    <div class="zui-col zui-gap-1" id="form-flags-group">
       <label class="zui-t-small zui-text-secondary">Flags</label>
       <div class="zui-row zui-gap-2" style="flex-wrap:wrap">
-        <label class="zui-check"><input type="checkbox" id="form-inprogress"> In Progress</label>
+        <label class="zui-check task-only-field"><input type="checkbox" id="form-inprogress"> In Progress</label>
         <label class="zui-check"><input type="checkbox" id="form-done"> Done</label>
-        <label class="zui-check"><input type="checkbox" id="form-priority"> Priority</label>
-        <label class="zui-check"><input type="checkbox" id="form-bug"> Bug</label>
-        <label class="zui-check"><input type="checkbox" id="form-locked"> Locked</label>
-        <label class="zui-check"><input type="checkbox" id="form-archived"> Archived</label>
-        <label class="zui-check"><input type="checkbox" id="form-commit"> Commit</label>
-        <label class="zui-check"><input type="checkbox" id="form-build"> Build</label>
-        <label class="zui-check"><input type="checkbox" id="form-release"> Release</label>
-        <label class="zui-check"><input type="checkbox" id="form-merge"> Merge</label>
+        <label class="zui-check task-only-field"><input type="checkbox" id="form-priority"> Priority</label>
+        <label class="zui-check task-only-field"><input type="checkbox" id="form-bug"> Bug</label>
+        <label class="zui-check task-only-field"><input type="checkbox" id="form-locked"> Locked</label>
+        <label class="zui-check task-only-field"><input type="checkbox" id="form-archived"> Archived</label>
+        <label class="zui-check task-only-field"><input type="checkbox" id="form-commit"> Commit</label>
+        <label class="zui-check task-only-field"><input type="checkbox" id="form-build"> Build</label>
+        <label class="zui-check task-only-field"><input type="checkbox" id="form-release"> Release</label>
+        <label class="zui-check task-only-field"><input type="checkbox" id="form-merge"> Merge</label>
       </div>
     </div>
-    <div class="zui-col zui-gap-1">
+    <div class="zui-col zui-gap-1" id="form-clear-group" style="display:none">
+      <label class="zui-check"><input type="checkbox" id="form-note-done"> Done</label>
+      <label class="zui-check"><input type="checkbox" id="form-clear-after-reading"> Clear after reading</label>
+    </div>
+    <div class="zui-col zui-gap-1 task-only-group">
       <label class="zui-t-small zui-text-secondary">Blocked By</label>
       <input type="text" class="zui-input" id="form-blocked-by" placeholder="Task ID" list="form-blockers-list">
       <datalist id="form-blockers-list"></datalist>
     </div>
-    <div class="zui-col zui-gap-1">
+    <div class="zui-col zui-gap-1 task-only-group">
       <label class="zui-t-small zui-text-secondary">Tags</label>
       <input type="text" class="zui-input" id="form-tags" placeholder="comma-separated tags" list="form-tags-list">
       <datalist id="form-tags-list"></datalist>
     </div>
     <div class="zui-col zui-gap-1">
-      <label class="zui-t-small zui-text-secondary">Prompt</label>
+      <label class="zui-t-small zui-text-secondary" id="form-content-label">Prompt</label>
       <textarea class="zui-textarea" id="form-prompt" placeholder="Task description for the agent…" rows="4"></textarea>
     </div>
-    <div class="zui-col zui-gap-1">
+    <div class="zui-col zui-gap-1 task-only-group">
       <label class="zui-t-small zui-text-secondary">Requirements</label>
       <textarea class="zui-textarea" id="form-requirements" placeholder="Specific requirements…" rows="3"></textarea>
     </div>
-    <div class="zui-col zui-gap-1" id="form-image-group">
+    <div class="zui-col zui-gap-1 task-only-group" id="form-image-group">
       <label class="zui-t-small zui-text-secondary">Image</label>
       <div class="zui-row zui-gap-2 zui-items-center">
         <button class="zui-btn" id="form-choose-image" type="button">Choose image…</button>
@@ -243,19 +250,19 @@
         <img id="form-image-preview-img" alt="Attached task image preview">
       </div>
     </div>
-    <div class="zui-col zui-gap-1" id="form-notes-group">
+    <div class="zui-col zui-gap-1 task-only-group" id="form-notes-group">
       <label class="zui-t-small zui-text-secondary">Notes (agent-written)</label>
       <textarea class="zui-textarea" id="form-notes" rows="3"></textarea>
     </div>
-    <div class="zui-col zui-gap-1" id="form-files-group">
+    <div class="zui-col zui-gap-1 task-only-group" id="form-files-group">
       <label class="zui-t-small zui-text-secondary">Files Changed (agent-written)</label>
       <textarea class="zui-textarea" id="form-files" rows="2"></textarea>
     </div>
-    <div class="zui-col zui-gap-1" id="form-error-group">
+    <div class="zui-col zui-gap-1 task-only-group" id="form-error-group">
       <label class="zui-t-small zui-text-secondary">Error Message</label>
       <textarea class="zui-textarea" id="form-error-msg" rows="2"></textarea>
     </div>
-    <div class="zui-col zui-gap-1">
+    <div class="zui-col zui-gap-1 task-only-group">
       <label class="zui-t-small zui-text-secondary">Subtasks</label>
       <ul style="list-style:none;display:flex;flex-direction:column;gap:3px;padding:0;margin:0" id="form-subtask-list"></ul>
       <div class="zui-row zui-gap-2">
@@ -263,7 +270,7 @@
         <button class="zui-btn" id="form-add-subtask">Add</button>
       </div>
     </div>
-    <div class="zui-col zui-gap-1">
+    <div class="zui-col zui-gap-1 task-only-group">
       <label class="zui-t-small zui-text-secondary">Run with agent</label>
       <div class="zui-row zui-gap-2">
         <button class="zui-btn" id="form-run-codex">▶ Codex</button>
@@ -340,6 +347,7 @@ function taskPriorityGroup(task) {
 function sameReorderGroup(a, b) {
   const aBranch = (a.branch || 'main').trim().toLowerCase();
   const bBranch = (b.branch || 'main').trim().toLowerCase();
+  if (a.isNote && !b.priority && taskPriorityGroup(b) === 2) return true;
   return aBranch === bBranch && !!a.priority === !!b.priority && taskPriorityGroup(a) === taskPriorityGroup(b);
 }
 
@@ -479,7 +487,7 @@ function renderTaskList() {
 function renderTaskCard(task, sectionColor) {
   const card = document.createElement('div');
   card.className = 'task-card' + (task.priority && !task.done && !task.archived ? ' priority' : '') +
-    (task.done ? ' done' : '') + (task.indentLevel > 0 ? ' indented' : '');
+    (task.isNote ? ' note' : '') + (task.done ? ' done' : '') + (task.indentLevel > 0 ? ' indented' : '');
   card.dataset.taskId = task.id;
   card.draggable = !task.done && !task.archived;
 
@@ -487,22 +495,25 @@ function renderTaskCard(task, sectionColor) {
 
   // Chips
   let chips = '';
-  if (task.inProgress) chips += chipHtml('inprogress', 'IN PROGRESS');
-  if (task.priority) chips += chipHtml('bug', 'PRIORITY');
-  if (task.bug) chips += chipHtml('bug', 'BUG');
-  if (task.locked) chips += chipHtml('locked', 'LOCKED');
-  if (task.commit) chips += chipHtml('commit', 'COMMIT');
-  if (task.build) chips += chipHtml('build', 'BUILD');
-  if (task.release) chips += chipHtml('release', 'RELEASE');
-  if (task.merge) chips += chipHtml('merge', 'MERGE');
-  if (task.isBlocked) chips += chipHtml('blocked', `BLOCKED by ${esc(task.blockedBy)}`);
+  if (!task.isNote) {
+    if (task.inProgress) chips += chipHtml('inprogress', 'IN PROGRESS');
+    if (task.priority) chips += chipHtml('bug', 'PRIORITY');
+    if (task.bug) chips += chipHtml('bug', 'BUG');
+    if (task.locked) chips += chipHtml('locked', 'LOCKED');
+    if (task.commit) chips += chipHtml('commit', 'COMMIT');
+    if (task.build) chips += chipHtml('build', 'BUILD');
+    if (task.release) chips += chipHtml('release', 'RELEASE');
+    if (task.merge) chips += chipHtml('merge', 'MERGE');
+    if (task.isBlocked) chips += chipHtml('blocked', `BLOCKED by ${esc(task.blockedBy)}`);
+  }
+  if (task.isNote && task.clearAfterReading) chips += chipHtml('inprogress', 'CLEAR AFTER READING');
   if (task.branch && task.branch.toLowerCase() !== 'main')
     chips += chipHtml('branch', esc(task.branch));
   if (task.tags) for (const tag of task.tags) chips += chipHtml('tag', esc(tag));
 
   // Subtasks mini-list
   let subtasksHtml = '';
-  if (task.subtasks && task.subtasks.length > 0) {
+  if (!task.isNote && task.subtasks && task.subtasks.length > 0) {
     subtasksHtml = '<div class="task-subtasks">';
     for (let i = 0; i < task.subtasks.length; i++) {
       const s = task.subtasks[i];
@@ -528,12 +539,13 @@ function renderTaskCard(task, sectionColor) {
           <span class="task-name">${esc(task.name || '(unnamed)')}</span>
         </div>
         ${chips ? `<div class="task-chips">${chips}</div>` : ''}
+        ${task.isNote ? `<div class="note-content">${esc(task.note || '')}</div>` : ''}
         ${subtasksHtml}
       </div>
       <div class="task-actions">
         <button data-action="edit" data-task-id="${task.id}">Edit</button>
-        <button data-action="lock" data-task-id="${task.id}" title="${task.locked ? 'Unlock' : 'Lock'}">${task.locked ? '🔒' : '🔓'}</button>
-        ${!task.isLocal ? `<button data-action="run-codex" data-task-id="${task.id}">▶ Codex</button>
+        ${!task.isNote ? `<button data-action="lock" data-task-id="${task.id}" title="${task.locked ? 'Unlock' : 'Lock'}">${task.locked ? '🔒' : '🔓'}</button>` : ''}
+        ${!task.isNote && !task.isLocal ? `<button data-action="run-codex" data-task-id="${task.id}">▶ Codex</button>
         <button data-action="run-claude" data-task-id="${task.id}">▶ Claude</button>
         <button data-action="run-agy" data-task-id="${task.id}">▶ AGY</button>` : ''}
         <button data-action="delete" data-task-id="${task.id}" class="danger">Del</button>
@@ -643,12 +655,14 @@ function toggleSection(key) {
 // ── Task Form ────────────────────────────────────────────────
 function openTaskForm(data) {
   state.formTask = data;
+  const noteMode = !!data.isNote;
   document.getElementById('form-task-id').textContent = data.id || '';
-  document.getElementById('form-title').textContent = data.isNew ? 'New Task' : 'Edit Task';
+  document.getElementById('form-title').textContent = data.isNew ? (noteMode ? 'New Note' : 'New Task') : (noteMode ? 'Edit Note' : 'Edit Task');
   document.getElementById('form-name').value = data.name || '';
   document.getElementById('form-branch').value = data.branch || 'main';
   document.getElementById('form-inprogress').checked = !!data.inProgress;
   document.getElementById('form-done').checked = !!data.done;
+  document.getElementById('form-note-done').checked = !!data.done;
   document.getElementById('form-priority').checked = !!data.priority;
   document.getElementById('form-bug').checked = !!data.bug;
   document.getElementById('form-locked').checked = !!data.locked;
@@ -659,7 +673,8 @@ function openTaskForm(data) {
   document.getElementById('form-merge').checked = !!data.merge;
   document.getElementById('form-blocked-by').value = data.blockedBy || '';
   document.getElementById('form-tags').value = data.tagText || '';
-  document.getElementById('form-prompt').value = data.prompt || '';
+  document.getElementById('form-prompt').value = noteMode ? (data.note || '') : (data.prompt || '');
+  document.getElementById('form-clear-after-reading').checked = !!data.clearAfterReading;
   document.getElementById('form-requirements').value = data.requirements || '';
   document.getElementById('form-notes').value = data.notes || '';
   document.getElementById('form-files').value = data.filesChanged || '';
@@ -667,9 +682,14 @@ function openTaskForm(data) {
   updateFormImage(data);
 
   // Show/hide agent-written sections
-  document.getElementById('form-notes-group').style.display = data.hasNotes ? '' : 'none';
-  document.getElementById('form-files-group').style.display = data.hasFilesChanged ? '' : 'none';
-  document.getElementById('form-error-group').style.display = data.hasError ? '' : 'none';
+  document.querySelectorAll('.task-only-group,.task-only-field').forEach(el => el.style.display = noteMode ? 'none' : '');
+  document.getElementById('form-flags-group').style.display = noteMode ? 'none' : '';
+  document.getElementById('form-clear-group').style.display = noteMode ? '' : 'none';
+  document.getElementById('form-content-label').textContent = noteMode ? 'Note' : 'Prompt';
+  document.getElementById('form-prompt').placeholder = noteMode ? 'Information for the agent…' : 'Task description for the agent…';
+  document.getElementById('form-notes-group').style.display = !noteMode && data.hasNotes ? '' : 'none';
+  document.getElementById('form-files-group').style.display = !noteMode && data.hasFilesChanged ? '' : 'none';
+  document.getElementById('form-error-group').style.display = !noteMode && data.hasError ? '' : 'none';
 
   // Branches datalist
   const brList = document.getElementById('form-branches-list');
@@ -762,10 +782,13 @@ function saveTaskForm() {
   const payload = {
     id: state.formTask.id,
     isNew: state.formTask.isNew,
+    isNote: !!state.formTask.isNote,
+    note: state.formTask.isNote ? document.getElementById('form-prompt').value : '',
+    clearAfterReading: !!state.formTask.isNote && document.getElementById('form-clear-after-reading').checked,
     name: document.getElementById('form-name').value,
     branch: document.getElementById('form-branch').value || 'main',
     inProgress: document.getElementById('form-inprogress').checked,
-    done: document.getElementById('form-done').checked,
+    done: state.formTask.isNote ? document.getElementById('form-note-done').checked : document.getElementById('form-done').checked,
     priority: document.getElementById('form-priority').checked,
     bug: document.getElementById('form-bug').checked,
     locked: document.getElementById('form-locked').checked,
@@ -776,7 +799,7 @@ function saveTaskForm() {
     merge: document.getElementById('form-merge').checked,
     blockedBy: document.getElementById('form-blocked-by').value,
     tagText: document.getElementById('form-tags').value,
-    prompt: document.getElementById('form-prompt').value,
+    prompt: state.formTask.isNote ? '' : document.getElementById('form-prompt').value,
     requirements: document.getElementById('form-requirements').value,
     notes: document.getElementById('form-notes').value,
     filesChanged: document.getElementById('form-files').value,
@@ -818,6 +841,7 @@ function esc(s) {
 
 // Toolbar
 document.getElementById('btn-add-task').addEventListener('click', () => zui.send('add-task', null));
+document.getElementById('btn-add-note').addEventListener('click', () => zui.send('add-note', null));
 document.getElementById('btn-deploy-codex').addEventListener('click', () => zui.send('deploy-agent', 'codex'));
 document.getElementById('btn-deploy-claude').addEventListener('click', () => zui.send('deploy-agent', 'claude'));
 document.getElementById('btn-deploy-antigravity').addEventListener('click', () => zui.send('deploy-agent', 'agy'));
@@ -974,6 +998,10 @@ document.addEventListener('keydown', e => {
   if (e.key === ' ' && !state.formTask && !state.textEditor) {
     e.preventDefault();
     zui.send('quick-add-begin', null);
+  }
+  if (e.key.toLowerCase() === 'n' && !state.formTask && !state.textEditor && !state.quickAddActive) {
+    e.preventDefault();
+    zui.send('add-note', null);
   }
   if (e.key === 'Escape') {
     if (state.formTask) closeTaskForm();

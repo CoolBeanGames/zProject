@@ -86,6 +86,7 @@ public sealed class MainViewModel : Observable
             p => p.LocalPrompt, (p, v) => p.LocalPrompt = v), HasProject);
 
         AddTaskCommand = new RelayCommand(AddTask, HasProject);
+        AddNoteCommand = new RelayCommand(AddNote, HasProject);
         EditTaskCommand = new RelayCommand(p => EditTask(p as TaskItem));
         DeleteTaskCommand = new RelayCommand(p => DeleteTask(p as TaskItem));
         ToggleTaskDoneCommand = new RelayCommand(p => ToggleDone(p as TaskItem));
@@ -353,6 +354,7 @@ public sealed class MainViewModel : Observable
     public RelayCommand EditLocalPromptCommand { get; }
 
     public RelayCommand AddTaskCommand { get; }
+    public RelayCommand AddNoteCommand { get; }
     public RelayCommand EditTaskCommand { get; }
     public RelayCommand DeleteTaskCommand { get; }
     public RelayCommand ToggleTaskDoneCommand { get; }
@@ -930,6 +932,40 @@ public sealed class MainViewModel : Observable
             projectDirectory: project.Directory);
     }
 
+    private void AddNote()
+    {
+        var project = SelectedProject;
+        if (project == null)
+            return;
+
+        var newId = project.MintTaskId();
+        var seed = new TaskItem { IsNote = true, Branch = NewTaskBranch };
+        Overlay = new TaskFormViewModel(
+            isNew: true,
+            id: newId,
+            source: seed,
+            onSave: form =>
+            {
+                var note = new TaskItem { Id = newId, Order = project.Tasks.Count };
+                form.ApplyTo(note);
+                ApplyViaOperator(
+                    p =>
+                    {
+                        var created = OperatorEngine.NewNote(p.Name, note.Name, note.Note);
+                        if (created.Ok && !string.IsNullOrEmpty(created.Output))
+                        {
+                            note.Id = created.Output;
+                            return OperatorEngine.Upsert(p.Name, note);
+                        }
+                        return created;
+                    },
+                    r => r.Ok ? $"Added note {note.Id}" : $"Operator: {r.Message}");
+            },
+            onClose: CloseOverlay,
+            peers: project.Tasks.ToList(),
+            projectDirectory: project.Directory);
+    }
+
     private void EditTask(TaskItem? task)
     {
         var project = SelectedProject;
@@ -1012,7 +1048,12 @@ public sealed class MainViewModel : Observable
         // Keep the visible priority ordering intact and leave branch changes to
         // the dedicated branch editor. The operator repeats these checks using
         // freshly loaded data before it mutates the queue.
-        if (task.Priority != target.Priority || task.SectionRank != target.SectionRank ||
+        if (task.IsNote && !target.Priority && target.SectionRank == 2)
+        {
+            // Notes may be dragged onto an ordinary task in another branch; the
+            // operator repeats and persists this branch change atomically.
+        }
+        else if (task.Priority != target.Priority || task.SectionRank != target.SectionRank ||
             !string.Equals(task.BranchDisplay, target.BranchDisplay, StringComparison.OrdinalIgnoreCase))
         {
             StatusText = "Tasks can only be reordered within the same branch and priority group";
@@ -1124,6 +1165,7 @@ public sealed class MainViewModel : Observable
         ReloadProjectCommand.RaiseCanExecuteChanged();
         SaveCurrentCommand.RaiseCanExecuteChanged();
         AddTaskCommand.RaiseCanExecuteChanged();
+        AddNoteCommand.RaiseCanExecuteChanged();
         DeployCodexCommand.RaiseCanExecuteChanged();
         DeployClaudeCommand.RaiseCanExecuteChanged();
         DeployAntigravityCommand.RaiseCanExecuteChanged();  // ZP-86
