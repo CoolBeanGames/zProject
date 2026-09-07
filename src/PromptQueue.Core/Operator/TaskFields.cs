@@ -20,7 +20,7 @@ public static class TaskFields
             ["prompt"] = (t, v) => t.Prompt = v,
             ["requirements"] = (t, v) => t.Requirements = v,
             ["inprogress"] = (t, v) => t.InProgress = Bool(v),
-            ["done"] = (t, v) => t.Done = Bool(v),
+            ["done"] = (t, v) => SetDone(t, Bool(v)),
             ["priority"] = (t, v) => t.Priority = Bool(v),
             ["bug"] = (t, v) => t.Bug = Bool(v),
             ["error"] = (t, v) => t.Error = Bool(v),
@@ -31,6 +31,7 @@ public static class TaskFields
             ["blockedby"] = (t, v) => t.BlockedBy = v.Trim(),
             ["datestarted"] = (t, v) => t.DateStarted = Date(v),
             ["duedate"] = (t, v) => t.DueDate = Date(v),
+            ["datefinished"] = (t, v) => t.DateFinished = Date(v),
             ["commit"] = (t, v) => t.Commit = Bool(v),
             ["build"] = (t, v) => t.Build = Bool(v),
             ["release"] = (t, v) => t.Release = Bool(v),
@@ -40,6 +41,7 @@ public static class TaskFields
             ["notes"] = (t, v) => t.Notes = v,
             ["fileschanged"] = (t, v) => t.FilesChanged = v,
             ["image"] = (t, v) => t.Image = v.Trim(),
+            ["attachments"] = (t, v) => SetAttachments(t, v),
         };
 
     private static readonly Dictionary<string, string> Aliases =
@@ -52,6 +54,8 @@ public static class TaskFields
             ["date_started"] = "datestarted",
             ["due_date"] = "duedate",
             ["due"] = "duedate",
+            ["date_finished"] = "datefinished",
+            ["finishdate"] = "datefinished",
             ["files_changed"] = "fileschanged",
             ["files"] = "fileschanged",
             ["tag"] = "tags",
@@ -84,6 +88,7 @@ public static class TaskFields
             ["blockedby"] = t => t.BlockedBy,
             ["datestarted"] = t => t.DateStartedText,
             ["duedate"] = t => t.DueDateText,
+            ["datefinished"] = t => t.DateFinishedText,
             ["commit"] = t => t.Commit ? "true" : "false",
             ["build"] = t => t.Build ? "true" : "false",
             ["release"] = t => t.Release ? "true" : "false",
@@ -93,6 +98,7 @@ public static class TaskFields
             ["notes"] = t => t.Notes,
             ["fileschanged"] = t => t.FilesChanged,
             ["image"] = t => t.Image,
+            ["attachments"] = t => string.Join(", ", t.Attachments),
         };
 
     /// <summary>Reads one field's value, or null if the field name is unknown.</summary>
@@ -119,6 +125,31 @@ public static class TaskFields
     private static bool Bool(string v) =>
         v.Trim() is "1" or "yes" or "y" or "on"
         || (bool.TryParse(v.Trim(), out var b) && b);
+
+    private static void SetDone(TaskItem task, bool done)
+    {
+        task.Done = done;
+        if (done)
+            task.DateFinished ??= DateTime.Now;
+        else
+        {
+            task.DateFinished = null;
+            task.FinishedToday = false;
+            task.Archived = false;
+        }
+    }
+
+    private static void SetAttachments(TaskItem task, string value)
+    {
+        task.Attachments.Clear();
+        foreach (var name in value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            if (!task.Attachments.Contains(name, StringComparer.OrdinalIgnoreCase))
+                task.Attachments.Add(name);
+        task.Image = task.Attachments.FirstOrDefault(IsImage) ?? "";
+    }
+
+    private static bool IsImage(string name) =>
+        Path.GetExtension(name).ToLowerInvariant() is ".png" or ".jpg" or ".jpeg" or ".gif" or ".bmp" or ".webp";
 
     private static DateTime? Date(string v)
     {

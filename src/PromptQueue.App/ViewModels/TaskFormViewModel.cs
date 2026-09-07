@@ -90,6 +90,11 @@ public sealed class TaskFormViewModel : Observable
         _notes = source?.Notes ?? "";
         _filesChanged = source?.FilesChanged ?? "";
         _image = source?.Image ?? "";
+        foreach (var attachment in source?.Attachments ?? Enumerable.Empty<string>())
+            if (!Attachments.Contains(attachment, StringComparer.OrdinalIgnoreCase))
+                Attachments.Add(attachment);
+        if (_image.Length > 0 && !Attachments.Contains(_image, StringComparer.OrdinalIgnoreCase))
+            Attachments.Insert(0, _image);
         _onSave = onSave;
         _onClose = onClose;
 
@@ -143,8 +148,8 @@ public sealed class TaskFormViewModel : Observable
         HasNotes = !string.IsNullOrWhiteSpace(_notes);
         HasFilesChanged = !string.IsNullOrWhiteSpace(_filesChanged);
 
-        ChooseImageCommand = new RelayCommand(ChooseImage, () => !string.IsNullOrEmpty(_projectDirectory));
-        RemoveImageCommand = new RelayCommand(() => Image = "", () => HasImage);
+        ChooseImageCommand = new RelayCommand(ChooseAttachments, () => !string.IsNullOrEmpty(_projectDirectory));
+        RemoveImageCommand = new RelayCommand(p => RemoveAttachment(p as string), p => p is string name && Attachments.Contains(name));
 
         SaveCommand = new RelayCommand(() =>
         {
@@ -158,16 +163,17 @@ public sealed class TaskFormViewModel : Observable
     /// Copies a picked image into the project's <c>task_images</c> folder and
     /// records its file name on the task (ZP-59).
     /// </summary>
-    private void ChooseImage()
+    private void ChooseAttachments()
     {
         if (string.IsNullOrEmpty(_projectDirectory))
             return;
 
         var dlg = new OpenFileDialog
         {
-            Title = "Choose an image for this task",
-            Filter = "Images|*.png;*.jpg;*.jpeg;*.gif;*.bmp;*.webp|All files|*.*",
+            Title = "Attach files to this task",
+            Filter = "Supported files|*.png;*.jpg;*.jpeg;*.gif;*.bmp;*.webp;*.zscript;*.zsheet;*.csv;*.txt;*.docx;*.pdf|Images|*.png;*.jpg;*.jpeg;*.gif;*.bmp;*.webp|zScript files|*.zscript|zSheet files|*.zsheet|Documents and data|*.csv;*.txt;*.docx;*.pdf",
             CheckFileExists = true,
+            Multiselect = true,
         };
         if (dlg.ShowDialog() != true)
             return;
@@ -177,20 +183,24 @@ public sealed class TaskFormViewModel : Observable
             var folder = System.IO.Path.Combine(_projectDirectory, ImageFolderName);
             System.IO.Directory.CreateDirectory(folder);
 
-            var ext = System.IO.Path.GetExtension(dlg.FileName).ToLowerInvariant();
-            var fileName = $"{Id}{ext}";
-            var dest = System.IO.Path.Combine(folder, fileName);
-
-            // Drop a previous image with a different extension.
-            if (HasImage && !string.Equals(Image, fileName, StringComparison.OrdinalIgnoreCase))
+            foreach (var sourcePath in dlg.FileNames)
             {
-                var old = System.IO.Path.Combine(folder, Image);
-                if (System.IO.File.Exists(old))
-                    System.IO.File.Delete(old);
+                var ext = System.IO.Path.GetExtension(sourcePath).ToLowerInvariant();
+                if (!SupportedExtensions.Contains(ext))
+                    continue;
+                var safeBase = string.Concat(System.IO.Path.GetFileNameWithoutExtension(sourcePath)
+                    .Select(ch => System.IO.Path.GetInvalidFileNameChars().Contains(ch) || ch == ',' ? '_' : ch));
+                if (string.IsNullOrWhiteSpace(safeBase)) safeBase = "attachment";
+                var stem = $"{Id}-{safeBase}";
+                var fileName = stem + ext;
+                var suffix = 2;
+                while (System.IO.File.Exists(System.IO.Path.Combine(folder, fileName)) ||
+                       Attachments.Contains(fileName, StringComparer.OrdinalIgnoreCase))
+                    fileName = $"{stem}-{suffix++}{ext}";
+                System.IO.File.Copy(sourcePath, System.IO.Path.Combine(folder, fileName));
+                Attachments.Add(fileName);
             }
-
-            System.IO.File.Copy(dlg.FileName, dest, overwrite: true);
-            Image = fileName;
+            RefreshPrimaryImage();
         }
         catch (Exception ex)
         {
@@ -217,6 +227,27 @@ public sealed class TaskFormViewModel : Observable
         get => _name;
         set => Set(ref _name, value);
     }
+
+    private static readonly HashSet<string> SupportedExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp",
+        ".zscript", ".zsheet", ".csv", ".txt", ".docx", ".pdf",
+    };
+
+    public ObservableCollection<string> Attachments { get; } = new();
+
+    public void RemoveAttachment(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return;
+        var existing = Attachments.FirstOrDefault(x => string.Equals(x, name, StringComparison.OrdinalIgnoreCase));
+        if (existing != null) Attachments.Remove(existing);
+        RefreshPrimaryImage();
+    }
+
+    private void RefreshPrimaryImage() => Image = Attachments.FirstOrDefault(IsImage) ?? "";
+
+    public static bool IsImage(string name) =>
+        System.IO.Path.GetExtension(name).ToLowerInvariant() is ".png" or ".jpg" or ".jpeg" or ".gif" or ".bmp" or ".webp";
 
     public bool IsNote
     {
@@ -460,7 +491,10 @@ public sealed class TaskFormViewModel : Observable
         task.TagText = TagText.Trim();
         task.Notes = Notes;
         task.FilesChanged = FilesChanged;
-        task.Image = Image;
+        task.Attachments.Clear();
+        foreach (var attachment in Attachments)
+            task.Attachments.Add(attachment);
+        task.Image = task.Attachments.FirstOrDefault(IsImage) ?? "";
 
         if (IsNote)
         {
@@ -484,6 +518,7 @@ public sealed class TaskFormViewModel : Observable
             task.Notes = "";
             task.FilesChanged = "";
             task.Image = "";
+            task.Attachments.Clear();
         }
 
         task.Subtasks.Clear();

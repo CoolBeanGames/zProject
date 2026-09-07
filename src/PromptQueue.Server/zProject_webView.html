@@ -93,6 +93,7 @@
   .qnote{flex:1; min-width:0}
   .qnote .nm{display:block; font-weight:600}
   .qnote .body{color:var(--ink-2); font-size:13px; white-space:pre-wrap; overflow-wrap:anywhere; max-height:5.8em; overflow:auto; margin-top:3px}
+  .qimg{width:62px; height:46px; flex:none; object-fit:cover; border:1px solid var(--line); background:var(--bg)}
   .q .nm{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
   .q.s-done .nm, .q.s-arch .nm{text-decoration:line-through; color:var(--ink-2)}
   .q .rt{font-size:12px; color:var(--ink-2); white-space:nowrap; display:flex; align-items:center; gap:8px}
@@ -105,12 +106,12 @@
   /* ---- task page ---- */
   .field{padding:12px 14px 0}
   .field label{display:block; font-size:12.5px; font-weight:600; color:var(--ink-2); margin-bottom:5px}
-  .field input[type=text], .field textarea{
+  .field input[type=text], .field select, .field textarea{
     width:100%; font:inherit; font-size:16px; color:var(--ink);
     background:var(--surface); border:1px solid var(--line-strong); border-radius:var(--radius);
     padding:9px 10px;
   }
-  .field input:focus, .field textarea:focus{outline:none; border-color:var(--accent)}
+  .field input:focus, .field select:focus, .field textarea:focus{outline:none; border-color:var(--accent)}
   .field textarea{min-height:78px; resize:vertical; line-height:1.45}
   .field.big textarea{min-height:120px}
   .two{display:flex; gap:10px}
@@ -139,6 +140,13 @@
   .sub-add{display:flex; gap:8px; padding:8px 14px 0}
   .sub-add input{flex:1; font:inherit; font-size:16px; padding:8px 10px; border:1px solid var(--line-strong); border-radius:var(--radius); background:var(--surface)}
   .sub-add button{font:inherit; border:1px solid var(--line-strong); background:var(--surface); border-radius:var(--radius); padding:0 14px; cursor:pointer}
+  .attachments{padding:6px 14px 0; display:flex; flex-direction:column; gap:5px}
+  .attachment{display:flex; align-items:center; gap:9px; min-height:34px; overflow:hidden}
+  .attachment a{display:flex; align-items:center; gap:9px; color:var(--accent); min-width:0; flex:1; overflow:hidden}
+  .attachment img{width:48px; height:36px; object-fit:cover; border:1px solid var(--line); flex:none}
+  .attachment span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .attachment button{flex:none; padding:5px 8px}
+  .attach-help{font-size:11px; color:var(--muted); margin-top:5px}
 
   .disclose{font:inherit; font-size:13px; color:var(--accent-ink); background:none; border:0; padding:14px; cursor:pointer}
   .danger{font:inherit; font-size:13px; color:var(--st-err); background:none; border:0; padding:18px 14px; cursor:pointer}
@@ -323,7 +331,7 @@ async function renderList(pi){
     body += `</div>`;
   }
 
-  for (const key of ['Completed', 'Archived']){
+  for (const key of ['Completed', 'Finished Today', 'Archived']){
     const items = groups.get(key);
     if (!items || !items.length) continue;
     body += `<div class="grp">${esc(key)} <span class="c">${items.length}</span></div><div class="queue">`;
@@ -337,11 +345,13 @@ async function renderList(pi){
       <button class="lead" onclick="goPicker()">‹ Projects</button>
       <h1>${esc(data.name)}</h1>
       <button class="act" id="nn">New note</button>
+      <button class="act" id="csv">Export CSV</button>
       <button class="act primary" id="nt">New task</button>
     </div>
     <main class="view">${body}</main>`;
   document.getElementById('nt').onclick = () => goTask(pi, 'new');
   document.getElementById('nn').onclick = () => goTask(pi, 'new-note');
+  document.getElementById('csv').onclick = () => { window.location.href = `/api/project/${pi}/export.csv`; };
   app.querySelectorAll('.q').forEach(el => el.onclick = () => goTask(pi, el.dataset.id));
   app.querySelectorAll('[data-branch-lock]').forEach(el => el.onclick = async e => {
     e.stopPropagation();
@@ -363,15 +373,16 @@ function row(pi, t){
     ${branchBanner}
     ${t.isNote ? `<span class="qnote"><span class="nm">${esc(t.displayName)}</span><span class="body">${esc(t.note || '')}</span></span>` : `<span class="nm">${esc(t.displayName)}</span>`}
     <span class="rt">${prog}<span class="state">${esc(state)}</span></span>
+    ${!t.isNote && t.imageUrl ? `<img class="qimg" src="${av(t.imageUrl)}" alt="Attached image">` : ''}
   </div>`;
 }
 
 /* ---- task page ---- */
 const BLANK = { id:'', name:'', prompt:'', requirements:'', tags:[], blockedBy:'',
-  dateStarted:'', dueDate:'', notes:'', filesChanged:'', errorMessage:'',
+  dateStarted:'', dueDate:'', dateFinished:'', notes:'', filesChanged:'', errorMessage:'',
   isNote:false, note:'', clearAfterReading:false,
   priority:false, bug:false, done:false, inProgress:false, locked:false, error:false, archived:false,
-  commit:false, build:false, release:false, merge:false, branch:'main', subtasks:[] };
+  commit:false, build:false, release:false, merge:false, branch:'main', subtasks:[], attachments:[] };
 
 async function renderTask(pi, tid){
   const isNewNote = tid === 'new-note';
@@ -386,7 +397,7 @@ async function renderTask(pi, tid){
     t = JSON.parse(JSON.stringify(found));   // edit a copy — the list cache stays clean until Save
   }
   const orig = JSON.parse(JSON.stringify(t));
-  if (t.isNote) return renderNote(pi, pname, isNew, t, orig);
+  if (t.isNote) return renderNote(pi, pname, isNew, t, orig, data?.branches || ['main']);
   const flag = (k,label,cls='') =>
     `<button class="flag ${cls}" data-f="${k}" aria-pressed="${!!t[k]}">${label}</button>`;
   const agentOpen = t.notes || t.filesChanged || t.errorMessage;
@@ -403,8 +414,16 @@ async function renderTask(pi, tid){
         <textarea id="f_prompt" placeholder="What the agent should do">${esc(t.prompt)}</textarea></div>
       <div class="field"><label for="f_requirements">Requirements</label>
         <textarea id="f_requirements" placeholder="What must be true when it's done">${esc(t.requirements)}</textarea></div>
+      <div class="subhead">Attachments</div>
+      <div class="attachments" id="taskAttachments">${attachmentRows(t.attachments || [])}</div>
+      <div class="field">
+        <label for="f_attachments">Add files</label>
+        <input type="file" id="f_attachments" multiple
+          accept=".png,.jpg,.jpeg,.gif,.bmp,.webp,.zscript,.zsheet,.csv,.txt,.docx,.pdf" ${isNew ? 'disabled' : ''}>
+        <div class="attach-help">${isNew ? 'Save the task before adding files.' : 'Up to 25 MB each. Images show a preview; other files download securely.'}</div>
+      </div>
       <div class="field"><label for="f_branch">Branch</label>
-        <input type="text" id="f_branch" value="${av(t.branch || 'main')}" placeholder="Branch (default: main)"></div>
+        <select id="f_branch">${branchOptions(data?.branches, t.branch)}</select></div>
       <div class="field"><label for="f_tags">Tags</label>
         <input type="text" id="f_tags" value="${av((t.tags||[]).join(', '))}" placeholder="comma, separated"></div>
       <div class="two">
@@ -445,6 +464,8 @@ async function renderTask(pi, tid){
       <div id="agent" ${agentOpen ? '' : 'hidden'}>
         <div class="field" style="padding-top:0"><label for="f_dateStarted">Date started</label>
           <input type="text" id="f_dateStarted" value="${av(t.dateStarted)}" placeholder="YYYY-MM-DD HH:mm"></div>
+        <div class="field"><label for="f_dateFinished">Date finished</label>
+          <input type="text" id="f_dateFinished" value="${av(t.dateFinished)}" placeholder="YYYY-MM-DD HH:mm"></div>
         <div class="field"><label for="f_notes">Notes</label>
           <textarea id="f_notes">${esc(t.notes)}</textarea></div>
         <div class="field"><label for="f_filesChanged">Files changed</label>
@@ -470,6 +491,7 @@ async function renderTask(pi, tid){
     b.setAttribute('aria-pressed', String(!on));
     t[b.dataset.f] = !on;
   });
+  bindTaskAttachments(pi, t, isNew);
   document.getElementById('agentToggle').onclick = e => {
     const box = document.getElementById('agent');
     box.hidden = !box.hidden;
@@ -503,7 +525,59 @@ async function renderTask(pi, tid){
   if (isNew) document.getElementById('f_name').focus();
 }
 
-function renderNote(pi, pname, isNew, t, orig){
+function attachmentRows(attachments){
+  if (!attachments.length) return '<div class="muted">No attachments.</div>';
+  return attachments.map(a => `<div class="attachment" data-attachment="${av(a.name)}">
+    <a href="${av(a.url)}" target="_blank" rel="noopener">${a.isImage ? `<img src="${av(a.url)}" alt="">` : ''}<span>${esc(a.name)}</span></a>
+    <button type="button" data-remove-attachment="${av(a.name)}">Remove</button>
+  </div>`).join('');
+}
+
+function bindTaskAttachments(pi, t, isNew){
+  if (isNew) return;
+  const list = document.getElementById('taskAttachments');
+  const input = document.getElementById('f_attachments');
+  const redraw = () => {
+    list.innerHTML = attachmentRows(t.attachments || []);
+    list.querySelectorAll('[data-remove-attachment]').forEach(button => button.onclick = async () => {
+      button.disabled = true;
+      const name = button.dataset.removeAttachment;
+      const url = `/api/project/${pi}/attachment/${encodeURIComponent(t.id)}/${encodeURIComponent(name)}`;
+      const response = await fetch(url, {method:'DELETE'});
+      if (!response.ok){
+        const result = await response.json().catch(() => ({message:'Could not remove attachment'}));
+        toast(result.message || 'Could not remove attachment', true); button.disabled = false; return;
+      }
+      t.attachments = (t.attachments || []).filter(a => a.name !== name);
+      cache.data = null; redraw(); toast('Attachment removed');
+    });
+  };
+  redraw();
+  input.onchange = async () => {
+    const files = Array.from(input.files || []);
+    if (!files.length) return;
+    input.disabled = true;
+    for (const file of files){
+      const url = `/api/project/${pi}/attachment/${encodeURIComponent(t.id)}/${encodeURIComponent(file.name)}`;
+      const response = await fetch(url, {method:'POST', headers:{'Content-Type':file.type || 'application/octet-stream'}, body:file});
+      const result = await response.json().catch(() => ({ok:false, message:'Upload failed'}));
+      if (!response.ok || !result.ok){ toast(result.message || `Could not upload ${file.name}`, true); continue; }
+      const name = result.name;
+      const attachmentUrl = `/api/project/${pi}/attachment/${encodeURIComponent(t.id)}/${encodeURIComponent(name)}`;
+      t.attachments = t.attachments || [];
+      t.attachments.push({name, url:attachmentUrl, isImage:/\.(png|jpe?g|gif|bmp|webp)$/i.test(name)});
+    }
+    cache.data = null; input.value = ''; input.disabled = false; redraw();
+  };
+}
+
+function branchOptions(branches, current){
+  const selected = current || 'main';
+  const options = Array.from(new Set([...(branches || ['main']), selected]));
+  return options.map(branch => `<option value="${av(branch)}"${branch === selected ? ' selected' : ''}>${esc(branch)}</option>`).join('');
+}
+
+function renderNote(pi, pname, isNew, t, orig, branches){
   app.innerHTML = `
     <div class="bar">
       <button class="lead" id="back">‹ ${isNew ? 'Cancel' : esc(pname || 'Back')}</button>
@@ -515,7 +589,7 @@ function renderNote(pi, pname, isNew, t, orig){
       <div class="field big"><label for="n_note">Note</label>
         <textarea id="n_note" placeholder="Information for the agent">${esc(t.note || '')}</textarea></div>
       <div class="field"><label for="n_branch">Branch</label>
-        <input type="text" id="n_branch" value="${av(t.branch || 'main')}" placeholder="Branch"></div>
+        <select id="n_branch">${branchOptions(branches, t.branch)}</select></div>
       <div class="field">
         <label><input type="checkbox" id="n_done" ${t.done ? 'checked' : ''}> Done</label>
         <label><input type="checkbox" id="n_clear" ${t.clearAfterReading ? 'checked' : ''}> Clear after reading</label>
@@ -557,6 +631,7 @@ async function saveTask(pi, pname, isNew, t, orig){
     tags: val('f_tags').split(',').map(s=>s.trim()).filter(Boolean).join(', '),
     blockedBy: val('f_blockedBy'), dueDate: val('f_dueDate'),
     dateStarted: val('f_dateStarted'), notes: g('f_notes') ? g('f_notes').value : orig.notes,
+    dateFinished: val('f_dateFinished'),
     filesChanged: g('f_filesChanged') ? g('f_filesChanged').value : orig.filesChanged,
     errorMessage: g('f_errorMessage') ? val('f_errorMessage') : orig.errorMessage,
   };
@@ -580,6 +655,7 @@ async function saveTask(pi, pname, isNew, t, orig){
   put('blockedBy', text.blockedBy);
   put('dueDate', text.dueDate);
   put('dateStarted', text.dateStarted);
+  put('dateFinished', text.dateFinished);
   put('notes', text.notes);
   put('filesChanged', text.filesChanged);
   put('errorMessage', text.errorMessage);

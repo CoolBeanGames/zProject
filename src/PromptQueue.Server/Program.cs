@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using PromptQueue.Core.Models;
 using PromptQueue.Core.Operator;
+using PromptQueue.Core.Serialization;
 using PromptQueue.Core.Storage;
 
 namespace PromptQueue.Server;
@@ -260,11 +261,39 @@ internal static class Program
             else if (path.StartsWith("/api/project/"))
             {
                 var idText = path["/api/project/".Length..].Trim('/');
-                if (int.TryParse(idText, out var idx) && idx >= 0 && idx < _workspace.Projects.Count)
+                var parts = idText.Split('/', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length == 3 && int.TryParse(parts[0], out var imageProjectIndex)
+                    && imageProjectIndex >= 0 && imageProjectIndex < _workspace.Projects.Count
+                    && parts[1].Equals("image", StringComparison.OrdinalIgnoreCase))
+                {
+                    status = ServeTaskImage(ctx, _workspace.Projects[imageProjectIndex], Uri.UnescapeDataString(parts[2]));
+                }
+                else if (parts.Length == 2 && int.TryParse(parts[0], out var exportProjectIndex)
+                    && exportProjectIndex >= 0 && exportProjectIndex < _workspace.Projects.Count
+                    && parts[1].Equals("export.csv", StringComparison.OrdinalIgnoreCase))
+                {
+                    status = ServeCsvExport(ctx, _workspace.Projects[exportProjectIndex]);
+                }
+                else if (parts.Length == 4 && int.TryParse(parts[0], out var attachmentProjectIndex)
+                    && attachmentProjectIndex >= 0 && attachmentProjectIndex < _workspace.Projects.Count
+                    && parts[1].Equals("attachment", StringComparison.OrdinalIgnoreCase))
+                {
+                    var attachmentProject = _workspace.Projects[attachmentProjectIndex];
+                    var taskId = Uri.UnescapeDataString(parts[2]);
+                    var fileName = Uri.UnescapeDataString(parts[3]);
+                    status = ctx.Request.HttpMethod switch
+                    {
+                        "POST" => UploadTaskAttachment(ctx, attachmentProject, taskId, fileName),
+                        "DELETE" => RemoveTaskAttachment(ctx, attachmentProject, taskId, fileName),
+                        "GET" => ServeTaskAttachment(ctx, attachmentProject, taskId, fileName),
+                        _ => WriteMethodNotAllowed(ctx),
+                    };
+                }
+                else if (parts.Length == 1 && int.TryParse(parts[0], out var idx) && idx >= 0 && idx < _workspace.Projects.Count)
                 {
                     var project = _workspace.Projects[idx];
                     ProjectStore.ReloadInto(project);   // fresh read on every view / project switch
-                    WriteJson(ctx, BuildTasksPayload(project));
+                    WriteJson(ctx, BuildTasksPayload(project, idx));
                 }
                 else
                 {
@@ -334,6 +363,7 @@ internal static class Program
         {
             "read" when a.Length >= 1 => OperatorEngine.Read(a[0]),
             "get_archive" when a.Length >= 1 => OperatorEngine.GetArchive(a[0]),
+            "get_finished_today" when a.Length >= 1 => OperatorEngine.GetFinishedToday(a[0]),
             "get_tag" when a.Length >= 2 => OperatorEngine.GetTag(a[0], a[1]),
             "list" => OperatorEngine.List(),
             "sync" when a.Length >= 3 => OperatorEngine.Sync(a[0], a[1], string.Join(' ', a.Skip(2))),
@@ -518,12 +548,19 @@ internal static class Program
         }
     }
 
-    private static object BuildTasksPayload(Project project)
+    private static object BuildTasksPayload(Project project, int projectIndex)
     {
         return new
         {
             name = project.Name,
             directory = project.Directory,
+            branches = project.Tasks.Select(t => t.Branch)
+                .Append("main")
+                .Where(branch => !string.IsNullOrWhiteSpace(branch))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(branch => branch.Equals("main", StringComparison.OrdinalIgnoreCase) ? "" : branch,
+                    StringComparer.OrdinalIgnoreCase)
+                .ToArray(),
             tasks = project.Tasks
                 .OrderBy(t => !t.Done && !t.Archived && t.Priority ? 0 : 1)
                 .ThenBy(t => !t.Done && !t.Archived && t.Priority ? 0 : t.SectionRank)
@@ -549,6 +586,7 @@ internal static class Program
                 blockedBy = t.BlockedBy,
                 dateStarted = t.DateStartedText,
                 dueDate = t.DueDateText,
+                dateFinished = t.DateFinishedText,
                 commit = t.Commit,
                 build = t.Build,
                 release = t.Release,
@@ -557,6 +595,14 @@ internal static class Program
                 tags = t.Tags,
                 notes = t.Notes,
                 filesChanged = t.FilesChanged,
+                image = t.Image,
+                imageUrl = t.HasImage ? $"/api/project/{projectIndex}/image/{Uri.EscapeDataString(t.Id)}" : "",
+                attachments = t.Attachments.Select(name => new
+                {
+                    name,
+                    isImage = IsImageAttachment(name),
+                    url = $"/api/project/{projectIndex}/attachment/{Uri.EscapeDataString(t.Id)}/{Uri.EscapeDataString(name)}",
+                }).ToArray(),
                 sectionRank = t.SectionRank,
                 sectionKey = t.SectionKey,
                 statusText = t.StatusText,
@@ -615,6 +661,177 @@ internal static class Program
         ctx.Response.OutputStream.Close();
         return 200;
     }
+
+    private static int ServeTaskImage(HttpListenerContext ctx, Project project, string taskId)
+    {
+        ProjectStore.ReloadInto(project);
+        var task = project.Tasks.FirstOrDefault(t =>
+            string.Equals(t.Id, taskId, StringComparison.OrdinalIgnoreCase));
+        return task == null || !task.HasImage
+            ? WriteNotFound(ctx)
+            : ServeTaskAttachment(ctx, project, taskId, task.Image);
+    }
+
+    private static int ServeCsvExport(HttpListenerContext ctx, Project project)
+    {
+        ProjectStore.ReloadInto(project);
+        var safeName = string.Concat(project.Name.Select(ch =>
+            Path.GetInvalidFileNameChars().Contains(ch) ? '_' : ch));
+        var bytes = TaskCsvSerializer.SerializeUtf8(project.Tasks);
+        ctx.Response.ContentType = "text/csv; charset=utf-8";
+        ctx.Response.AddHeader("Content-Disposition", $"attachment; filename=\"{safeName}-tasks.csv\"");
+        ctx.Response.ContentLength64 = bytes.Length;
+        ctx.Response.OutputStream.Write(bytes, 0, bytes.Length);
+        ctx.Response.OutputStream.Close();
+        return 200;
+    }
+
+    private static int ServeTaskAttachment(HttpListenerContext ctx, Project project, string taskId, string fileName)
+    {
+        ProjectStore.ReloadInto(project);
+        var task = project.Tasks.FirstOrDefault(t =>
+            string.Equals(t.Id, taskId, StringComparison.OrdinalIgnoreCase));
+        var isAttached = task != null && (task.Attachments.Contains(fileName, StringComparer.OrdinalIgnoreCase)
+            || string.Equals(task.Image, fileName, StringComparison.OrdinalIgnoreCase));
+        if (!isAttached || Path.GetFileName(fileName) != fileName)
+        {
+            return WriteNotFound(ctx);
+        }
+
+        var root = Path.GetFullPath(Path.Combine(project.Directory, "task_images"));
+        var fullPath = Path.GetFullPath(Path.Combine(root, fileName));
+        var rootPrefix = root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        if (!fullPath.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase) || !File.Exists(fullPath))
+        {
+            return WriteNotFound(ctx);
+        }
+
+        var contentType = Path.GetExtension(fullPath).ToLowerInvariant() switch
+        {
+            ".png" => "image/png",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".gif" => "image/gif",
+            ".bmp" => "image/bmp",
+            ".webp" => "image/webp",
+            _ => "application/octet-stream",
+        };
+        var bytes = File.ReadAllBytes(fullPath);
+        ctx.Response.ContentType = contentType;
+        ctx.Response.ContentLength64 = bytes.Length;
+        ctx.Response.OutputStream.Write(bytes, 0, bytes.Length);
+        ctx.Response.OutputStream.Close();
+        return 200;
+    }
+
+    private const long MaxAttachmentBytes = 25L * 1024 * 1024;
+
+    private static int UploadTaskAttachment(HttpListenerContext ctx, Project project, string taskId, string requestedName)
+    {
+        ProjectStore.ReloadInto(project);
+        var task = project.Tasks.FirstOrDefault(t =>
+            string.Equals(t.Id, taskId, StringComparison.OrdinalIgnoreCase));
+        var extension = Path.GetExtension(requestedName).ToLowerInvariant();
+        if (task == null || Path.GetFileName(requestedName) != requestedName || !IsSupportedAttachment(requestedName))
+            return WriteBadRequest(ctx, "Unknown task or unsupported attachment type.");
+        if (ctx.Request.ContentLength64 < 0 || ctx.Request.ContentLength64 > MaxAttachmentBytes)
+            return WriteBadRequest(ctx, "Attachments must be 25 MB or smaller.");
+
+        var folder = Path.GetFullPath(Path.Combine(project.Directory, "task_images"));
+        Directory.CreateDirectory(folder);
+        var safeBase = string.Concat(Path.GetFileNameWithoutExtension(requestedName)
+            .Select(ch => Path.GetInvalidFileNameChars().Contains(ch) || ch == ',' ? '_' : ch));
+        if (string.IsNullOrWhiteSpace(safeBase)) safeBase = "attachment";
+        var stem = $"{task.Id}-{safeBase}";
+        var storedName = stem + extension;
+        var suffix = 2;
+        while (File.Exists(Path.Combine(folder, storedName)) ||
+               task.Attachments.Contains(storedName, StringComparer.OrdinalIgnoreCase))
+            storedName = $"{stem}-{suffix++}{extension}";
+
+        var destination = Path.Combine(folder, storedName);
+        try
+        {
+            using (var output = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                ctx.Request.InputStream.CopyTo(output);
+
+            var names = task.Attachments.ToList();
+            if (task.HasImage && !names.Contains(task.Image, StringComparer.OrdinalIgnoreCase))
+                names.Insert(0, task.Image);
+            names.Add(storedName);
+            var result = OperatorEngine.Sync(task.Id, "attachments", string.Join(", ", names));
+            if (!result.Ok)
+            {
+                File.Delete(destination);
+                ctx.Response.StatusCode = 400;
+                WriteJson(ctx, new { ok = false, message = result.Message });
+                return 400;
+            }
+
+            AutoReload(silent: true);
+            ctx.Response.StatusCode = 201;
+            WriteJson(ctx, new { ok = true, name = storedName });
+            return 201;
+        }
+        catch
+        {
+            if (File.Exists(destination)) File.Delete(destination);
+            throw;
+        }
+    }
+
+    private static int RemoveTaskAttachment(HttpListenerContext ctx, Project project, string taskId, string fileName)
+    {
+        ProjectStore.ReloadInto(project);
+        var task = project.Tasks.FirstOrDefault(t =>
+            string.Equals(t.Id, taskId, StringComparison.OrdinalIgnoreCase));
+        if (task == null || Path.GetFileName(fileName) != fileName ||
+            !task.Attachments.Contains(fileName, StringComparer.OrdinalIgnoreCase))
+            return WriteNotFound(ctx);
+
+        var names = task.Attachments
+            .Where(name => !string.Equals(name, fileName, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        var result = OperatorEngine.Sync(task.Id, "attachments", string.Join(", ", names));
+        if (!result.Ok)
+        {
+            ctx.Response.StatusCode = 400;
+            WriteJson(ctx, new { ok = false, message = result.Message });
+            return 400;
+        }
+
+        AutoReload(silent: true);
+        WriteJson(ctx, new { ok = true });
+        return 200;
+    }
+
+    private static int WriteBadRequest(HttpListenerContext ctx, string message)
+    {
+        ctx.Response.StatusCode = 400;
+        WriteJson(ctx, new { ok = false, message });
+        return 400;
+    }
+
+    private static int WriteMethodNotAllowed(HttpListenerContext ctx)
+    {
+        ctx.Response.StatusCode = 405;
+        WriteText(ctx, "method not allowed", "text/plain");
+        return 405;
+    }
+
+    private static int WriteNotFound(HttpListenerContext ctx)
+    {
+        ctx.Response.StatusCode = 404;
+        WriteText(ctx, "not found", "text/plain");
+        return 404;
+    }
+
+    private static bool IsImageAttachment(string name) =>
+        Path.GetExtension(name).ToLowerInvariant() is ".png" or ".jpg" or ".jpeg" or ".gif" or ".bmp" or ".webp";
+
+    private static bool IsSupportedAttachment(string name) =>
+        Path.GetExtension(name).ToLowerInvariant() is
+            ".png" or ".jpg" or ".jpeg" or ".gif" or ".bmp" or ".webp" or
+            ".zscript" or ".zsheet" or ".csv" or ".txt" or ".docx" or ".pdf";
 
     private static string LoadViewHtml()
     {

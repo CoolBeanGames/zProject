@@ -83,6 +83,7 @@
     .task-card.priority { background: color-mix(in srgb, var(--zui-error) 24%, var(--zui-bg-surface)); border-color: var(--zui-error); }
     .task-card.note { background: color-mix(in srgb, var(--zui-accent) 9%, var(--zui-bg-surface)); }
     .note-content { margin-top:var(--zui-space-1); color:var(--zui-text-secondary); white-space:pre-wrap; overflow-wrap:anywhere; max-height:5.4em; overflow:auto; padding-right:var(--zui-space-1); }
+    .task-card-preview { width:72px; height:52px; flex:0 0 auto; object-fit:cover; border:1px solid var(--zui-border); background:var(--zui-bg-app); }
 
     #quick-add-bar { display: none; }
     #quick-add-bar.visible { display: flex; }
@@ -97,6 +98,9 @@
     #form-image-preview { display: none; align-self: flex-start; max-width: 100%; padding: 4px; border: 1px solid var(--zui-border); background: var(--zui-bg-app); }
     #form-image-preview.visible { display: block; }
     #form-image-preview img { display: block; max-width: 360px; max-height: 200px; object-fit: contain; }
+    .attachment-row { display:flex; align-items:center; gap:var(--zui-space-2); padding:4px 0; border-bottom:1px solid var(--zui-border); }
+    .attachment-row img { width:48px; height:36px; object-fit:cover; border:1px solid var(--zui-border); }
+    .attachment-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     #form-subtask-list { max-height:220px; overflow-y:auto; padding-right:var(--zui-space-1) !important; }
     #form-subtask-list li { display:flex; align-items:center; gap:var(--zui-space-2); flex:0 0 auto; }
     #form-subtask-list .st-text { min-width:0; flex:1; }
@@ -154,12 +158,11 @@
         <button class="zui-btn" id="btn-expand-all">Expand All</button>
         <span class="zui-sep--v" style="height:16px"></span>
         <span class="zui-t-small zui-text-secondary">Branch:</span>
-        <input type="text" class="zui-input" id="new-task-branch" value="main"
-          list="new-task-branches-list" autocomplete="off" style="width:130px"
-          aria-label="Branch for new tasks">
-        <datalist id="new-task-branches-list"><option value="main"></datalist>
+        <select class="zui-input" id="new-task-branch" style="width:130px"
+          aria-label="Branch for new tasks"><option value="main">main</option></select>
         <span class="zui-spacer"></span>
         <button class="zui-btn" id="btn-reload">Reload</button>
+        <button class="zui-btn" id="btn-export-csv">Export CSV</button>
         <button class="zui-btn" id="btn-open-dir">Open Folder</button>
       </div>
 
@@ -199,8 +202,7 @@
     </div>
     <div class="zui-col zui-gap-1">
       <label class="zui-t-small zui-text-secondary">Branch</label>
-      <input type="text" class="zui-input" id="form-branch" placeholder="main" list="form-branches-list">
-      <datalist id="form-branches-list"></datalist>
+      <select class="zui-input" id="form-branch"><option value="main">main</option></select>
     </div>
     <div class="zui-col zui-gap-1" id="form-flags-group">
       <label class="zui-t-small zui-text-secondary">Flags</label>
@@ -240,15 +242,12 @@
       <textarea class="zui-textarea" id="form-requirements" placeholder="Specific requirements…" rows="3"></textarea>
     </div>
     <div class="zui-col zui-gap-1 task-only-group" id="form-image-group">
-      <label class="zui-t-small zui-text-secondary">Image</label>
+      <label class="zui-t-small zui-text-secondary">Attachments</label>
       <div class="zui-row zui-gap-2 zui-items-center">
-        <button class="zui-btn" id="form-choose-image" type="button">Choose image…</button>
-        <button class="zui-btn" id="form-remove-image" type="button">Remove</button>
+        <button class="zui-btn" id="form-choose-image" type="button">Choose files…</button>
         <span class="zui-t-small zui-text-secondary" id="form-image-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
       </div>
-      <div id="form-image-preview">
-        <img id="form-image-preview-img" alt="Attached task image preview">
-      </div>
+      <div id="form-attachment-list"></div>
     </div>
     <div class="zui-col zui-gap-1 task-only-group" id="form-notes-group">
       <label class="zui-t-small zui-text-secondary">Notes (agent-written)</label>
@@ -510,6 +509,8 @@ function renderTaskCard(task, sectionColor) {
   if (task.branch && task.branch.toLowerCase() !== 'main')
     chips += chipHtml('branch', esc(task.branch));
   if (task.tags) for (const tag of task.tags) chips += chipHtml('tag', esc(tag));
+  if (!task.isNote && task.attachments && task.attachments.length)
+    chips += chipHtml('tag', `${task.attachments.length} FILE${task.attachments.length === 1 ? '' : 'S'}`);
 
   // Subtasks mini-list
   let subtasksHtml = '';
@@ -550,6 +551,7 @@ function renderTaskCard(task, sectionColor) {
         <button data-action="run-agy" data-task-id="${task.id}">▶ AGY</button>` : ''}
         <button data-action="delete" data-task-id="${task.id}" class="danger">Del</button>
       </div>
+      ${!task.isNote && task.imagePreviewUrl ? `<img class="task-card-preview" src="${task.imagePreviewUrl}" alt="Attached image">` : ''}
     </div>`;
 
   // Done checkbox
@@ -659,7 +661,10 @@ function openTaskForm(data) {
   document.getElementById('form-task-id').textContent = data.id || '';
   document.getElementById('form-title').textContent = data.isNew ? (noteMode ? 'New Note' : 'New Task') : (noteMode ? 'Edit Note' : 'Edit Task');
   document.getElementById('form-name').value = data.name || '';
-  document.getElementById('form-branch').value = data.branch || 'main';
+  const branchSelect = document.getElementById('form-branch');
+  const branches = Array.from(new Set([...(data.knownBranches || ['main']), data.branch || 'main']));
+  branchSelect.innerHTML = branches.map(b => `<option value="${esc(b)}">${esc(b)}</option>`).join('');
+  branchSelect.value = data.branch || 'main';
   document.getElementById('form-inprogress').checked = !!data.inProgress;
   document.getElementById('form-done').checked = !!data.done;
   document.getElementById('form-note-done').checked = !!data.done;
@@ -691,10 +696,6 @@ function openTaskForm(data) {
   document.getElementById('form-files-group').style.display = !noteMode && data.hasFilesChanged ? '' : 'none';
   document.getElementById('form-error-group').style.display = !noteMode && data.hasError ? '' : 'none';
 
-  // Branches datalist
-  const brList = document.getElementById('form-branches-list');
-  brList.innerHTML = (data.knownBranches || ['main']).map(b => `<option value="${esc(b)}">`).join('');
-
   // Blockers datalist
   const blList = document.getElementById('form-blockers-list');
   blList.innerHTML = (data.blockCandidates || []).map(b => `<option value="${esc(b)}">`).join('');
@@ -720,21 +721,15 @@ function updateFormImage(data) {
   state.formTask.image = data.image || '';
   state.formTask.hasImage = !!data.hasImage;
   state.formTask.imagePreviewUrl = data.imagePreviewUrl || '';
-
-  const hasImage = state.formTask.hasImage;
-  const previewUrl = state.formTask.imagePreviewUrl;
-  document.getElementById('form-image-name').textContent = hasImage ? state.formTask.image : 'No image attached';
-  document.getElementById('form-remove-image').style.display = hasImage ? '' : 'none';
-
-  const preview = document.getElementById('form-image-preview');
-  const img = document.getElementById('form-image-preview-img');
-  if (hasImage && previewUrl) {
-    img.src = previewUrl;
-    preview.classList.add('visible');
-  } else {
-    img.removeAttribute('src');
-    preview.classList.remove('visible');
-  }
+  state.formTask.attachments = data.attachments || [];
+  document.getElementById('form-image-name').textContent = state.formTask.attachments.length
+    ? `${state.formTask.attachments.length} file(s)` : 'No attachments';
+  document.getElementById('form-attachment-list').innerHTML = state.formTask.attachments.map(a => `
+    <div class="attachment-row">
+      ${a.isImage && a.previewUrl ? `<img src="${a.previewUrl}" alt="">` : ''}
+      <span class="attachment-name" title="${esc(a.name)}">${esc(a.name)}</span>
+      <button class="zui-btn" type="button" data-remove-attachment="${esc(a.name)}">Remove</button>
+    </div>`).join('');
 }
 
 function renderFormSubtasks(subtasks) {
@@ -848,9 +843,9 @@ document.getElementById('btn-deploy-antigravity').addEventListener('click', () =
 document.getElementById('btn-collapse-all').addEventListener('click', () => zui.send('collapse-all', null));
 document.getElementById('btn-expand-all').addEventListener('click', () => zui.send('expand-all', null));
 document.getElementById('btn-reload').addEventListener('click', () => zui.send('reload-project', null));
+document.getElementById('btn-export-csv').addEventListener('click', () => zui.send('export-csv', null));
 document.getElementById('btn-open-dir').addEventListener('click', () => zui.send('open-project-dir', null));
 document.getElementById('new-task-branch').addEventListener('change', e => zui.send('set-branch', e.target.value));
-document.getElementById('new-task-branch').addEventListener('input', e => zui.send('set-branch', e.target.value));
 
 // Sidebar
 document.getElementById('btn-new-project').addEventListener('click', () => zui.send('new-project', null));
@@ -941,8 +936,9 @@ document.getElementById('form-delete-btn').addEventListener('click', () => {
 document.getElementById('form-choose-image').addEventListener('click', () => {
   if (state.formTask) zui.send('choose-task-image', null);
 });
-document.getElementById('form-remove-image').addEventListener('click', () => {
-  if (state.formTask) zui.send('remove-task-image', null);
+document.getElementById('form-attachment-list').addEventListener('click', e => {
+  const button = e.target.closest('[data-remove-attachment]');
+  if (button && state.formTask) zui.send('remove-task-attachment', button.dataset.removeAttachment);
 });
 document.getElementById('form-add-subtask').addEventListener('click', () => {
   const input = document.getElementById('form-new-subtask');
@@ -1021,12 +1017,11 @@ zui.receive('tasks', data => {
   state.tasks = data.tasks || [];
   state.knownBranches = data.knownBranches || ['main'];
   state.knownTags = data.knownTags || [];
-  // Keep the toolbar branch control editable while offering every branch in
-  // the current project as native dropdown choices.
-  const branchList = document.getElementById('new-task-branches-list');
-  branchList.innerHTML = state.knownBranches.map(b => `<option value="${esc(b)}">`).join('');
   const br = document.getElementById('new-task-branch');
-  if (data.currentBranch) br.value = data.currentBranch;
+  const currentBranch = data.currentBranch || 'main';
+  const branches = Array.from(new Set([...state.knownBranches, currentBranch]));
+  br.innerHTML = branches.map(b => `<option value="${esc(b)}">${esc(b)}</option>`).join('');
+  br.value = currentBranch;
   renderTaskList();
 });
 

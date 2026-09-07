@@ -56,6 +56,7 @@ public static class ProjectStore
     private static bool ReadTasksInto(Project project)
     {
         var tasksPath = Path.Combine(project.Directory, TaskXmlSerializer.FileName);
+        var finishedPath = Path.Combine(project.Directory, TaskXmlSerializer.FinishedTodayFileName);
         var archivePath = Path.Combine(project.Directory, TaskXmlSerializer.ArchiveFileName);
 
         bool legacyInline = false;
@@ -88,6 +89,7 @@ public static class ProjectStore
                 foreach (var t in adoc.Tasks)
                 {
                     t.Archived = true;
+                    t.FinishedToday = false;
                     loaded.Add(t);
                 }
             }
@@ -96,6 +98,54 @@ public static class ProjectStore
                 project.LoadError =
                     $"{TaskXmlSerializer.ArchiveFileName} could not be read: {ex.Message}";
                 return false;
+            }
+        }
+
+        if (File.Exists(finishedPath))
+        {
+            try
+            {
+                var fdoc = TaskXmlSerializer.Deserialize(File.ReadAllText(finishedPath));
+                nextIndex = Math.Max(nextIndex, fdoc.NextIndex);
+                foreach (var t in fdoc.Tasks)
+                {
+                    t.Archived = false;
+                    t.FinishedToday = true;
+                    loaded.Add(t);
+                }
+            }
+            catch (TaskXmlFormatException ex)
+            {
+                project.LoadError =
+                    $"{TaskXmlSerializer.FinishedTodayFileName} could not be read: {ex.Message}";
+                return false;
+            }
+        }
+
+        foreach (var task in loaded)
+        {
+            if (!task.Done)
+            {
+                task.FinishedToday = false;
+                continue;
+            }
+
+            if (!task.Archived && !task.FinishedToday && task.DateFinished == null)
+            {
+                task.DateFinished = DateTime.Now;
+                legacyInline = true;
+            }
+
+            if (task.FinishedToday && task.DateFinished?.Date != DateTime.Today)
+            {
+                task.FinishedToday = false;
+                task.Archived = true;
+                legacyInline = true;
+            }
+            else if (!task.Archived && !task.FinishedToday && task.DateFinished?.Date == DateTime.Today)
+            {
+                task.FinishedToday = true;
+                legacyInline = true;
             }
         }
 
@@ -125,25 +175,29 @@ public static class ProjectStore
 
         AutoArchiveCompleted(project);
 
-        // ZP-71: active tasks -> tasks.xml, archived tasks -> archive.xml, so
+        // Active, completed-today, and older archived work live in separate files.
         // tasks.xml stays small. Order is renumbered within each file.
         // ZP-82/83: Stable-sort active tasks by Branch (main first) then SectionRank (bugs -> errors -> active)
         // so tasks.xml file order matches the UI, branch categories and bug priority rules.
-        var active = project.Tasks.Where(t => !t.Archived)
+        var active = project.Tasks.Where(t => !t.Archived && !t.FinishedToday)
             .OrderByDescending(t => t.Priority && !t.Done)
             .ThenBy(t => t.Priority && !t.Done ? "" :
                 (t.Branch.Equals("main", StringComparison.OrdinalIgnoreCase) ? "" : t.Branch), StringComparer.OrdinalIgnoreCase)
             .ThenBy(t => t.Priority && !t.Done ? 0 : t.SectionRank)
             .ToList();
+        var finishedToday = project.Tasks.Where(t => t.FinishedToday).ToList();
         var archived = project.Tasks.Where(t => t.Archived).ToList();
         for (int i = 0; i < active.Count; i++) active[i].Order = i;
+        for (int i = 0; i < finishedToday.Count; i++) finishedToday[i].Order = i;
         for (int i = 0; i < archived.Count; i++) archived[i].Order = i;
 
         project.Tasks.Clear();
         foreach (var t in active) project.Tasks.Add(t);
+        foreach (var t in finishedToday) project.Tasks.Add(t);
         foreach (var t in archived) project.Tasks.Add(t);
 
         var tasksPath = Path.Combine(project.Directory, TaskXmlSerializer.FileName);
+        var finishedPath = Path.Combine(project.Directory, TaskXmlSerializer.FinishedTodayFileName);
         var archivePath = Path.Combine(project.Directory, TaskXmlSerializer.ArchiveFileName);
 
         // Serialise these writes against the operator / other processes (ZP-65)
@@ -151,6 +205,10 @@ public static class ProjectStore
         using (new CrossProcessLock(OperatorEngine.MutexName))
         {
             File.WriteAllText(tasksPath, TaskXmlSerializer.Serialize(project, active));
+            if (finishedToday.Count > 0)
+                File.WriteAllText(finishedPath, TaskXmlSerializer.Serialize(project, finishedToday));
+            else if (File.Exists(finishedPath))
+                File.Delete(finishedPath);
             if (archived.Count > 0)
                 File.WriteAllText(archivePath, TaskXmlSerializer.Serialize(project, archived));
             else if (File.Exists(archivePath))
@@ -166,8 +224,9 @@ public static class ProjectStore
     public static void ReloadTasks(Project project)
     {
         var tasksPath = Path.Combine(project.Directory, TaskXmlSerializer.FileName);
+        var finishedPath = Path.Combine(project.Directory, TaskXmlSerializer.FinishedTodayFileName);
         var archivePath = Path.Combine(project.Directory, TaskXmlSerializer.ArchiveFileName);
-        if (!File.Exists(tasksPath) && !File.Exists(archivePath))
+        if (!File.Exists(tasksPath) && !File.Exists(finishedPath) && !File.Exists(archivePath))
             return;
 
         // On a parse failure ReadTasksInto flags the project and returns without
@@ -197,8 +256,29 @@ public static class ProjectStore
         bool changed = false;
         foreach (var t in project.Tasks)
         {
-            if (t.Done && !t.Archived)
+            if (!t.Done)
             {
+                if (t.Archived || t.FinishedToday || t.DateFinished != null)
+                {
+                    t.Archived = false;
+                    t.FinishedToday = false;
+                    t.DateFinished = null;
+                    changed = true;
+                }
+                continue;
+            }
+
+            t.DateFinished ??= DateTime.Now;
+            var isToday = t.DateFinished.Value.Date == DateTime.Today;
+            if (isToday && (!t.FinishedToday || t.Archived))
+            {
+                t.FinishedToday = true;
+                t.Archived = false;
+                changed = true;
+            }
+            else if (!isToday && (!t.Archived || t.FinishedToday))
+            {
+                t.FinishedToday = false;
                 t.Archived = true;
                 changed = true;
             }

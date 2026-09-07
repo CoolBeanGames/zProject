@@ -28,6 +28,8 @@ public sealed class TaskItem : Observable
     private string _blockedBy = "";
     private DateTime? _dateStarted;
     private DateTime? _dueDate;
+    private DateTime? _dateFinished;
+    private bool _finishedToday;
     private bool _commit;
     private bool _build;
     private bool _release;
@@ -191,15 +193,30 @@ public sealed class TaskItem : Observable
         set { if (Set(ref _dueDate, value)) RaiseDates(); }
     }
 
+    /// <summary>When this item was completed.</summary>
+    public DateTime? DateFinished
+    {
+        get => _dateFinished;
+        set { if (Set(ref _dateFinished, value)) RaiseDates(); }
+    }
+
+    /// <summary>Runtime storage bucket: completed today and shown above the archive.</summary>
+    public bool FinishedToday
+    {
+        get => _finishedToday;
+        set { if (Set(ref _finishedToday, value)) RaiseSection(); }
+    }
+
     private void RaiseDates()
     {
         Raise(nameof(DateStartedText));
         Raise(nameof(DueDateText));
+        Raise(nameof(DateFinishedText));
         Raise(nameof(DatesSummary));
         Raise(nameof(HasDates));
     }
 
-    public bool HasDates => DateStarted.HasValue || DueDate.HasValue;
+    public bool HasDates => DateStarted.HasValue || DueDate.HasValue || DateFinished.HasValue;
 
     /// <summary>Runtime-only: whether the card is collapsed in the list (not serialized).</summary>
     public bool Collapsed
@@ -222,6 +239,7 @@ public sealed class TaskItem : Observable
     /// <summary>Single-word status for the collapsed card, e.g. "Bug" / "Done".</summary>
     public string StatusText =>
         Archived ? "Archived" :
+        FinishedToday ? "Finished Today" :
         Locked ? "Locked" :
         Done ? "Done" :
         Priority ? "Priority" :
@@ -237,6 +255,7 @@ public sealed class TaskItem : Observable
     /// </summary>
     public int SectionRank =>
         Archived ? 4 :
+        FinishedToday ? 3 :
         !Done && Bug ? 0 :
         !Done && Error ? 1 :
         Done ? 3 : 2;
@@ -246,6 +265,7 @@ public sealed class TaskItem : Observable
     /// <summary>Human-readable section / branch category name, used to group the task list (ZP-83).</summary>
     public string SectionKey =>
         Archived ? "Archived" :
+        FinishedToday ? "Finished Today" :
         Done ? "Completed" :
         BranchDisplay;
 
@@ -373,6 +393,9 @@ public sealed class TaskItem : Observable
     /// <summary>True when an image file name is attached.</summary>
     public bool HasImage => !string.IsNullOrWhiteSpace(Image);
 
+    /// <summary>File names stored under task_images; includes legacy images and document attachments.</summary>
+    public ObservableCollection<string> Attachments { get; } = new();
+
     /// <summary>
     /// Runtime-only: absolute path to the attached image, resolved by the app
     /// from the project directory. Not serialized.
@@ -457,6 +480,8 @@ public sealed class TaskItem : Observable
 
     public string DueDateText => DueDate?.ToString(DateFormat) ?? "";
 
+    public string DateFinishedText => DateFinished?.ToString(DateFormat) ?? "";
+
     /// <summary>e.g. "Due 2026-09-05 17:00" / "Started 2026-09-01 09:30".</summary>
     public string DatesSummary
     {
@@ -465,6 +490,7 @@ public sealed class TaskItem : Observable
             var parts = new List<string>();
             if (DateStarted.HasValue) parts.Add($"Started {DateStartedText}");
             if (DueDate.HasValue) parts.Add($"Due {DueDateText}");
+            if (DateFinished.HasValue) parts.Add($"Finished {DateFinishedText}");
             return string.Join("  •  ", parts);
         }
     }
@@ -492,6 +518,8 @@ public sealed class TaskItem : Observable
             BlockedBy = BlockedBy,
             DateStarted = DateStarted,
             DueDate = DueDate,
+            DateFinished = DateFinished,
+            FinishedToday = FinishedToday,
             Commit = Commit,
             Build = Build,
             Release = Release,
@@ -505,6 +533,8 @@ public sealed class TaskItem : Observable
         };
         foreach (var s in Subtasks)
             copy.Subtasks.Add(s.Clone());
+        foreach (var attachment in Attachments)
+            copy.Attachments.Add(attachment);
         return copy;
     }
 
@@ -529,6 +559,8 @@ public sealed class TaskItem : Observable
         BlockedBy = other.BlockedBy;
         DateStarted = other.DateStarted;
         DueDate = other.DueDate;
+        DateFinished = other.DateFinished;
+        FinishedToday = other.FinishedToday;
         Commit = other.Commit;
         Build = other.Build;
         Release = other.Release;
@@ -542,5 +574,8 @@ public sealed class TaskItem : Observable
         Subtasks.Clear();
         foreach (var s in other.Subtasks)
             Subtasks.Add(s.Clone());
+        Attachments.Clear();
+        foreach (var attachment in other.Attachments)
+            Attachments.Add(attachment);
     }
 }

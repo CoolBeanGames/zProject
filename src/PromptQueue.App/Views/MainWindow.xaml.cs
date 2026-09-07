@@ -1,9 +1,11 @@
 using System.IO;
 using System.Text.Json;
 using System.Windows;
+using Microsoft.Win32;
 using Microsoft.Web.WebView2.WinForms;
 using PromptQueue.App.ViewModels;
 using PromptQueue.Core.Models;
+using PromptQueue.Core.Serialization;
 using WinForms = System.Windows.Forms;
 
 namespace PromptQueue.App.Views;
@@ -85,6 +87,7 @@ public partial class MainWindow : Window
         _ui.On("save-all",           _ => Dispatcher.Invoke(() => Vm?.SaveAllCommand.Execute(null)));
         _ui.On("save-current",       _ => Dispatcher.Invoke(() => Vm?.SaveCurrentCommand.Execute(null)));
         _ui.On("reload-project",     _ => Dispatcher.Invoke(() => Vm?.ReloadProjectCommand.Execute(null)));
+        _ui.On("export-csv",         _ => Dispatcher.Invoke(ExportSelectedProjectCsv));
         _ui.On("start-web-server",   _ => Dispatcher.Invoke(() => Vm?.StartWebServerCommand.Execute(null)));
         _ui.On("exit",               _ => Dispatcher.Invoke(() => Vm?.ExitCommand.Execute(null)));
         _ui.On("open-project-dir",   p => Dispatcher.Invoke(() =>
@@ -224,12 +227,12 @@ public partial class MainWindow : Window
             form.ChooseImageCommand.Execute(null);
             PushFormImageState(form);
         }));
-        _ui.On("remove-task-image", _ => Dispatcher.Invoke(() =>
+        _ui.On("remove-task-attachment", p => Dispatcher.Invoke(() =>
         {
-            if (Vm?.Overlay is not TaskFormViewModel form ||
-                !form.RemoveImageCommand.CanExecute(null)) return;
-
-            form.RemoveImageCommand.Execute(null);
+            if (Vm?.Overlay is not TaskFormViewModel form) return;
+            var name = p.GetString();
+            if (string.IsNullOrWhiteSpace(name)) return;
+            form.RemoveAttachment(name);
             PushFormImageState(form);
         }));
 
@@ -332,6 +335,7 @@ public partial class MainWindow : Window
             isNote       = t.IsNote,
             note         = t.Note,
             clearAfterReading = t.ClearAfterReading,
+            dateFinished = t.DateFinishedText,
             prompt       = t.Prompt,
             requirements = t.Requirements,
             inProgress   = t.InProgress,
@@ -352,6 +356,13 @@ public partial class MainWindow : Window
             tags         = t.Tags.ToArray(),
             notes        = t.Notes,
             filesChanged = t.FilesChanged,
+            image        = t.Image,
+            imagePreviewUrl = BuildImagePreviewDataUrl(t.ImagePath),
+            attachments = t.Attachments.Select(name => new
+            {
+                name,
+                isImage = TaskFormViewModel.IsImage(name),
+            }).ToArray(),
             blockedBy    = t.BlockedBy,
             isBlocked    = t.IsBlocked,
             indentLevel  = t.IndentLevel,
@@ -416,6 +427,7 @@ public partial class MainWindow : Window
                 image            = form.Image,
                 hasImage         = form.HasImage,
                 imagePreviewUrl  = BuildImagePreviewDataUrl(form),
+                attachments      = BuildAttachmentPayload(form),
                 hasNotes         = form.HasNotes,
                 hasFilesChanged  = form.HasFilesChanged,
                 hasError         = form.HasError,
@@ -449,12 +461,47 @@ public partial class MainWindow : Window
             image = form.Image,
             hasImage = form.HasImage,
             imagePreviewUrl = BuildImagePreviewDataUrl(form),
+            attachments = BuildAttachmentPayload(form),
         });
     }
 
-    private static string BuildImagePreviewDataUrl(TaskFormViewModel form)
+    private void ExportSelectedProjectCsv()
     {
-        var path = form.ImagePreviewPath;
+        var project = Vm?.SelectedProject;
+        if (project == null) return;
+
+        var safeName = string.Concat(project.Name.Select(ch => Path.GetInvalidFileNameChars().Contains(ch) ? '_' : ch));
+        var dialog = new SaveFileDialog
+        {
+            Title = "Export all tasks as CSV",
+            FileName = $"{safeName}-tasks.csv",
+            DefaultExt = ".csv",
+            Filter = "CSV files|*.csv",
+            AddExtension = true,
+            OverwritePrompt = true,
+        };
+        if (dialog.ShowDialog(this) != true) return;
+
+        File.WriteAllBytes(dialog.FileName, TaskCsvSerializer.SerializeUtf8(project.Tasks));
+        _ui?.Send("status", $"Exported {project.Tasks.Count(task => !task.IsNote)} tasks to {dialog.FileName}");
+    }
+
+    private static object[] BuildAttachmentPayload(TaskFormViewModel form) =>
+        form.Attachments.Select(name => (object)new
+        {
+            name,
+            isImage = TaskFormViewModel.IsImage(name),
+            previewUrl = TaskFormViewModel.IsImage(name)
+                ? BuildImagePreviewDataUrl(Path.Combine(
+                    Path.GetDirectoryName(form.ImagePreviewPath) ?? "", name))
+                : "",
+        }).ToArray();
+
+    private static string BuildImagePreviewDataUrl(TaskFormViewModel form)
+        => BuildImagePreviewDataUrl(form.ImagePreviewPath);
+
+    private static string BuildImagePreviewDataUrl(string path)
+    {
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
             return "";
 

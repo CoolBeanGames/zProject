@@ -61,6 +61,7 @@ internal static class Program
         "read" when a.Length >= 1 => OperatorEngine.Read(a[0]),
         "instructions" when a.Length >= 1 => OperatorEngine.Instructions(a[0]),
         "get_archive" when a.Length >= 1 => OperatorEngine.GetArchive(a[0]),
+        "get_finished_today" when a.Length >= 1 => OperatorEngine.GetFinishedToday(a[0]),
         "get_tag" when a.Length >= 2 => OperatorEngine.GetTag(a[0], a[1]),
         "list" => OperatorEngine.List(),
         "sync" when a.Length >= 3 => OperatorEngine.Sync(a[0], a[1], string.Join(' ', a.Skip(2))),
@@ -96,6 +97,7 @@ internal static class Program
           operator read       <project>
           operator instructions <project>
           operator get_archive <project>
+          operator get_finished_today <project>
           operator get_tag    <task_id> <field>
           operator list
           operator sync       <task_id> <field> <value>

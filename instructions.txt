@@ -1,5 +1,7 @@
 read through tasks.xml and complete tasks in the order they are presented. work through the list until reaching the end or you run out of usage. as you finish a task update the xml to mark it as done, as you begin mark it as in-progress. save the xml every time you make a change.
 
+when finishing a task, set its dateFinished field to the current local date and time before setting done=true. work completed today is kept in finished_today.xml and shown in Finished Today; older completed work rolls into archive.xml on reload. use `operator get_finished_today <project>` to read today's completed work, but never process it as active work.
+
 when starting any task, create subtasks breaking down the work using `operator new_subtask <id> <text>`. as each subtask is completed, check it off immediately using `operator subtask_done <id> <index> true`. a task is NOT complete until all subtasks are finished and checked off.
 
 if a task has a branch specified, agents must be branch-aware and complete tasks on that branch. if <merge> is true, merge the branch into main upon completion.

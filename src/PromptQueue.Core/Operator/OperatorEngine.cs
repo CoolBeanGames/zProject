@@ -89,6 +89,21 @@ public static class OperatorEngine
                 $"<tasks project=\"{project.Name}\" nextIndex=\"1\" />");
     }
 
+    /// <summary>Returns work completed on the current local date.</summary>
+    public static OperatorResult GetFinishedToday(string projectRef)
+    {
+        var ws = Workspace.Load();
+        var project = ResolveProject(ws, projectRef);
+        if (project == null)
+            return OperatorResult.Fail($"No project matches \"{projectRef}\".");
+
+        var path = Path.Combine(project.Directory, TaskXmlSerializer.FinishedTodayFileName);
+        return File.Exists(path)
+            ? OperatorResult.Pass($"Finished today in {project.Name}", File.ReadAllText(path))
+            : OperatorResult.Pass($"{project.Name} has nothing finished today",
+                $"<tasks project=\"{project.Name}\" nextIndex=\"{project.NextIndex}\" />");
+    }
+
     /// <summary>Returns one field's value for a task (ZP-72), or fails if the field is unknown.</summary>
     public static OperatorResult GetTag(string taskId, string field)
     {
@@ -394,6 +409,7 @@ public static class OperatorEngine
                 task.InProgress = false;
                 task.LockKey = "";
                 task.Done = true;
+                task.DateFinished ??= DateTime.Now;
                 task.Archived = true;   // ProjectStore.Save moves it into archive.xml
                 touched.Add(project!);
                 return OperatorResult.Pass($"Archived {task.Id}");

@@ -26,6 +26,7 @@ public static class TaskXmlSerializer
 
     /// <summary>Sibling of <see cref="FileName"/> that holds archived tasks only (ZP-71).</summary>
     public const string ArchiveFileName = "archive.xml";
+    public const string FinishedTodayFileName = "finished_today.xml";
 
     public sealed record Document(string ProjectName, int NextIndex, List<TaskItem> Tasks);
 
@@ -62,6 +63,7 @@ public static class TaskXmlSerializer
                 new XElement("name", task.Name),
                 new XElement("note", task.Note),
                 new XElement("done", task.Done),
+                new XElement("dateFinished", FormatDate(task.DateFinished)),
                 new XElement("archived", task.Archived),
                 new XElement("branch", task.Branch),
                 new XElement("clearAfterReading", task.ClearAfterReading));
@@ -84,6 +86,7 @@ public static class TaskXmlSerializer
             new XElement("blockedBy", task.BlockedBy),
             new XElement("dateStarted", FormatDate(task.DateStarted)),
             new XElement("dueDate", FormatDate(task.DueDate)),
+            new XElement("dateFinished", FormatDate(task.DateFinished)),
             new XElement("commit", task.Commit),
             new XElement("build", task.Build),
             new XElement("release", task.Release),
@@ -93,6 +96,14 @@ public static class TaskXmlSerializer
             new XElement("notes", task.Notes),
             new XElement("filesChanged", task.FilesChanged),
             new XElement("image", task.Image));
+
+        var attachmentNames = task.Attachments
+            .Concat(string.IsNullOrWhiteSpace(task.Image) ? Array.Empty<string>() : new[] { task.Image })
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (attachmentNames.Count > 0)
+            el.Add(new XElement("attachments", attachmentNames.Select(name => new XElement("attachment", name))));
 
         if (task.Subtasks.Count > 0)
         {
@@ -156,6 +167,7 @@ public static class TaskXmlSerializer
                 BlockedBy = ((string?)el.Element("blockedBy") ?? "").Trim(),
                 DateStarted = ParseDate(el.Element("dateStarted")),
                 DueDate = ParseDate(el.Element("dueDate")),
+                DateFinished = ParseDate(el.Element("dateFinished")),
                 Commit = ParseBool(el.Element("commit")),
                 Build = ParseBool(el.Element("build")),
                 Release = ParseBool(el.Element("release")),
@@ -176,6 +188,15 @@ public static class TaskXmlSerializer
                     Done = bool.TryParse(((string?)s.Attribute("done"))?.Trim(), out var d) && d,
                 });
             }
+
+            foreach (var attachment in el.Element("attachments")?.Elements("attachment") ?? Enumerable.Empty<XElement>())
+            {
+                var name = attachment.Value.Trim();
+                if (name.Length > 0 && !task.Attachments.Contains(name, StringComparer.OrdinalIgnoreCase))
+                    task.Attachments.Add(name);
+            }
+            if (task.Image.Length > 0 && !task.Attachments.Contains(task.Image, StringComparer.OrdinalIgnoreCase))
+                task.Attachments.Insert(0, task.Image);
 
             tasks.Add(task);
         }
@@ -217,7 +238,7 @@ public static class TaskXmlSerializer
     private static readonly string[] TextElements =
     {
         "name", "note", "prompt", "requirements", "errorMessage",
-        "blockedBy", "tags", "notes", "filesChanged", "lockKey", "image",
+        "blockedBy", "tags", "notes", "filesChanged", "lockKey", "image", "attachment",
     };
 
     private static string RepairMarkup(string xml)
