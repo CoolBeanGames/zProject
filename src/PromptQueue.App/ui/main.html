@@ -62,7 +62,7 @@
     .chip.blocked { border-color: var(--zui-warn); color: var(--zui-warn); }
     .chip.tag { background: var(--zui-bg-raised); }
 
-    .task-subtasks { margin-top: 4px; display: flex; gap: var(--zui-space-1); flex-wrap: wrap; }
+    .task-subtasks { margin-top: 4px; display: flex; gap: var(--zui-space-1); flex-wrap: wrap; max-height:56px; overflow-y:auto; align-content:flex-start; }
     .subtask-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--zui-text-secondary); }
     .subtask-item input[type=checkbox] { width: 11px; height: 11px; accent-color: var(--zui-accent); cursor: pointer; }
     .subtask-item.done-sub { text-decoration: line-through; opacity: 0.5; }
@@ -87,10 +87,16 @@
     #overlay-scrim.visible { display: block; }
     #task-form-overlay, #text-editor-overlay { display: none; }
     #task-form-overlay.visible, #text-editor-overlay.visible { display: flex; flex-direction: column; }
+    #task-form-overlay { overflow:hidden; }
+    #task-form-overlay > .zui-panel__header, #task-form-footer { flex:0 0 auto; }
+    #form-body { flex:1 1 0; min-height:0; overflow-y:auto; }
     #text-editor-overlay textarea { flex: 1; resize: none; border: none; background: transparent; color: var(--zui-text); padding: var(--zui-space-3); outline: none; font-family: var(--zui-font-mono); font-size: var(--zui-fs-small); line-height: 1.6; }
     #form-image-preview { display: none; align-self: flex-start; max-width: 100%; padding: 4px; border: 1px solid var(--zui-border); background: var(--zui-bg-app); }
     #form-image-preview.visible { display: block; }
     #form-image-preview img { display: block; max-width: 360px; max-height: 200px; object-fit: contain; }
+    #form-subtask-list { max-height:220px; overflow-y:auto; padding-right:var(--zui-space-1) !important; }
+    #form-subtask-list li { display:flex; align-items:center; gap:var(--zui-space-2); flex:0 0 auto; }
+    #form-subtask-list .st-text { min-width:0; flex:1; }
     #empty-state { display: none; }
     #empty-state.visible { display: flex; }
     .proj-local-badge { font-size: var(--zui-fs-small); color: var(--zui-text-secondary); float:right; }
@@ -260,7 +266,7 @@
       </div>
     </div>
   </div>
-  <div class="zui-row zui-gap-2" style="padding:8px 12px;border-top:1px solid var(--zui-border);background:var(--zui-bg-surface-alt)">
+  <div class="zui-row zui-gap-2" id="task-form-footer" style="padding:8px 12px;border-top:1px solid var(--zui-border);background:var(--zui-bg-surface-alt)">
     <button class="zui-btn" id="form-delete-btn" style="color:var(--zui-error)">Delete</button>
     <span class="zui-spacer"></span>
     <button class="zui-btn" id="form-cancel-btn2">Cancel</button>
@@ -699,10 +705,23 @@ function renderFormSubtasks(subtasks) {
     const s = subtasks[i];
     const li = document.createElement('li');
     li.innerHTML = `<input type="checkbox" ${s.done ? 'checked' : ''} data-idx="${i}">
-      <span class="st-text">${esc(s.text)}</span>
+      <input type="text" class="zui-input st-text" value="${esc(s.text)}" aria-label="Subtask text">
       <button class="st-remove" data-idx="${i}">✕</button>`;
     li.querySelector('input').addEventListener('change', ev => {
       state.formTask.subtasks[i].done = ev.target.checked;
+    });
+    const textInput = li.querySelector('.st-text');
+    const previousText = s.text;
+    textInput.addEventListener('input', ev => {
+      state.formTask.subtasks[i].text = ev.target.value;
+    });
+    textInput.addEventListener('blur', ev => {
+      if (ev.target.value.trim()) return;
+      ev.target.value = previousText;
+      state.formTask.subtasks[i].text = previousText;
+    });
+    textInput.addEventListener('keydown', ev => {
+      if (ev.key === 'Enter') { ev.preventDefault(); ev.target.blur(); }
     });
     li.querySelector('.st-remove').addEventListener('click', () => {
       state.formTask.subtasks.splice(i, 1);

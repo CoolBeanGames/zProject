@@ -1,33 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
-<tasks project="zProject" nextIndex="116">
-  <task id="ZP-111">
-    <name>Branch selection</name>
-    <prompt>at the top bar we can type in a branch to make new tasks in, lets change this to a drop down (that you can also type in)</prompt>
+<tasks project="zProject" nextIndex="124">
+  <task id="ZP-122">
+    <name>subtask list length</name>
+    <prompt>subtask lists overflow over buttons making lower tasks unreadable and undeletable</prompt>
     <requirements></requirements>
-    <inProgress>false</inProgress>
+    <inProgress>true</inProgress>
     <done>false</done>
-    <bug>false</bug>
+    <bug>true</bug>
     <error>false</error>
     <errorMessage></errorMessage>
-    <lockKey></lockKey>
+    <lockKey>cx9K4mQ7vL2</lockKey>
     <locked>false</locked>
     <archived>false</archived>
     <blockedBy></blockedBy>
     <dateStarted></dateStarted>
     <dueDate></dueDate>
-    <commit>false</commit>
-    <build>false</build>
-    <release>false</release>
+    <commit>true</commit>
+    <build>true</build>
+    <release>true</release>
     <merge>false</merge>
-    <branch>update-2</branch>
+    <branch>main</branch>
     <tags></tags>
-    <notes></notes>
-    <filesChanged></filesChanged>
-    <image></image>
+    <notes>Constrained desktop task-card and editor subtask lists with independent scrolling, fixed the editor body/footer flex layout so actions stay reachable, and bounded the mobile subtask editor. This release also includes editable existing subtask text on desktop/mobile with operator and API support. Verified zero-warning Debug build, inline JavaScript syntax, diff checks, Release test publishes, Debug/Release packaging, operator lookup, and packaged server HTTP self-check.</notes>
+    <filesChanged>src/PromptQueue.Core/Operator/OperatorEngine.cs; src/PromptQueue.Operator/Program.cs; src/PromptQueue.Server/Program.cs; src/PromptQueue.Server/zProject_webView.html; src/PromptQueue.App/ViewModels/TaskFormViewModel.cs; src/PromptQueue.App/ui/main.html; tasks.xml</filesChanged>
+    <image>ZP-123.png</image>
+    <subtasks>
+      <subtask done="true">Inspect the attached overflow screenshot and trace desktop/mobile subtask-card layout constraints</subtask>
+      <subtask done="true">Constrain long subtask lists and text so card actions and following tasks remain readable and reachable</subtask>
+      <subtask done="true">Verify short/long lists, editing and deletion controls, desktop/mobile syntax, and full test/release builds</subtask>
+      <subtask done="false">Record metadata, commit/push main fixes, and publish the next GitHub release with complete patch notes</subtask>
+    </subtasks>
   </task>
-  <task id="ZP-110">
-    <name>add a priority tag</name>
-    <prompt>add a checkbox for priority tasks. when checked the background becomes red and the the AI will do that before ANY other task. if there are multiple priority tasks then do them in listing order. update instructions.txt to reflect this change</prompt>
+  <task id="ZP-123">
+    <name>update_icon</name>
+    <prompt>update the icon (dont forget the taskbar and titlebar)</prompt>
     <requirements></requirements>
     <inProgress>false</inProgress>
     <done>false</done>
@@ -48,32 +54,7 @@
     <tags></tags>
     <notes></notes>
     <filesChanged></filesChanged>
-    <image></image>
-  </task>
-  <task id="ZP-106">
-    <name>lock branch</name>
-    <prompt>add a button to lock/unlock an entire branch</prompt>
-    <requirements></requirements>
-    <inProgress>false</inProgress>
-    <done>false</done>
-    <bug>false</bug>
-    <error>false</error>
-    <errorMessage></errorMessage>
-    <lockKey></lockKey>
-    <locked>false</locked>
-    <archived>false</archived>
-    <blockedBy></blockedBy>
-    <dateStarted></dateStarted>
-    <dueDate></dueDate>
-    <commit>false</commit>
-    <build>false</build>
-    <release>false</release>
-    <merge>false</merge>
-    <branch>update-2</branch>
-    <tags></tags>
-    <notes></notes>
-    <filesChanged></filesChanged>
-    <image></image>
+    <image>ZP-124.png</image>
   </task>
   <task id="ZP-104">
     <name>Reload when opening a project</name>
@@ -138,6 +119,158 @@
       <subtask done="false">just like we can hit space for a new task, lets hit 'n' to create a new note</subtask>
       <subtask done="false">make sure they can be dragged, reordered, changed branches with dragging, and deleted with buttons</subtask>
     </subtasks>
+  </task>
+  <task id="ZP-121">
+    <name>image preview</name>
+    <prompt>if an image is uploaded its supposed to show on the card, currently it doesnt</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <merge>false</merge>
+    <branch>update-2</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-116">
+    <name>add finish data</name>
+    <prompt>update instructions to tell agents to use the finished date field. update operator to start a new xml file for projects finished today.
+on reload:
+if task is finished and date matches today -&gt; put it in finished today archive.xml
+if date is not the same -&gt; put in regular archive
+if in finished today but data is no longer today -&gt; move to regular archive
+
+when drawing the UI have finished today above archived</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <merge>false</merge>
+    <branch>update-2</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-120">
+    <name>Add more data attachment options</name>
+    <prompt>we need to be able to upload more data, make image uploader into a general purpose uploader</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <merge>false</merge>
+    <branch>update-2</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+    <subtasks>
+      <subtask done="false">more than 1 image</subtask>
+      <subtask done="false">zscripts</subtask>
+      <subtask done="false">zsheets</subtask>
+      <subtask done="false">csv</subtask>
+      <subtask done="false">txt</subtask>
+      <subtask done="false">docx</subtask>
+      <subtask done="false">pdf</subtask>
+    </subtasks>
+  </task>
+  <task id="ZP-118">
+    <name>task -&gt; csv export</name>
+    <prompt>exports all tasks as csv, each column corresponds to the subtasks in that exact order, each row is a task</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>true</commit>
+    <build>true</build>
+    <release>false</release>
+    <merge>false</merge>
+    <branch>update-2</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+    <subtasks>
+      <subtask done="false">task id</subtask>
+      <subtask done="false">name</subtask>
+      <subtask done="false">prompt</subtask>
+      <subtask done="false">status (complete in progress archived or active)</subtask>
+      <subtask done="false">build?</subtask>
+      <subtask done="false">release?</subtask>
+      <subtask done="false">commit?</subtask>
+      <subtask done="false">due date</subtask>
+      <subtask done="false">finish data</subtask>
+      <subtask done="false">agent notes</subtask>
+    </subtasks>
+  </task>
+  <task id="ZP-119">
+    <name>task -&gt; csv import</name>
+    <prompt>just like export except it imports from csv adding all tasks (if the id for each isnt taken otherwise only import unique ids)</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>true</commit>
+    <build>true</build>
+    <release>true</release>
+    <merge>false</merge>
+    <branch>update-2</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
   </task>
   <task id="ZP-102">
     <name>drag to change branch</name>
