@@ -1,5 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
 <tasks project="zProject" nextIndex="126">
+  <task id="ZP-118">
+    <name>task -&gt; csv export</name>
+    <prompt>exports all tasks as csv, each column corresponds to the subtasks in that exact order, each row is a task</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>true</done>
+    <priority>false</priority>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <dateFinished>2026-09-07 16:21</dateFinished>
+    <commit>true</commit>
+    <build>true</build>
+    <release>false</release>
+    <merge>false</merge>
+    <branch>update-2</branch>
+    <tags></tags>
+    <notes>Added a stable ten-column task CSV exporter in the exact requested order. Exports use UTF-8 BOM, CRLF records, RFC-style comma/quote/newline escaping, lowercase booleans, and active/in progress/complete/archived status mapping. Informational notes are excluded; active, Finished Today, and archived task buckets are included. Added desktop Save As and mobile download controls. Verified adversarial quoted/multiline fields, all status/flag mappings, storage-bucket coverage, a live 116-row HTTP export parsed by PowerShell Import-Csv, exact headers and row count, mobile/desktop UI syntax, a zero-warning Debug build to builds/debug, and desktop startup.</notes>
+    <filesChanged>src/PromptQueue.Core/Serialization/TaskCsvSerializer.cs; src/PromptQueue.App/Views/MainWindow.xaml.cs; src/PromptQueue.App/ui/main.html; src/PromptQueue.Server/Program.cs; src/PromptQueue.Server/zProject_webView.html; tasks.xml</filesChanged>
+    <image></image>
+    <subtasks>
+      <subtask done="true">task id</subtask>
+      <subtask done="true">name</subtask>
+      <subtask done="true">prompt</subtask>
+      <subtask done="true">status (complete in progress archived or active)</subtask>
+      <subtask done="true">build?</subtask>
+      <subtask done="true">release?</subtask>
+      <subtask done="true">commit?</subtask>
+      <subtask done="true">due date</subtask>
+      <subtask done="true">finish data</subtask>
+      <subtask done="true">agent notes</subtask>
+      <subtask done="true">Define a stable UTF-8 CSV contract with the ten required headers in exact subtask order and RFC-compatible escaping</subtask>
+      <subtask done="true">Implement export across active, finished-today, and archived tasks with desktop save and mobile download entry points</subtask>
+      <subtask done="true">Verify column order, status mapping, multiline and quoted text, all storage buckets, UI syntax, and required debug build; record metadata</subtask>
+    </subtasks>
+  </task>
   <task id="ZP-125">
     <name>incorrect dropdown behavior</name>
     <prompt>right now the drop downs in the main window for branch act as a sort of autocomplete, i want an actual drop down when you click it showing all branches not just the one that autocompletes from what you have</prompt>
