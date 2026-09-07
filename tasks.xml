@@ -1,38 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <tasks project="zProject" nextIndex="126">
-  <task id="ZP-124">
-    <name>Build outputs fail to launch and GitHub releases ship source</name>
-    <prompt>All release, debug, and test executables fail at startup with a TypeConverterMarkupExtension exception. GitHub release assets are source archives instead of self-contained runnable application bundles. Reproduce by launching any configuration build or downloading a release asset; expected each executable to start and each release asset to contain everything needed to run zProject.</prompt>
-    <requirements>Debug, test, and release outputs launch without startup exceptions; publish output is self-contained for win-x64; GitHub release assets contain runnable binaries and required content rather than repository source; current release assets are corrected and verified.</requirements>
-    <inProgress>true</inProgress>
-    <done>false</done>
-    <priority>true</priority>
-    <bug>true</bug>
-    <error>false</error>
-    <errorMessage></errorMessage>
-    <lockKey>cx9K4mQ7vL2</lockKey>
-    <locked>false</locked>
-    <archived>false</archived>
-    <blockedBy></blockedBy>
-    <dateStarted></dateStarted>
-    <dueDate></dueDate>
-    <dateFinished></dateFinished>
-    <commit>true</commit>
-    <build>true</build>
-    <release>false</release>
-    <merge>false</merge>
-    <branch>update-2</branch>
-    <tags></tags>
-    <notes>Removed the redundant WPF runtime icon conversion that crashed all desktop configurations. Added a guarded self-contained win-x64 packaging script covering the desktop app, operator, server, zUI content, and .NET runtimes. Built a build-17 bundle from the build-17 tag plus the startup hotfix, uploaded it as the GitHub release asset, downloaded it, matched SHA-256 40EF28CDC6CB4CBA87D514E5E0D284A114A17A9372530DA5C50BCFA0613C97DE, and smoke-tested the extracted operator, HTTP server, and desktop app.</notes>
-    <filesChanged>src/PromptQueue.App/Views/MainWindow.xaml; scripts/Publish-Release.ps1; release/README.txt; tasks.xml</filesChanged>
-    <image></image>
-    <subtasks>
-      <subtask done="true">Reproduce and diagnose the WPF startup TypeConverterMarkupExtension failure in current debug, test, and release outputs</subtask>
-      <subtask done="true">Fix startup resources or markup and verify all three configuration executables remain running without fatal errors</subtask>
-      <subtask done="true">Create a repeatable self-contained win-x64 packaging flow for runnable GitHub release assets</subtask>
-      <subtask done="true">Replace affected GitHub release assets, download and smoke-test the published bundle, then record task metadata</subtask>
-    </subtasks>
-  </task>
   <task id="ZP-125">
     <name>incorrect dropdown behavior</name>
     <prompt>right now the drop downs in the main window for branch act as a sort of autocomplete, i want an actual drop down when you click it showing all branches not just the one that autocompletes from what you have</prompt>
