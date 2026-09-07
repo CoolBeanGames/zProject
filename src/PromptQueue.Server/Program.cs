@@ -240,6 +240,10 @@ internal static class Program
             {
                 WriteText(ctx, _viewHtml, "text/html; charset=utf-8");
             }
+            else if (path.StartsWith("/zui/", StringComparison.OrdinalIgnoreCase))
+            {
+                status = ServeZuiAsset(ctx, path);
+            }
             else if (path == "/api/projects")
             {
                 WriteJson(ctx, BuildProjectsPayload());
@@ -555,6 +559,40 @@ internal static class Program
         ctx.Response.ContentLength64 = bytes.Length;
         ctx.Response.OutputStream.Write(bytes, 0, bytes.Length);
         ctx.Response.OutputStream.Close();
+    }
+
+    private static int ServeZuiAsset(HttpListenerContext ctx, string requestPath)
+    {
+        var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "zui"));
+        var relative = Uri.UnescapeDataString(requestPath["/zui/".Length..])
+            .Replace('/', Path.DirectorySeparatorChar);
+        var fullPath = Path.GetFullPath(Path.Combine(root, relative));
+        var rootPrefix = root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+
+        if (!fullPath.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase) || !File.Exists(fullPath))
+        {
+            ctx.Response.StatusCode = 404;
+            WriteText(ctx, "not found", "text/plain");
+            return 404;
+        }
+
+        var contentType = Path.GetExtension(fullPath).ToLowerInvariant() switch
+        {
+            ".css" => "text/css; charset=utf-8",
+            ".js" => "text/javascript; charset=utf-8",
+            ".svg" => "image/svg+xml",
+            ".png" => "image/png",
+            ".woff" => "font/woff",
+            ".woff2" => "font/woff2",
+            _ => "application/octet-stream",
+        };
+        var bytes = File.ReadAllBytes(fullPath);
+        ctx.Response.ContentType = contentType;
+        ctx.Response.ContentLength64 = bytes.Length;
+        ctx.Response.Headers.Add("Cache-Control", "public, max-age=3600");
+        ctx.Response.OutputStream.Write(bytes, 0, bytes.Length);
+        ctx.Response.OutputStream.Close();
+        return 200;
     }
 
     private static string LoadViewHtml()

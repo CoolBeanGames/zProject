@@ -1,2 +1,500 @@
 <?xml version="1.0" encoding="utf-8"?>
-<tasks project="zProject" nextIndex="89" />
+<tasks project="zProject" nextIndex="116">
+  <task id="ZP-112">
+    <name>issue with antigravity</name>
+    <prompt>Error: unexpected argument "Read prompt.txt in this directory and follow it exactly for branch 'main'. Work through all tasks on that branch.".
+Prompts are read only from -p/--print, -i/--prompt-interactive, or stdin, so this argument would have been ignored.
+PS C:\Users\haptic\Documents\git\zShot&gt;</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>true</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <merge>false</merge>
+    <branch>main</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-113">
+    <name>operator</name>
+    <prompt>please add operator to path on first launch, ask for permissions if needed (UAC or otherwise) but please automate that</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>true</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>true</commit>
+    <build>true</build>
+    <release>true</release>
+    <merge>false</merge>
+    <branch>main</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-114">
+    <name>dragging inside of a branch</name>
+    <prompt>dragging tasks around inside a branch doesnt work right</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>true</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <merge>false</merge>
+    <branch>main</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-115">
+    <name>Server wont connect</name>
+    <prompt>via mobile device, says host not found no matter how long i let it set</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>true</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <merge>false</merge>
+    <branch>main</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-93">
+    <name>merge back into main</name>
+    <prompt>if i approve the build, merge it back in</prompt>
+    <requirements></requirements>
+    <inProgress>true</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey>cx9K4mQ7vL2</lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>true</commit>
+    <build>true</build>
+    <release>true</release>
+    <merge>true</merge>
+    <branch>ui-redesign</branch>
+    <tags>Branches</tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+    <subtasks>
+      <subtask done="true">Verify the approved ui-redesign branch state and preserve outstanding task metadata before merging</subtask>
+      <subtask done="false">Merge ui-redesign into main and push the integrated branch without including unrelated worktree changes</subtask>
+      <subtask done="false">Build and validate the merged main branch in the required release output directory</subtask>
+      <subtask done="false">Record completion, push final metadata, and publish the next GitHub release with merge patch notes</subtask>
+    </subtasks>
+  </task>
+  <task id="ZP-111">
+    <name>Branch selection</name>
+    <prompt>at the top bar we can type in a branch to make new tasks in, lets change this to a drop down (that you can also type in)</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <merge>false</merge>
+    <branch>update-2</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-110">
+    <name>add a priority tag</name>
+    <prompt>add a checkbox for priority tasks. when checked the background becomes red and the the AI will do that before ANY other task. if there are multiple priority tasks then do them in listing order. update instructions.txt to reflect this change</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <merge>false</merge>
+    <branch>update-2</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-106">
+    <name>lock branch</name>
+    <prompt>add a button to lock/unlock an entire branch</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <merge>false</merge>
+    <branch>update-2</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-104">
+    <name>Reload when opening a project</name>
+    <prompt>the task list should refresh / reload as soon as i open the task list every single time</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>true</commit>
+    <build>true</build>
+    <release>false</release>
+    <merge>false</merge>
+    <branch>update-2</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-103">
+    <name>Notes</name>
+    <prompt>add a new "notes" feature, when used it just gives the agent information. subtasks below will list the things to show or enable for it.</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>false</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>true</commit>
+    <build>true</build>
+    <release>true</release>
+    <merge>false</merge>
+    <branch>update-2</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+    <subtasks>
+      <subtask done="false">can be marked done</subtask>
+      <subtask done="false">instead of prompt just has "note"</subtask>
+      <subtask done="false">no agent notes or file changed</subtask>
+      <subtask done="false">keep the name and branch</subtask>
+      <subtask done="false">no in progress, done,bug,locked,commit,build,release or merge tags</subtask>
+      <subtask done="false">do add a "clear after reading" tag that if true the agent archives it after it notes it. if its false then  the agend does nothing and moves on</subtask>
+      <subtask done="false">update the global instructions to explain these</subtask>
+      <subtask done="false">they should have a slightly different background color to be easily visible</subtask>
+      <subtask done="false">display the entire note content (or as much will fit with a margin) in the unexpanded card so we can see it</subtask>
+      <subtask done="false">add a button right next to new text for creating notes</subtask>
+      <subtask done="false">just like we can hit space for a new task, lets hit 'n' to create a new note</subtask>
+      <subtask done="false">make sure they can be dragged, reordered, changed branches with dragging, and deleted with buttons</subtask>
+    </subtasks>
+  </task>
+  <task id="ZP-102">
+    <name>drag to change branch</name>
+    <prompt>If i drag a task in lets say main to example, INTO the UI-redesign branch, then change the tasks branch to UI-redesign, so dragging a task into a branch changes the branch.</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>true</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <merge>false</merge>
+    <branch>update-2</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-101">
+    <name>launch agent on branch</name>
+    <prompt>we can already release an agent to a specific project, a specific task (via the new task buttons) but lets do the same thing for a specific branch, that should cause them to work on that branch and then stop so launch them with that prompt</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>true</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <merge>false</merge>
+    <branch>update-2</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-100">
+    <name>paste photo</name>
+    <prompt>If there is an image in the clipboard i want to be able to paste (ctrl+v to upload it IF the card is expanded)</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>true</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>true</commit>
+    <build>false</build>
+    <release>false</release>
+    <merge>false</merge>
+    <branch>update-2</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-99">
+    <name>drag in photo</name>
+    <prompt>I want to be able to drag a photo into the task card to upload the photo to that card without opening it or having to browser</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>true</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>true</commit>
+    <build>false</build>
+    <release>false</release>
+    <merge>false</merge>
+    <branch>update-2</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-98">
+    <name>show previes for prompt on branch card</name>
+    <prompt>right now theres no way to see the prompt or requirements besides clicking into the card</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>true</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <merge>false</merge>
+    <branch>update-2</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-97">
+    <name>branch ordering</name>
+    <prompt>lets make a way to order branches as a whole (so the AI processes 1 branch vs the other)</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>true</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>true</commit>
+    <build>true</build>
+    <release>false</release>
+    <merge>false</merge>
+    <branch>update-2</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-96">
+    <name>new task change</name>
+    <prompt>when making a new task, make the default branch be whatever the last branch was</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>true</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>false</commit>
+    <build>false</build>
+    <release>false</release>
+    <merge>false</merge>
+    <branch>update-2</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-108">
+    <name>stop execution</name>
+    <prompt>add a button to insert a "stop execution" when the AI hits this, it should stop and await further instructions. update global instructions.txt to reflect this change</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>true</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>true</commit>
+    <build>true</build>
+    <release>false</release>
+    <merge>false</merge>
+    <branch>update-2</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+  <task id="ZP-107">
+    <name>merge</name>
+    <prompt>await my approve, but once i give it merge with main</prompt>
+    <requirements></requirements>
+    <inProgress>false</inProgress>
+    <done>false</done>
+    <bug>false</bug>
+    <error>false</error>
+    <errorMessage></errorMessage>
+    <lockKey></lockKey>
+    <locked>true</locked>
+    <archived>false</archived>
+    <blockedBy></blockedBy>
+    <dateStarted></dateStarted>
+    <dueDate></dueDate>
+    <commit>true</commit>
+    <build>true</build>
+    <release>true</release>
+    <merge>true</merge>
+    <branch>update-2</branch>
+    <tags></tags>
+    <notes></notes>
+    <filesChanged></filesChanged>
+    <image></image>
+  </task>
+</tasks>
