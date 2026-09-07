@@ -23,6 +23,8 @@ public partial class MainWindow : Window
 
     public MainWindow()
     {
+        // Begin the shared WebView2 environment startup while WPF initializes.
+        _ = ZuiHost.GetSharedEnvironmentAsync();
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
         Loaded += OnLoaded;
@@ -206,6 +208,22 @@ public partial class MainWindow : Window
 
         // Save task form
         _ui.On("save-task", p => Dispatcher.Invoke(() => ApplySaveTask(p)));
+        _ui.On("choose-task-image", _ => Dispatcher.Invoke(() =>
+        {
+            if (Vm?.Overlay is not TaskFormViewModel form ||
+                !form.ChooseImageCommand.CanExecute(null)) return;
+
+            form.ChooseImageCommand.Execute(null);
+            PushFormImageState(form);
+        }));
+        _ui.On("remove-task-image", _ => Dispatcher.Invoke(() =>
+        {
+            if (Vm?.Overlay is not TaskFormViewModel form ||
+                !form.RemoveImageCommand.CanExecute(null)) return;
+
+            form.RemoveImageCommand.Execute(null);
+            PushFormImageState(form);
+        }));
 
         // Agent deploys
         _ui.On("deploy-agent", p => Dispatcher.Invoke(() =>
@@ -379,6 +397,9 @@ public partial class MainWindow : Window
                 notes        = form.Notes,
                 filesChanged = form.FilesChanged,
                 errorMessage = form.ErrorMessage,
+                image            = form.Image,
+                hasImage         = form.HasImage,
+                imagePreviewUrl  = BuildImagePreviewDataUrl(form),
                 hasNotes         = form.HasNotes,
                 hasFilesChanged  = form.HasFilesChanged,
                 hasError         = form.HasError,
@@ -402,6 +423,45 @@ public partial class MainWindow : Window
         else if (vm.Overlay == null)
         {
             _ui?.Send("close-overlay", (object?)null);
+        }
+    }
+
+    private void PushFormImageState(TaskFormViewModel form)
+    {
+        _ui?.Send("task-image-state", new
+        {
+            image = form.Image,
+            hasImage = form.HasImage,
+            imagePreviewUrl = BuildImagePreviewDataUrl(form),
+        });
+    }
+
+    private static string BuildImagePreviewDataUrl(TaskFormViewModel form)
+    {
+        var path = form.ImagePreviewPath;
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            return "";
+
+        try
+        {
+            var mimeType = Path.GetExtension(path).ToLowerInvariant() switch
+            {
+                ".png" => "image/png",
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".gif" => "image/gif",
+                ".bmp" => "image/bmp",
+                ".webp" => "image/webp",
+                _ => "application/octet-stream",
+            };
+            return $"data:{mimeType};base64,{Convert.ToBase64String(File.ReadAllBytes(path))}";
+        }
+        catch (IOException)
+        {
+            return "";
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return "";
         }
     }
 
@@ -522,6 +582,13 @@ public partial class MainWindow : Window
             _tray = null;
         }
         base.OnClosing(e);
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        if (_ui is not null)
+            _ui.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        base.OnClosed(e);
     }
 
     protected override void OnStateChanged(EventArgs e)

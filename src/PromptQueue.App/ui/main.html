@@ -88,6 +88,9 @@
     #task-form-overlay, #text-editor-overlay { display: none; }
     #task-form-overlay.visible, #text-editor-overlay.visible { display: flex; flex-direction: column; }
     #text-editor-overlay textarea { flex: 1; resize: none; border: none; background: transparent; color: var(--zui-text); padding: var(--zui-space-3); outline: none; font-family: var(--zui-font-mono); font-size: var(--zui-fs-small); line-height: 1.6; }
+    #form-image-preview { display: none; align-self: flex-start; max-width: 100%; padding: 4px; border: 1px solid var(--zui-border); background: var(--zui-bg-app); }
+    #form-image-preview.visible { display: block; }
+    #form-image-preview img { display: block; max-width: 360px; max-height: 200px; object-fit: contain; }
     #empty-state { display: none; }
     #empty-state.visible { display: flex; }
     .proj-local-badge { font-size: var(--zui-fs-small); color: var(--zui-text-secondary); float:right; }
@@ -216,6 +219,17 @@
     <div class="zui-col zui-gap-1">
       <label class="zui-t-small zui-text-secondary">Requirements</label>
       <textarea class="zui-textarea" id="form-requirements" placeholder="Specific requirements…" rows="3"></textarea>
+    </div>
+    <div class="zui-col zui-gap-1" id="form-image-group">
+      <label class="zui-t-small zui-text-secondary">Image</label>
+      <div class="zui-row zui-gap-2 zui-items-center">
+        <button class="zui-btn" id="form-choose-image" type="button">Choose image…</button>
+        <button class="zui-btn" id="form-remove-image" type="button">Remove</button>
+        <span class="zui-t-small zui-text-secondary" id="form-image-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+      </div>
+      <div id="form-image-preview">
+        <img id="form-image-preview-img" alt="Attached task image preview">
+      </div>
     </div>
     <div class="zui-col zui-gap-1" id="form-notes-group">
       <label class="zui-t-small zui-text-secondary">Notes (agent-written)</label>
@@ -599,6 +613,7 @@ function openTaskForm(data) {
   document.getElementById('form-notes').value = data.notes || '';
   document.getElementById('form-files').value = data.filesChanged || '';
   document.getElementById('form-error-msg').value = data.errorMessage || '';
+  updateFormImage(data);
 
   // Show/hide agent-written sections
   document.getElementById('form-notes-group').style.display = data.hasNotes ? '' : 'none';
@@ -627,6 +642,28 @@ function openTaskForm(data) {
   document.getElementById('overlay-scrim').classList.add('visible');
   document.getElementById('task-form-overlay').classList.add('visible');
   document.getElementById('form-name').focus();
+}
+
+function updateFormImage(data) {
+  if (!state.formTask) return;
+  state.formTask.image = data.image || '';
+  state.formTask.hasImage = !!data.hasImage;
+  state.formTask.imagePreviewUrl = data.imagePreviewUrl || '';
+
+  const hasImage = state.formTask.hasImage;
+  const previewUrl = state.formTask.imagePreviewUrl;
+  document.getElementById('form-image-name').textContent = hasImage ? state.formTask.image : 'No image attached';
+  document.getElementById('form-remove-image').style.display = hasImage ? '' : 'none';
+
+  const preview = document.getElementById('form-image-preview');
+  const img = document.getElementById('form-image-preview-img');
+  if (hasImage && previewUrl) {
+    img.src = previewUrl;
+    preview.classList.add('visible');
+  } else {
+    img.removeAttribute('src');
+    preview.classList.remove('visible');
+  }
 }
 
 function renderFormSubtasks(subtasks) {
@@ -812,6 +849,12 @@ document.getElementById('form-delete-btn').addEventListener('click', () => {
   if (state.formTask) zui.send('delete-task', state.formTask.id);
   closeTaskForm();
 });
+document.getElementById('form-choose-image').addEventListener('click', () => {
+  if (state.formTask) zui.send('choose-task-image', null);
+});
+document.getElementById('form-remove-image').addEventListener('click', () => {
+  if (state.formTask) zui.send('remove-task-image', null);
+});
 document.getElementById('form-add-subtask').addEventListener('click', () => {
   const input = document.getElementById('form-new-subtask');
   const text = input.value.trim();
@@ -897,6 +940,10 @@ zui.receive('status', text => {
 
 zui.receive('open-task-form', data => {
   openTaskForm(data);
+});
+
+zui.receive('task-image-state', data => {
+  updateFormImage(data);
 });
 
 zui.receive('open-text-editor', data => {

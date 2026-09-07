@@ -16,12 +16,17 @@ namespace PromptQueue.App
     public sealed class ZuiHost : IAsyncDisposable
     {
         private const string VirtualHost = "zui.app";
+        private static readonly Lazy<Task<CoreWebView2Environment>> SharedEnvironment =
+            new(() => CoreWebView2Environment.CreateAsync());
 
         private readonly WebView2 _view;
         private readonly Dictionary<string, List<Action<JsonElement>>> _handlers = new();
         private readonly Queue<string> _pending = new();
+        private Task? _initialization;
+        private CoreWebView2? _core;
         private bool _ready;
         private bool _domReady;
+        private bool _disposed;
         private string _mappedRoot = "";
 
         public ZuiHost(WebView2 view)
@@ -36,12 +41,24 @@ namespace PromptQueue.App
 
         public event EventHandler? Ready;
 
-        public async Task InitializeAsync()
+        /// <summary>Warm or reuse the process-wide WebView2 environment. Hosts
+        /// with more than one view can pass this environment to their other
+        /// controls and avoid duplicate browser-process startup work.</summary>
+        public static Task<CoreWebView2Environment> GetSharedEnvironmentAsync() =>
+            SharedEnvironment.Value;
+
+        public Task InitializeAsync()
         {
-            var env = await CoreWebView2Environment.CreateAsync();
+            ThrowIfDisposed();
+            return _initialization ??= InitializeCoreAsync();
+        }
+
+        private async Task InitializeCoreAsync()
+        {
+            var env = await GetSharedEnvironmentAsync();
             await _view.EnsureCoreWebView2Async(env);
 
-            var core = _view.CoreWebView2;
+            var core = _core = _view.CoreWebView2;
             core.Settings.AreDefaultContextMenusEnabled = false;
             core.Settings.IsStatusBarEnabled = false;
 
@@ -50,14 +67,18 @@ namespace PromptQueue.App
             core.SetVirtualHostNameToFolderMapping(
                 VirtualHost, _mappedRoot, CoreWebView2HostResourceAccessKind.Allow);
 
-            core.WebMessageReceived += (_, e) => Dispatch(e.TryGetWebMessageAsString());
+            core.WebMessageReceived += OnWebMessageReceived;
 
             // Bridge installed before any page script runs.
             await core.AddScriptToExecuteOnDocumentCreatedAsync(
                 "window.__zuiHost={postMessage:function(m){window.chrome.webview.postMessage(m);}};");
 
-            core.DOMContentLoaded += (_, _) => { _domReady = true; FlushPending(); };
-            core.NavigationStarting += (_, _) => _domReady = false;
+            core.DOMContentLoaded += OnDomContentLoaded;
+            // Some documents or WebView2 versions can complete navigation
+            // without the DOM callback reaching the host. Completion is a safe
+            // second readiness signal; FlushPending is idempotent when empty.
+            core.NavigationCompleted += OnNavigationCompleted;
+            core.NavigationStarting += OnNavigationStarting;
 
             _ready = true;
             Ready?.Invoke(this, EventArgs.Empty);
@@ -98,6 +119,7 @@ namespace PromptQueue.App
         /// <summary>Subscribe to a UI channel (UI -&gt; host).</summary>
         public IDisposable On(string channel, Action<JsonElement> handler)
         {
+            ThrowIfDisposed();
             if (!_handlers.TryGetValue(channel, out var list))
                 _handlers[channel] = list = new();
             list.Add(handler);
@@ -110,6 +132,26 @@ namespace PromptQueue.App
         {
             while (_pending.Count > 0)
                 _view.CoreWebView2.PostWebMessageAsString(_pending.Dequeue());
+        }
+
+        private void MarkDocumentReady()
+        {
+            _domReady = true;
+            FlushPending();
+        }
+
+        private void OnWebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e) =>
+            Dispatch(e.TryGetWebMessageAsString());
+
+        private void OnDomContentLoaded(object? sender, CoreWebView2DOMContentLoadedEventArgs e) =>
+            MarkDocumentReady();
+
+        private void OnNavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e) =>
+            _domReady = false;
+
+        private void OnNavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e)
+        {
+            if (e.IsSuccess) MarkDocumentReady();
         }
 
         private void Dispatch(string? webMessageJson)
@@ -130,12 +172,30 @@ namespace PromptQueue.App
 
         private void EnsureReady()
         {
+            ThrowIfDisposed();
             if (!_ready)
                 throw new InvalidOperationException("Call InitializeAsync() before using ZuiHost.");
         }
 
+        private void ThrowIfDisposed()
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+        }
+
         public ValueTask DisposeAsync()
         {
+            if (_disposed) return ValueTask.CompletedTask;
+            _disposed = true;
+            if (_core is not null)
+            {
+                _core.WebMessageReceived -= OnWebMessageReceived;
+                _core.DOMContentLoaded -= OnDomContentLoaded;
+                _core.NavigationStarting -= OnNavigationStarting;
+                _core.NavigationCompleted -= OnNavigationCompleted;
+                _core = null;
+            }
+            _ready = false;
+            _domReady = false;
             _handlers.Clear();
             _pending.Clear();
             return ValueTask.CompletedTask;
