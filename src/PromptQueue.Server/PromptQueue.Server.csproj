@@ -16,6 +16,9 @@
 
   <ItemGroup>
     <None Update="zProject_webView.html" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\third_party\zui\core\**\*"
+          Link="zui\%(RecursiveDir)%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
