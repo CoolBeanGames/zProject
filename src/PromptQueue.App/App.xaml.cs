@@ -26,6 +26,12 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
+        if (OperatorPathInstaller.TryRunInstallerMode(e.Args, out int installerExitCode))
+        {
+            Shutdown(installerExitCode);
+            return;
+        }
+
         _instanceMutex = new Mutex(initiallyOwned: true, InstanceMutexName, out bool isFirstInstance);
 
         if (!isFirstInstance)
@@ -62,6 +68,7 @@ public partial class App : Application
 
         try
         {
+            var operatorInstall = OperatorPathInstaller.EnsureInstalled();
             var workspace = Workspace.Load();
             var mainViewModel = new MainViewModel(workspace);
 
@@ -70,6 +77,15 @@ public partial class App : Application
             _startupComplete = true;
 
             mainViewModel.WarnAboutLoadErrors();
+
+            if (!operatorInstall.Success)
+            {
+                MessageBox.Show(
+                    $"zProject could not add the operator command to your PATH:\n\n{operatorInstall.Error}",
+                    "zProject",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
         }
         catch (Exception ex)
         {

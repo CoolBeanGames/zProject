@@ -596,7 +596,11 @@ public sealed class MainViewModel : Observable
                 "agy"    => "--dangerously-skip-permissions",
                 _        => "--dangerously-bypass-approvals-and-sandbox",  // codex
             };
-            var psCommand = $"Set-Location -LiteralPath '{dir}'; & {agent} {authority} '{bootArg}'";
+            // Antigravity does not accept a bare positional prompt. Its
+            // prompt-interactive mode runs the initial prompt and then keeps
+            // the terminal session open, matching the Codex/Claude behavior.
+            var promptMode = agent == "agy" ? " --prompt-interactive" : "";
+            var psCommand = $"Set-Location -LiteralPath '{dir}'; & {agent} {authority}{promptMode} '{bootArg}'";
 
             Process.Start(new ProcessStartInfo
             {
