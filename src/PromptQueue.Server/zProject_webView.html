@@ -346,12 +346,30 @@ async function renderList(pi){
       <h1>${esc(data.name)}</h1>
       <button class="act" id="nn">New note</button>
       <button class="act" id="csv">Export CSV</button>
+      <button class="act" id="csvImport">Import CSV</button>
+      <input type="file" id="csvFile" accept=".csv,text/csv" hidden>
       <button class="act primary" id="nt">New task</button>
     </div>
     <main class="view">${body}</main>`;
   document.getElementById('nt').onclick = () => goTask(pi, 'new');
   document.getElementById('nn').onclick = () => goTask(pi, 'new-note');
   document.getElementById('csv').onclick = () => { window.location.href = `/api/project/${pi}/export.csv`; };
+  const csvFile = document.getElementById('csvFile');
+  document.getElementById('csvImport').onclick = () => csvFile.click();
+  csvFile.onchange = async () => {
+    const file = csvFile.files && csvFile.files[0];
+    if (!file) return;
+    const button = document.getElementById('csvImport');
+    button.disabled = true;
+    const response = await fetch(`/api/project/${pi}/import.csv`, {
+      method:'POST', headers:{'Content-Type':'text/csv; charset=utf-8'}, body:file,
+    });
+    const result = await response.json().catch(() => ({ok:false, message:'CSV import failed'}));
+    toast(result.message || 'CSV import finished', !response.ok);
+    csvFile.value = ''; button.disabled = false;
+    cache.data = null;
+    await renderList(pi);
+  };
   app.querySelectorAll('.q').forEach(el => el.onclick = () => goTask(pi, el.dataset.id));
   app.querySelectorAll('[data-branch-lock]').forEach(el => el.onclick = async e => {
     e.stopPropagation();

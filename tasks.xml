@@ -4,13 +4,13 @@
     <name>task -&gt; csv import</name>
     <prompt>just like export except it imports from csv adding all tasks (if the id for each isnt taken otherwise only import unique ids)</prompt>
     <requirements></requirements>
-    <inProgress>false</inProgress>
+    <inProgress>true</inProgress>
     <done>false</done>
     <priority>false</priority>
     <bug>false</bug>
     <error>false</error>
     <errorMessage></errorMessage>
-    <lockKey></lockKey>
+    <lockKey>cx9K4mQ7vL2</lockKey>
     <locked>false</locked>
     <archived>false</archived>
     <blockedBy></blockedBy>
@@ -26,6 +26,12 @@
     <notes></notes>
     <filesChanged></filesChanged>
     <image></image>
+    <subtasks>
+      <subtask done="true">Extend the shared CSV contract with strict header validation, quoted-field parsing, typed field conversion, and row-level diagnostics</subtask>
+      <subtask done="true">Import only IDs absent from every active, finished-today, and archived task; persist imported status and update NextIndex safely</subtask>
+      <subtask done="true">Add desktop file-picker and mobile upload controls with clear imported/skipped/error results</subtask>
+      <subtask done="false">Verify export-import round trips, duplicate IDs, invalid rows, storage routing, UI syntax, debug/release builds, runnable bundle, GitHub release, and metadata</subtask>
+    </subtasks>
   </task>
   <task id="ZP-102">
     <name>drag to change branch</name>

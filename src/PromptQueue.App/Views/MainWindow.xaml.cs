@@ -6,6 +6,7 @@ using Microsoft.Web.WebView2.WinForms;
 using PromptQueue.App.ViewModels;
 using PromptQueue.Core.Models;
 using PromptQueue.Core.Serialization;
+using PromptQueue.Core.Storage;
 using WinForms = System.Windows.Forms;
 
 namespace PromptQueue.App.Views;
@@ -88,6 +89,7 @@ public partial class MainWindow : Window
         _ui.On("save-current",       _ => Dispatcher.Invoke(() => Vm?.SaveCurrentCommand.Execute(null)));
         _ui.On("reload-project",     _ => Dispatcher.Invoke(() => Vm?.ReloadProjectCommand.Execute(null)));
         _ui.On("export-csv",         _ => Dispatcher.Invoke(ExportSelectedProjectCsv));
+        _ui.On("import-csv",         _ => Dispatcher.Invoke(ImportSelectedProjectCsv));
         _ui.On("start-web-server",   _ => Dispatcher.Invoke(() => Vm?.StartWebServerCommand.Execute(null)));
         _ui.On("exit",               _ => Dispatcher.Invoke(() => Vm?.ExitCommand.Execute(null)));
         _ui.On("open-project-dir",   p => Dispatcher.Invoke(() =>
@@ -484,6 +486,33 @@ public partial class MainWindow : Window
 
         File.WriteAllBytes(dialog.FileName, TaskCsvSerializer.SerializeUtf8(project.Tasks));
         _ui?.Send("status", $"Exported {project.Tasks.Count(task => !task.IsNote)} tasks to {dialog.FileName}");
+    }
+
+    private void ImportSelectedProjectCsv()
+    {
+        var project = Vm?.SelectedProject;
+        if (project == null) return;
+
+        var dialog = new OpenFileDialog
+        {
+            Title = "Import tasks from CSV",
+            DefaultExt = ".csv",
+            Filter = "CSV files|*.csv",
+            CheckFileExists = true,
+            Multiselect = false,
+        };
+        if (dialog.ShowDialog(this) != true) return;
+
+        var result = TaskCsvImporter.Import(project, File.ReadAllText(dialog.FileName));
+        PushTasks();
+        _ui?.Send("status", result.Summary);
+        if (result.Errors.Count > 0)
+        {
+            var details = string.Join(Environment.NewLine, result.Errors.Take(12));
+            if (result.Errors.Count > 12) details += $"{Environment.NewLine}…and {result.Errors.Count - 12} more.";
+            MessageBox.Show($"{result.Summary}{Environment.NewLine}{Environment.NewLine}{details}",
+                "CSV import", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
     private static object[] BuildAttachmentPayload(TaskFormViewModel form) =>

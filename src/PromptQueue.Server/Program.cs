@@ -274,6 +274,13 @@ internal static class Program
                 {
                     status = ServeCsvExport(ctx, _workspace.Projects[exportProjectIndex]);
                 }
+                else if (parts.Length == 2 && int.TryParse(parts[0], out var importProjectIndex)
+                    && importProjectIndex >= 0 && importProjectIndex < _workspace.Projects.Count
+                    && parts[1].Equals("import.csv", StringComparison.OrdinalIgnoreCase)
+                    && ctx.Request.HttpMethod == "POST")
+                {
+                    status = HandleCsvImport(ctx, _workspace.Projects[importProjectIndex]);
+                }
                 else if (parts.Length == 4 && int.TryParse(parts[0], out var attachmentProjectIndex)
                     && attachmentProjectIndex >= 0 && attachmentProjectIndex < _workspace.Projects.Count
                     && parts[1].Equals("attachment", StringComparison.OrdinalIgnoreCase))
@@ -684,6 +691,30 @@ internal static class Program
         ctx.Response.OutputStream.Write(bytes, 0, bytes.Length);
         ctx.Response.OutputStream.Close();
         return 200;
+    }
+
+    private static int HandleCsvImport(HttpListenerContext ctx, Project project)
+    {
+        const long maxCsvBytes = 10L * 1024 * 1024;
+        if (ctx.Request.ContentLength64 < 0 || ctx.Request.ContentLength64 > maxCsvBytes)
+            return WriteBadRequest(ctx, "CSV imports must be 10 MB or smaller.");
+
+        string csv;
+        using (var reader = new StreamReader(ctx.Request.InputStream, Encoding.UTF8,
+                   detectEncodingFromByteOrderMarks: true, leaveOpen: false))
+            csv = reader.ReadToEnd();
+        var result = TaskCsvImporter.Import(project, csv);
+        AutoReload(silent: true);
+        ctx.Response.StatusCode = result.Errors.Count > 0 && result.Imported == 0 ? 400 : 200;
+        WriteJson(ctx, new
+        {
+            ok = result.Imported > 0 || result.Errors.Count == 0,
+            imported = result.Imported,
+            skipped = result.Skipped,
+            errors = result.Errors,
+            message = result.Summary,
+        });
+        return ctx.Response.StatusCode;
     }
 
     private static int ServeTaskAttachment(HttpListenerContext ctx, Project project, string taskId, string fileName)

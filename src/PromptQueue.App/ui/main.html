@@ -163,6 +163,7 @@
         <span class="zui-spacer"></span>
         <button class="zui-btn" id="btn-reload">Reload</button>
         <button class="zui-btn" id="btn-export-csv">Export CSV</button>
+        <button class="zui-btn" id="btn-import-csv">Import CSV</button>
         <button class="zui-btn" id="btn-open-dir">Open Folder</button>
       </div>
 
@@ -844,6 +845,7 @@ document.getElementById('btn-collapse-all').addEventListener('click', () => zui.
 document.getElementById('btn-expand-all').addEventListener('click', () => zui.send('expand-all', null));
 document.getElementById('btn-reload').addEventListener('click', () => zui.send('reload-project', null));
 document.getElementById('btn-export-csv').addEventListener('click', () => zui.send('export-csv', null));
+document.getElementById('btn-import-csv').addEventListener('click', () => zui.send('import-csv', null));
 document.getElementById('btn-open-dir').addEventListener('click', () => zui.send('open-project-dir', null));
 document.getElementById('new-task-branch').addEventListener('change', e => zui.send('set-branch', e.target.value));
 
