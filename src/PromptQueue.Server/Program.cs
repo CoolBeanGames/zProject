@@ -20,6 +20,7 @@ internal static class Program
     private static Workspace _workspace = null!;
     private static string _viewHtml = "";
     private static string? _publicUrl;
+    private static string? _tailnetUrl;
 
     private static int Main(string[] args)
     {
@@ -49,16 +50,20 @@ internal static class Program
             return 1;
         }
 
+        var cts = new CancellationTokenSource();
+        _ = AcceptLoop(listener, cts.Token);
+
+        // Accept requests before Funnel setup and the health check. Previously
+        // SelfCheck ran before AcceptLoop and therefore timed out every time.
         _publicUrl = useFunnel ? Tailscale.StartFunnel(port) : null;
-        if (_publicUrl != null)
-            SelfCheck(port);
+        _tailnetUrl = useFunnel ? Tailscale.GetTailnetUrl(port) : null;
+        SelfCheck(port);
 
         Banner(port);
 
         using var reloadTimer = new Timer(_ => AutoReload(), null,
             TimeSpan.FromSeconds(ReloadSeconds), TimeSpan.FromSeconds(ReloadSeconds));
 
-        var cts = new CancellationTokenSource();
         var stopping = 0;
         void Shutdown()
         {
@@ -71,8 +76,6 @@ internal static class Program
         }
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; Shutdown(); };
         AppDomain.CurrentDomain.ProcessExit += (_, _) => Shutdown();
-
-        _ = AcceptLoop(listener, cts.Token);
 
         Console.WriteLine("Serving. Press Ctrl+C to stop.");
         Console.WriteLine(new string('-', 60));
@@ -197,6 +200,12 @@ internal static class Program
         else
         {
             Console.WriteLine("    (Tailscale Funnel not active — see the note above)");
+        }
+        if (_tailnetUrl != null)
+        {
+            Console.WriteLine("  On your phone while connected to this tailnet (DNS-free fallback) :");
+            Console.WriteLine($"    {_tailnetUrl}");
+            Console.WriteLine("    (use this if the Funnel hostname says host not found)");
         }
         Console.WriteLine($"  Projects: {_workspace.Projects.Count}");
         Console.WriteLine($"  Auto-reload every {ReloadSeconds}s and on each client connect");

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.RegularExpressions;
+using System.Text.Json;
 
 namespace PromptQueue.Server;
 
@@ -31,11 +32,13 @@ internal static class Tailscale
         }
 
         // Newer CLIs: `tailscale funnel --bg <port>`. Older ones accept the same.
-        var (ok, output) = Run(exe, $"funnel --bg {port}", 25000);
+        // The server has no interactive input. --yes handles first-run Funnel
+        // policy confirmation without waiting for input that can never arrive.
+        var (ok, output) = Run(exe, $"funnel --bg --yes {port}", 25000);
         if (!ok)
         {
             // Fall back to the explicit target form.
-            (ok, output) = Run(exe, $"funnel --bg http://localhost:{port}", 25000);
+            (ok, output) = Run(exe, $"funnel --bg --yes http://localhost:{port}", 25000);
         }
 
         var url = TsUrl.Match(output).Value;
@@ -60,6 +63,46 @@ internal static class Tailscale
         }
 
         return string.IsNullOrEmpty(url) ? null : url.TrimEnd('/') + "/";
+    }
+
+    /// <summary>
+    /// Returns a DNS-free URL reachable by devices connected to the same
+    /// tailnet. This remains useful while a new Funnel hostname propagates.
+    /// </summary>
+    public static string? GetTailnetUrl(int port)
+    {
+        var exe = FindExe();
+        if (exe == null)
+            return null;
+
+        var (ok, output) = Run(exe, "status --json", 10000);
+        if (!ok)
+            return null;
+
+        try
+        {
+            using var status = JsonDocument.Parse(output);
+            if (!status.RootElement.TryGetProperty("Self", out var self) ||
+                !self.TryGetProperty("TailscaleIPs", out var addresses) ||
+                addresses.ValueKind != JsonValueKind.Array)
+            {
+                return null;
+            }
+            foreach (var address in addresses.EnumerateArray())
+            {
+                string? text = address.GetString();
+                if (System.Net.IPAddress.TryParse(text, out var ip) &&
+                    ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                {
+                    return $"http://{ip}:{port}/";
+                }
+            }
+        }
+        catch (JsonException)
+        {
+        }
+
+        return null;
     }
 
     /// <summary>Tears the funnel down again.</summary>

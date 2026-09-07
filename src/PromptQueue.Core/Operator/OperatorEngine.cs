@@ -169,6 +169,14 @@ public static class OperatorEngine
         => Enqueue(new OperatorJob("move", taskId, index.ToString(CultureInfo.InvariantCulture)));
 
     /// <summary>
+    /// Queues a move relative to another task. Source and target are resolved
+    /// together while the operator lock is held, so a UI reload or concurrent
+    /// edit cannot make a previously calculated absolute index stale.
+    /// </summary>
+    public static OperatorResult MoveRelative(string taskId, string targetId, bool above)
+        => Enqueue(new OperatorJob("move_relative", taskId, targetId, above ? "above" : "below"));
+
+    /// <summary>
     /// Queues a full replace of a task (matched by id) with the supplied one, or
     /// an add when no task with that id exists. Used by the app, which edits a
     /// task in memory and then hands the finished object to the operator.
@@ -385,6 +393,32 @@ public static class OperatorEngine
                 project.Tasks.Insert(index, task);
                 touched.Add(project);
                 return OperatorResult.Pass($"Moved {task.Id} to {index}");
+            }
+
+            case "move_relative":
+            {
+                var (project, task) = ResolveTask(ws, job.Arg(0));
+                if (task == null)
+                    return OperatorResult.Fail($"No task \"{job.Arg(0)}\".");
+
+                var (targetProject, target) = ResolveTask(ws, job.Arg(1));
+                if (target == null || !ReferenceEquals(project, targetProject))
+                    return OperatorResult.Fail($"No task \"{job.Arg(1)}\" in {project!.Name}.");
+                if (ReferenceEquals(task, target))
+                    return OperatorResult.Pass($"{task.Id} is already in that position");
+                if (task.Archived || target.Archived || task.Done || target.Done)
+                    return OperatorResult.Fail("Only active tasks can be reordered.");
+                if (task.SectionRank != target.SectionRank ||
+                    !string.Equals(task.BranchDisplay, target.BranchDisplay, StringComparison.OrdinalIgnoreCase))
+                    return OperatorResult.Fail("Tasks can only be reordered within the same branch and priority group.");
+
+                bool above = string.Equals(job.Arg(2), "above", StringComparison.OrdinalIgnoreCase);
+                int oldIndex = project!.Tasks.IndexOf(task);
+                project.Tasks.RemoveAt(oldIndex);
+                int targetIndex = project.Tasks.IndexOf(target) + (above ? 0 : 1);
+                project.Tasks.Insert(targetIndex, task);
+                touched.Add(project);
+                return OperatorResult.Pass($"Moved {task.Id} {(above ? "above" : "below")} {target.Id}");
             }
 
             case "upsert":

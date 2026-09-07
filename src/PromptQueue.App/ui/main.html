@@ -319,6 +319,18 @@ function branchColor(branch) {
   return `hsl(${h % 360},55%,52%)`;
 }
 
+function taskPriorityGroup(task) {
+  if (task.bug) return 0;
+  if (task.error) return 1;
+  return 2;
+}
+
+function sameReorderGroup(a, b) {
+  const aBranch = (a.branch || 'main').trim().toLowerCase();
+  const bBranch = (b.branch || 'main').trim().toLowerCase();
+  return aBranch === bBranch && taskPriorityGroup(a) === taskPriorityGroup(b);
+}
+
 function chipHtml(cls, label) {
   return `<span class="chip ${cls}">${label}</span>`;
 }
@@ -543,6 +555,7 @@ function renderTaskCard(task, sectionColor) {
     state.dragTask = task.id;
     card.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', task.id);
   });
   card.addEventListener('dragend', () => {
     card.classList.remove('dragging');
@@ -551,6 +564,11 @@ function renderTaskCard(task, sectionColor) {
   });
   card.addEventListener('dragover', e => {
     if (!state.dragTask || state.dragTask === task.id) return;
+    const source = state.tasks.find(t => t.id === state.dragTask);
+    if (!source || !sameReorderGroup(source, task)) {
+      clearDragOver();
+      return;
+    }
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     const rect = card.getBoundingClientRect();
@@ -568,7 +586,13 @@ function renderTaskCard(task, sectionColor) {
   card.addEventListener('drop', e => {
     e.preventDefault();
     if (!state.dragTask || state.dragTask === task.id) return;
-    const above = state.dragAbove;
+    const source = state.tasks.find(t => t.id === state.dragTask);
+    if (!source || !sameReorderGroup(source, task)) {
+      clearDragOver();
+      return;
+    }
+    const rect = card.getBoundingClientRect();
+    const above = e.clientY < rect.top + rect.height / 2;
     clearDragOver();
     zui.send('move-task', { taskId: state.dragTask, targetId: task.id, above });
     state.dragTask = null;
@@ -582,6 +606,7 @@ function clearDragOver() {
     el.classList.remove('drag-over-above', 'drag-over-below');
   });
   state.dragOverTask = null;
+  state.dragAbove = false;
 }
 
 function toggleSection(key) {

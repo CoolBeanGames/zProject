@@ -986,58 +986,24 @@ public sealed class MainViewModel : Observable
         if (project == null)
             return;
 
-        var oldIndex = project.Tasks.IndexOf(task);
-        if (oldIndex < 0)
+        var target = targetBefore ?? targetAfter;
+        if (target == null || ReferenceEquals(task, target) ||
+            !project.Tasks.Contains(task) || !project.Tasks.Contains(target))
             return;
 
-        var activeTasks = project.Tasks.Where(t => !t.Archived).ToList();
-
-        // Peers are strictly tasks within the SAME branch and same section rank (ZP-83)
-        var peers = activeTasks.Where(t =>
-            !ReferenceEquals(t, task) &&
-            t.SectionRank == task.SectionRank &&
-            string.Equals(t.BranchDisplay, task.BranchDisplay, StringComparison.OrdinalIgnoreCase)
-        ).ToList();
-
-        if (peers.Count == 0)
-            return;
-
-        int targetIndex;
-        var temp = new List<TaskItem>(project.Tasks);
-        temp.RemoveAt(oldIndex);
-
-        if (targetBefore != null && peers.Contains(targetBefore))
+        // Keep the visible priority ordering intact and leave branch changes to
+        // the dedicated branch editor. The operator repeats these checks using
+        // freshly loaded data before it mutates the queue.
+        if (task.SectionRank != target.SectionRank ||
+            !string.Equals(task.BranchDisplay, target.BranchDisplay, StringComparison.OrdinalIgnoreCase))
         {
-            targetIndex = temp.IndexOf(targetBefore);
-        }
-        else if (targetAfter != null && peers.Contains(targetAfter))
-        {
-            targetIndex = temp.IndexOf(targetAfter) + 1;
-        }
-        else if (targetBefore != null && (targetBefore.SectionRank > task.SectionRank ||
-                 !string.Equals(targetBefore.BranchDisplay, task.BranchDisplay, StringComparison.OrdinalIgnoreCase)))
-        {
-            var lastPeer = peers.Last();
-            targetIndex = temp.IndexOf(lastPeer) + 1;
-        }
-        else if (targetAfter != null && (targetAfter.SectionRank < task.SectionRank ||
-                 !string.Equals(targetAfter.BranchDisplay, task.BranchDisplay, StringComparison.OrdinalIgnoreCase)))
-        {
-            var firstPeer = peers.First();
-            targetIndex = temp.IndexOf(firstPeer);
-        }
-        else
-        {
+            StatusText = "Tasks can only be reordered within the same branch and priority group";
             return;
         }
-
-        targetIndex = Math.Clamp(targetIndex, 0, temp.Count);
-        if (targetIndex == oldIndex)
-            return;
 
         ApplyViaOperator(
-            _ => OperatorEngine.Move(task.Id, targetIndex),
-            r => r.Ok ? $"Moved {task.Id} to position {targetIndex + 1}" : $"Operator: {r.Message}");
+            _ => OperatorEngine.MoveRelative(task.Id, target.Id, targetBefore != null),
+            r => r.Ok ? r.Message : $"Operator: {r.Message}");
     }
 
     private void ToggleDone(TaskItem? task)
