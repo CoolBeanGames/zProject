@@ -1,49 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <tasks project="zProject" nextIndex="124">
-  <task id="ZP-103">
-    <name>Notes</name>
-    <prompt>add a new "notes" feature, when used it just gives the agent information. subtasks below will list the things to show or enable for it.</prompt>
-    <requirements></requirements>
-    <inProgress>true</inProgress>
-    <done>false</done>
-    <priority>false</priority>
-    <bug>false</bug>
-    <error>false</error>
-    <errorMessage></errorMessage>
-    <lockKey>cx9K4mQ7vL2</lockKey>
-    <locked>false</locked>
-    <archived>false</archived>
-    <blockedBy></blockedBy>
-    <dateStarted></dateStarted>
-    <dueDate></dueDate>
-    <commit>true</commit>
-    <build>true</build>
-    <release>true</release>
-    <merge>false</merge>
-    <branch>update-2</branch>
-    <tags></tags>
-    <notes>Added first-class informational notes with compact note-specific XML, name/branch/done state, clear-after-reading semantics, reduced task-only metadata, and a new operator new_note command. Desktop and mobile now provide New Note actions, note editors, distinct cards with readable content previews, completion/deletion, branch editing, and desktop N shortcut plus cross-branch note dragging. Updated global and project agent instructions. Verified zero-warning builds, desktop/mobile JavaScript syntax, note serializer round-trip and metadata isolation, operator dispatch/help, static UI contracts, Release test publishes, final Debug/Release packaging, and packaged server HTTP/UI smoke checks.</notes>
-    <filesChanged>instructions.txt; src/PromptQueue.Core/Models/TaskItem.cs; src/PromptQueue.Core/Serialization/TaskXmlSerializer.cs; src/PromptQueue.Core/Operator/TaskFields.cs; src/PromptQueue.Core/Operator/OperatorEngine.cs; src/PromptQueue.Operator/Program.cs; src/PromptQueue.App/ViewModels/MainViewModel.cs; src/PromptQueue.App/ViewModels/TaskFormViewModel.cs; src/PromptQueue.App/Views/MainWindow.xaml.cs; src/PromptQueue.App/ui/main.html; src/PromptQueue.Server/Program.cs; src/PromptQueue.Server/zProject_webView.html; tasks.xml</filesChanged>
-    <image></image>
-    <subtasks>
-      <subtask done="true">can be marked done</subtask>
-      <subtask done="true">instead of prompt just has "note"</subtask>
-      <subtask done="true">no agent notes or file changed</subtask>
-      <subtask done="true">keep the name and branch</subtask>
-      <subtask done="true">no in progress, done,bug,locked,commit,build,release or merge tags</subtask>
-      <subtask done="true">do add a "clear after reading" tag that if true the agent archives it after it notes it. if its false then  the agend does nothing and moves on</subtask>
-      <subtask done="true">update the global instructions to explain these</subtask>
-      <subtask done="true">they should have a slightly different background color to be easily visible</subtask>
-      <subtask done="true">display the entire note content (or as much will fit with a margin) in the unexpanded card so we can see it</subtask>
-      <subtask done="true">add a button right next to new text for creating notes</subtask>
-      <subtask done="true">just like we can hit space for a new task, lets hit 'n' to create a new note</subtask>
-      <subtask done="true">make sure they can be dragged, reordered, changed branches with dragging, and deleted with buttons</subtask>
-      <subtask done="true">Trace task models, XML, operator instructions, desktop/mobile forms, cards, keyboard shortcuts, drag/drop, and deletion paths for a first-class note item</subtask>
-      <subtask done="true">Implement note persistence and operator semantics, including clear-after-reading behavior and global agent instructions</subtask>
-      <subtask done="true">Implement compact desktop and mobile note creation, display, completion, deletion, branch movement, and keyboard interactions</subtask>
-      <subtask done="false">Verify note/task regressions and clear-after-reading workflows, run the full build/release gate, commit/push, and publish the next GitHub release</subtask>
-    </subtasks>
-  </task>
   <task id="ZP-121">
     <name>image preview</name>
     <prompt>if an image is uploaded its supposed to show on the card, currently it doesnt</prompt>
