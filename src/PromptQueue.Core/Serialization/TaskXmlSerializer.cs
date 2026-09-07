@@ -40,10 +40,11 @@ public static class TaskXmlSerializer
             new XAttribute("project", project.Name),
             new XAttribute("nextIndex", project.NextIndex));
 
-        // Bugs are written first regardless of their position in the list (ZP-23),
-        // otherwise on-disk order follows the queue order.
+        // Actionable priorities precede every ordinary task, retaining their
+        // listing order. Bugs remain first among non-priority tasks (ZP-23).
         foreach (var task in tasks
-                     .OrderByDescending(t => t.Bug)
+                     .OrderBy(t => !t.Done && !t.Archived && t.Priority ? 0 :
+                                   !t.Done && !t.Archived && t.Bug ? 1 : 2)
                      .ThenBy(t => t.Order))
         {
             root.Add(TaskToElement(task));
@@ -61,6 +62,7 @@ public static class TaskXmlSerializer
             new XElement("requirements", task.Requirements),
             new XElement("inProgress", task.InProgress),
             new XElement("done", task.Done),
+            new XElement("priority", task.Priority),
             new XElement("bug", task.Bug),
             new XElement("error", task.Error),
             new XElement("errorMessage", task.ErrorMessage),
@@ -129,6 +131,7 @@ public static class TaskXmlSerializer
                 Requirements = (string?)el.Element("requirements") ?? "",
                 InProgress = ParseBool(el.Element("inProgress")),
                 Done = ParseBool(el.Element("done")),
+                Priority = ParseBool(el.Element("priority")),
                 Bug = ParseBool(el.Element("bug")),
                 Error = ParseBool(el.Element("error")),
                 ErrorMessage = (string?)el.Element("errorMessage") ?? "",

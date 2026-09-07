@@ -176,6 +176,10 @@ public static class OperatorEngine
     public static OperatorResult MoveRelative(string taskId, string targetId, bool above)
         => Enqueue(new OperatorJob("move_relative", taskId, targetId, above ? "above" : "below"));
 
+    /// <summary>Locks or unlocks every unfinished task in one project branch atomically.</summary>
+    public static OperatorResult SetBranchLocked(string projectRef, string branch, bool locked)
+        => Enqueue(new OperatorJob("branch_lock", projectRef, branch, locked ? "true" : "false"));
+
     /// <summary>
     /// Queues a full replace of a task (matched by id) with the supplied one, or
     /// an add when no task with that id exists. Used by the app, which edits a
@@ -408,7 +412,7 @@ public static class OperatorEngine
                     return OperatorResult.Pass($"{task.Id} is already in that position");
                 if (task.Archived || target.Archived || task.Done || target.Done)
                     return OperatorResult.Fail("Only active tasks can be reordered.");
-                if (task.SectionRank != target.SectionRank ||
+                if (task.Priority != target.Priority || task.SectionRank != target.SectionRank ||
                     !string.Equals(task.BranchDisplay, target.BranchDisplay, StringComparison.OrdinalIgnoreCase))
                     return OperatorResult.Fail("Tasks can only be reordered within the same branch and priority group.");
 
@@ -419,6 +423,21 @@ public static class OperatorEngine
                 project.Tasks.Insert(targetIndex, task);
                 touched.Add(project);
                 return OperatorResult.Pass($"Moved {task.Id} {(above ? "above" : "below")} {target.Id}");
+            }
+
+            case "branch_lock":
+            {
+                var project = ResolveProject(ws, job.Arg(0));
+                if (project == null)
+                    return OperatorResult.Fail($"No project matches \"{job.Arg(0)}\".");
+
+                string branch = string.IsNullOrWhiteSpace(job.Arg(1)) ? "main" : job.Arg(1).Trim();
+                bool locked = job.Arg(2) is "true" or "1";
+                int affected = ApplyBranchLock(project, branch, locked);
+                if (affected > 0)
+                    touched.Add(project);
+                return OperatorResult.Pass(
+                    $"{(locked ? "Locked" : "Unlocked")} {affected} task(s) in branch {branch}");
             }
 
             case "upsert":
@@ -446,6 +465,16 @@ public static class OperatorEngine
             default:
                 return OperatorResult.Fail($"Unknown command \"{job.Command}\".");
         }
+    }
+
+    private static int ApplyBranchLock(Project project, string branch, bool locked)
+    {
+        var branchTasks = project.Tasks.Where(t =>
+            !t.Done && !t.Archived &&
+            string.Equals(t.BranchDisplay, branch, StringComparison.OrdinalIgnoreCase)).ToList();
+        foreach (var task in branchTasks)
+            task.Locked = locked;
+        return branchTasks.Count;
     }
 
     // ---- resolve -------------------------------------------------------

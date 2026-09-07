@@ -697,8 +697,10 @@ public sealed class MainViewModel : Observable
     {
         var sorted = project.Tasks
             .OrderBy(t => t.Archived ? 2 : t.Done ? 1 : 0)
-            .ThenBy(t => t.Archived || t.Done ? "" : (t.BranchDisplay.Equals("main", StringComparison.OrdinalIgnoreCase) ? "!" : t.BranchDisplay), StringComparer.OrdinalIgnoreCase)
-            .ThenBy(t => t.SectionRank)
+            .ThenByDescending(t => !t.Archived && !t.Done && t.Priority)
+            .ThenBy(t => t.Archived || t.Done || t.Priority ? "" :
+                (t.BranchDisplay.Equals("main", StringComparison.OrdinalIgnoreCase) ? "!" : t.BranchDisplay), StringComparer.OrdinalIgnoreCase)
+            .ThenBy(t => !t.Archived && !t.Done && t.Priority ? 0 : t.SectionRank)
             .ToList();
         for (int i = 0; i < sorted.Count; i++)
         {
@@ -856,6 +858,11 @@ public sealed class MainViewModel : Observable
 
             if (!a.Archived && !a.Done)
             {
+                if (a.Priority != b.Priority)
+                    return a.Priority ? -1 : 1;
+                if (a.Priority)
+                    return a.DisplayOrder.CompareTo(b.DisplayOrder);
+
                 var aIsMain = a.BranchDisplay.Equals("main", StringComparison.OrdinalIgnoreCase);
                 var bIsMain = b.BranchDisplay.Equals("main", StringComparison.OrdinalIgnoreCase);
                 if (aIsMain != bIsMain)
@@ -994,7 +1001,7 @@ public sealed class MainViewModel : Observable
         // Keep the visible priority ordering intact and leave branch changes to
         // the dedicated branch editor. The operator repeats these checks using
         // freshly loaded data before it mutates the queue.
-        if (task.SectionRank != target.SectionRank ||
+        if (task.Priority != target.Priority || task.SectionRank != target.SectionRank ||
             !string.Equals(task.BranchDisplay, target.BranchDisplay, StringComparison.OrdinalIgnoreCase))
         {
             StatusText = "Tasks can only be reordered within the same branch and priority group";
@@ -1003,6 +1010,18 @@ public sealed class MainViewModel : Observable
 
         ApplyViaOperator(
             _ => OperatorEngine.MoveRelative(task.Id, target.Id, targetBefore != null),
+            r => r.Ok ? r.Message : $"Operator: {r.Message}");
+    }
+
+    /// <summary>Locks or unlocks every unfinished task in a branch through one operator mutation.</summary>
+    public void SetBranchLocked(string branch, bool locked)
+    {
+        var project = SelectedProject;
+        if (project == null || string.IsNullOrWhiteSpace(branch))
+            return;
+
+        ApplyViaOperator(
+            _ => OperatorEngine.SetBranchLocked(project.Directory, branch, locked),
             r => r.Ok ? r.Message : $"Operator: {r.Message}");
     }
 

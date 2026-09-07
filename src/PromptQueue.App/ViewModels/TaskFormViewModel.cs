@@ -18,6 +18,7 @@ public sealed class TaskFormViewModel : Observable
     private string _requirements;
     private bool _inProgress;
     private bool _done;
+    private bool _priority;
     private bool _bug;
     private bool _error;
     private string _errorMessage;
@@ -63,6 +64,7 @@ public sealed class TaskFormViewModel : Observable
         _requirements = source?.Requirements ?? "";
         _inProgress = source?.InProgress ?? false;
         _done = source?.Done ?? false;
+        _priority = source?.Priority ?? false;
         _bug = source?.Bug ?? false;
         _error = source?.Error ?? false;
         _errorMessage = source?.ErrorMessage ?? "";
@@ -232,6 +234,12 @@ public sealed class TaskFormViewModel : Observable
     {
         get => _done;
         set => Set(ref _done, value);
+    }
+
+    public bool Priority
+    {
+        get => _priority;
+        set => Set(ref _priority, value);
     }
 
     public bool Bug
@@ -408,6 +416,7 @@ public sealed class TaskFormViewModel : Observable
         task.Requirements = Requirements.Trim();
         task.InProgress = InProgress;
         task.Done = Done;
+        task.Priority = Priority;
         task.Bug = Bug;
         task.Error = Error;
         task.ErrorMessage = ErrorMessage;

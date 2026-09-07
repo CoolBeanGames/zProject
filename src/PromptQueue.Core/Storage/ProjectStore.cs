@@ -130,8 +130,10 @@ public static class ProjectStore
         // ZP-82/83: Stable-sort active tasks by Branch (main first) then SectionRank (bugs -> errors -> active)
         // so tasks.xml file order matches the UI, branch categories and bug priority rules.
         var active = project.Tasks.Where(t => !t.Archived)
-            .OrderBy(t => t.Branch.Equals("main", StringComparison.OrdinalIgnoreCase) ? "" : t.Branch, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(t => t.SectionRank)
+            .OrderByDescending(t => t.Priority && !t.Done)
+            .ThenBy(t => t.Priority && !t.Done ? "" :
+                (t.Branch.Equals("main", StringComparison.OrdinalIgnoreCase) ? "" : t.Branch), StringComparer.OrdinalIgnoreCase)
+            .ThenBy(t => t.Priority && !t.Done ? 0 : t.SectionRank)
             .ToList();
         var archived = project.Tasks.Where(t => t.Archived).ToList();
         for (int i = 0; i < active.Count; i++) active[i].Order = i;

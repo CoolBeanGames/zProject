@@ -75,6 +75,7 @@
     border-bottom:1px solid var(--zui-accent);
   }
   .grp .c{color:var(--ink-3); font-weight:400}
+  .branch-lock{margin-left:auto; border:1px solid var(--line-strong); background:var(--surface); color:var(--ink-2); border-radius:var(--radius); padding:4px 8px; font:inherit; font-size:12px}
   .queue{background:var(--surface); border-top:1px solid var(--line); border-bottom:1px solid var(--line)}
   .q{
     display:flex; align-items:center; gap:10px;
@@ -83,6 +84,7 @@
   }
   .q:last-child{border-bottom:0}
   .q:hover,.q:active{background:var(--surface-2)}
+  .q.s-priority{border-left-color:var(--st-bug); background:color-mix(in srgb,var(--st-bug) 24%,var(--surface))}
   .q.s-bug{border-left-color:var(--st-bug); background:var(--st-bug-wash)}
   .q.s-err{border-left-color:var(--st-err); background:var(--st-err-wash)}
   .q.s-done{border-left-color:var(--st-done)}
@@ -120,6 +122,7 @@
   .flag[aria-pressed=true]{background:var(--accent-wash); border-color:var(--accent); color:var(--accent-ink); font-weight:600}
   .flag.warn[aria-pressed=true]{background:var(--st-err-wash); border-color:var(--st-err); color:var(--st-err)}
   .flag.bug[aria-pressed=true]{background:var(--st-bug-wash); border-color:var(--st-bug); color:var(--st-bug)}
+  .flag.priority[aria-pressed=true]{background:color-mix(in srgb,var(--st-bug) 24%,var(--surface)); border-color:var(--st-bug); color:var(--st-bug)}
 
   .subhead{font-size:12.5px; font-weight:600; color:var(--ink-2); padding:18px 14px 0}
   .subs{padding:6px 14px 0}
@@ -302,9 +305,12 @@ async function renderList(pi){
   for (const b of branchNames){
     const items = groups.get(b);
     if (!items || !items.length) continue;
+    const lockable = items.filter(t => !t.done && !t.archived);
+    const allLocked = lockable.length > 0 && lockable.every(t => t.locked);
     body += `<div class="grp" style="display:flex;align-items:center;gap:6px;">
       <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${branchColor(b)};flex:none;"></span>
       <span>${esc(b)}</span> <span class="c">${items.length}</span>
+      <button class="branch-lock" data-branch-lock data-branch="${av(b)}" data-locked="${!allLocked}">${allLocked ? 'Unlock' : 'Lock'} branch</button>
     </div><div class="queue">`;
     for (const t of items) body += row(pi, t);
     body += `</div>`;
@@ -328,11 +334,18 @@ async function renderList(pi){
     <main class="view">${body}</main>`;
   document.getElementById('nt').onclick = () => goTask(pi, 'new');
   app.querySelectorAll('.q').forEach(el => el.onclick = () => goTask(pi, el.dataset.id));
+  app.querySelectorAll('[data-branch-lock]').forEach(el => el.onclick = async e => {
+    e.stopPropagation();
+    el.disabled = true;
+    const r = await op('branch_lock', data.directory, el.dataset.branch, el.dataset.locked);
+    if (!r.ok) toast(r.message, true);
+    await renderList(pi);
+  });
   foot.textContent = `${esc(data.directory)} · ${data.tasks.length} task(s)`;
 }
 
 function row(pi, t){
-  const sc = SECT_CLASS[t.sectionKey] || 's-active';
+  const sc = t.priority && !t.done && !t.archived ? 's-priority' : (SECT_CLASS[t.sectionKey] || 's-active');
   const state = t.inProgress ? 'in progress' : (t.done ? 'done' : t.statusText.toLowerCase());
   const prog = (t.subtasks && t.subtasks.length)
     ? `<span class="prog">${t.subtasks.filter(s=>s.done).length}/${t.subtasks.length}</span>` : '';
@@ -347,7 +360,7 @@ function row(pi, t){
 /* ---- task page ---- */
 const BLANK = { id:'', name:'', prompt:'', requirements:'', tags:[], blockedBy:'',
   dateStarted:'', dueDate:'', notes:'', filesChanged:'', errorMessage:'',
-  bug:false, done:false, inProgress:false, locked:false, error:false, archived:false,
+  priority:false, bug:false, done:false, inProgress:false, locked:false, error:false, archived:false,
   commit:false, build:false, release:false, merge:false, branch:'main', subtasks:[] };
 
 async function renderTask(pi, tid){
@@ -389,6 +402,7 @@ async function renderTask(pi, tid){
       </div>
 
       <div class="flags">
+        ${flag('priority','Priority','priority')}
         ${flag('bug','Bug','bug')}
         ${flag('inProgress','In progress')}
         ${flag('done','Done')}
@@ -485,7 +499,7 @@ async function saveTask(pi, pname, isNew, t, orig){
     filesChanged: g('f_filesChanged') ? g('f_filesChanged').value : orig.filesChanged,
     errorMessage: g('f_errorMessage') ? val('f_errorMessage') : orig.errorMessage,
   };
-  const BOOLS = ['bug','inProgress','done','locked','commit','build','release','merge','error','archived'];
+  const BOOLS = ['priority','bug','inProgress','done','locked','commit','build','release','merge','error','archived'];
 
   const btn = g('save'); btn.disabled = true; btn.textContent = 'Saving…';
 

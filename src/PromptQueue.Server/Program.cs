@@ -349,6 +349,7 @@ internal static class Program
             "agent_lock" when a.Length >= 2 => OperatorEngine.AgentLock(a[0], a[1]),
             "agent_unlock" when a.Length >= 2 => OperatorEngine.AgentUnlock(a[0], a[1]),
             "move" when a.Length >= 2 && int.TryParse(a[1], out var mi) => OperatorEngine.Move(a[0], mi),
+            "branch_lock" when a.Length >= 3 => OperatorEngine.SetBranchLocked(a[0], a[1], a[2] is "true" or "1"),
             _ => OperatorResult.Fail($"bad or incomplete command '{req.Command}'"),
         };
 
@@ -520,7 +521,11 @@ internal static class Program
         {
             name = project.Name,
             directory = project.Directory,
-            tasks = project.Tasks.OrderBy(t => t.SectionRank).ThenBy(t => t.Order).Select(t => new
+            tasks = project.Tasks
+                .OrderBy(t => !t.Done && !t.Archived && t.Priority ? 0 : 1)
+                .ThenBy(t => !t.Done && !t.Archived && t.Priority ? 0 : t.SectionRank)
+                .ThenBy(t => t.Order)
+                .Select(t => new
             {
                 id = t.Id,
                 name = t.Name,
@@ -529,6 +534,7 @@ internal static class Program
                 requirements = t.Requirements,
                 inProgress = t.InProgress,
                 done = t.Done,
+                priority = t.Priority,
                 bug = t.Bug,
                 error = t.Error,
                 errorMessage = t.ErrorMessage,

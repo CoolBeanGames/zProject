@@ -80,6 +80,7 @@
     .task-card.dragging { opacity: 0.4; }
     .task-card.drag-over-above { border-top: 2px solid var(--zui-accent); }
     .task-card.drag-over-below { border-bottom: 2px solid var(--zui-accent); }
+    .task-card.priority { background: color-mix(in srgb, var(--zui-error) 24%, var(--zui-bg-surface)); border-color: var(--zui-error); }
 
     #quick-add-bar { display: none; }
     #quick-add-bar.visible { display: flex; }
@@ -96,6 +97,7 @@
     .proj-local-badge { font-size: var(--zui-fs-small); color: var(--zui-text-secondary); float:right; }
     .section-header { display: flex; align-items: center; gap: var(--zui-space-2); padding: var(--zui-space-1) var(--zui-space-3); font-size: var(--zui-fs-small); font-weight: var(--zui-fw-medium); color: var(--zui-label-color); text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 1px solid var(--zui-accent); background: var(--zui-bg-app); position: sticky; top: 0; z-index: 2; user-select: none; cursor: pointer; }
     .section-header .branch-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .branch-lock-btn { min-width:72px; padding:1px 7px; font-size:var(--zui-fs-small); }
     .section-header .section-count { color: var(--zui-text-secondary); font-weight: var(--zui-fw-normal); margin-left: auto; }
     .section-header .collapse-arrow { color: var(--zui-text-secondary); font-size: 10px; }
 </style>
@@ -143,7 +145,10 @@
         <button class="zui-btn" id="btn-expand-all">Expand All</button>
         <span class="zui-sep--v" style="height:16px"></span>
         <span class="zui-t-small zui-text-secondary">Branch:</span>
-        <input type="text" class="zui-input" id="new-task-branch" value="main" style="width:100px">
+        <input type="text" class="zui-input" id="new-task-branch" value="main"
+          list="new-task-branches-list" autocomplete="off" style="width:130px"
+          aria-label="Branch for new tasks">
+        <datalist id="new-task-branches-list"><option value="main"></datalist>
         <span class="zui-spacer"></span>
         <button class="zui-btn" id="btn-reload">Reload</button>
         <button class="zui-btn" id="btn-open-dir">Open Folder</button>
@@ -193,6 +198,7 @@
       <div class="zui-row zui-gap-2" style="flex-wrap:wrap">
         <label class="zui-check"><input type="checkbox" id="form-inprogress"> In Progress</label>
         <label class="zui-check"><input type="checkbox" id="form-done"> Done</label>
+        <label class="zui-check"><input type="checkbox" id="form-priority"> Priority</label>
         <label class="zui-check"><input type="checkbox" id="form-bug"> Bug</label>
         <label class="zui-check"><input type="checkbox" id="form-locked"> Locked</label>
         <label class="zui-check"><input type="checkbox" id="form-archived"> Archived</label>
@@ -328,7 +334,7 @@ function taskPriorityGroup(task) {
 function sameReorderGroup(a, b) {
   const aBranch = (a.branch || 'main').trim().toLowerCase();
   const bBranch = (b.branch || 'main').trim().toLowerCase();
-  return aBranch === bBranch && taskPriorityGroup(a) === taskPriorityGroup(b);
+  return aBranch === bBranch && !!a.priority === !!b.priority && taskPriorityGroup(a) === taskPriorityGroup(b);
 }
 
 function chipHtml(cls, label) {
@@ -437,12 +443,23 @@ function renderTaskList() {
     hdr.dataset.section = section.key;
     let dotHtml = '';
     if (color) dotHtml = `<span class="branch-dot" style="background:${color}"></span>`;
+    const lockable = section.tasks.filter(t => !t.done && !t.archived);
+    const allLocked = lockable.length > 0 && lockable.every(t => t.locked);
+    const lockHtml = lockable.length > 0
+      ? `<button class="zui-btn branch-lock-btn" type="button">${allLocked ? 'Unlock branch' : 'Lock branch'}</button>`
+      : '';
     hdr.innerHTML = `
       ${dotHtml}
       <span>${esc(section.label)}</span>
       <span class="section-count">${section.tasks.length}</span>
+      ${lockHtml}
       <span class="collapse-arrow">${collapsed ? '▶' : '▼'}</span>`;
     hdr.addEventListener('click', () => toggleSection(section.key));
+    const lockButton = hdr.querySelector('.branch-lock-btn');
+    if (lockButton) lockButton.addEventListener('click', e => {
+      e.stopPropagation();
+      zui.send('set-branch-lock', { branch: section.key, locked: !allLocked });
+    });
     listEl.appendChild(hdr);
 
     if (collapsed) continue;
@@ -455,7 +472,8 @@ function renderTaskList() {
 
 function renderTaskCard(task, sectionColor) {
   const card = document.createElement('div');
-  card.className = 'task-card' + (task.done ? ' done' : '') + (task.indentLevel > 0 ? ' indented' : '');
+  card.className = 'task-card' + (task.priority && !task.done && !task.archived ? ' priority' : '') +
+    (task.done ? ' done' : '') + (task.indentLevel > 0 ? ' indented' : '');
   card.dataset.taskId = task.id;
   card.draggable = !task.done && !task.archived;
 
@@ -464,6 +482,7 @@ function renderTaskCard(task, sectionColor) {
   // Chips
   let chips = '';
   if (task.inProgress) chips += chipHtml('inprogress', 'IN PROGRESS');
+  if (task.priority) chips += chipHtml('bug', 'PRIORITY');
   if (task.bug) chips += chipHtml('bug', 'BUG');
   if (task.locked) chips += chipHtml('locked', 'LOCKED');
   if (task.commit) chips += chipHtml('commit', 'COMMIT');
@@ -624,6 +643,7 @@ function openTaskForm(data) {
   document.getElementById('form-branch').value = data.branch || 'main';
   document.getElementById('form-inprogress').checked = !!data.inProgress;
   document.getElementById('form-done').checked = !!data.done;
+  document.getElementById('form-priority').checked = !!data.priority;
   document.getElementById('form-bug').checked = !!data.bug;
   document.getElementById('form-locked').checked = !!data.locked;
   document.getElementById('form-archived').checked = !!data.archived;
@@ -727,6 +747,7 @@ function saveTaskForm() {
     branch: document.getElementById('form-branch').value || 'main',
     inProgress: document.getElementById('form-inprogress').checked,
     done: document.getElementById('form-done').checked,
+    priority: document.getElementById('form-priority').checked,
     bug: document.getElementById('form-bug').checked,
     locked: document.getElementById('form-locked').checked,
     archived: document.getElementById('form-archived').checked,
@@ -953,7 +974,10 @@ zui.receive('tasks', data => {
   state.tasks = data.tasks || [];
   state.knownBranches = data.knownBranches || ['main'];
   state.knownTags = data.knownTags || [];
-  // Update branch input datalist
+  // Keep the toolbar branch control editable while offering every branch in
+  // the current project as native dropdown choices.
+  const branchList = document.getElementById('new-task-branches-list');
+  branchList.innerHTML = state.knownBranches.map(b => `<option value="${esc(b)}">`).join('');
   const br = document.getElementById('new-task-branch');
   if (data.currentBranch) br.value = data.currentBranch;
   renderTaskList();

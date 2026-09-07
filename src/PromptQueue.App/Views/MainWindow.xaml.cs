@@ -205,6 +205,13 @@ public partial class MainWindow : Window
             var targetAfter  = above ? null   : target;
             Vm?.MoveTaskRelative(task, targetBefore, targetAfter);
         }));
+        _ui.On("set-branch-lock", p => Dispatcher.Invoke(() =>
+        {
+            var branch = p.GetProperty("branch").GetString();
+            var locked = p.GetProperty("locked").GetBoolean();
+            if (!string.IsNullOrWhiteSpace(branch))
+                Vm?.SetBranchLocked(branch, locked);
+        }));
 
         // Save task form
         _ui.On("save-task", p => Dispatcher.Invoke(() => ApplySaveTask(p)));
@@ -325,6 +332,7 @@ public partial class MainWindow : Window
             requirements = t.Requirements,
             inProgress   = t.InProgress,
             done         = t.Done,
+            priority     = t.Priority,
             archived     = t.Archived,
             bug          = t.Bug,
             error        = t.Error,
@@ -383,6 +391,7 @@ public partial class MainWindow : Window
                 branch       = form.Branch,
                 inProgress   = form.InProgress,
                 done         = form.Done,
+                priority     = form.Priority,
                 bug          = form.Bug,
                 locked       = form.Locked,
                 archived     = form.Archived,
@@ -474,6 +483,7 @@ public partial class MainWindow : Window
             form.Branch       = p.GetProperty("branch").GetString()        ?? "main";
             form.InProgress   = p.GetProperty("inProgress").GetBoolean();
             form.Done         = p.GetProperty("done").GetBoolean();
+            form.Priority     = p.GetProperty("priority").GetBoolean();
             form.Bug          = p.GetProperty("bug").GetBoolean();
             form.Locked       = p.GetProperty("locked").GetBoolean();
             form.Archived     = p.GetProperty("archived").GetBoolean();

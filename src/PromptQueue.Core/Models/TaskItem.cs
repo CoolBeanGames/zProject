@@ -18,6 +18,7 @@ public sealed class TaskItem : Observable
     private string _requirements = "";
     private bool _inProgress;
     private bool _done;
+    private bool _priority;
     private bool _bug;
     private bool _error;
     private string _errorMessage = "";
@@ -86,6 +87,13 @@ public sealed class TaskItem : Observable
     {
         get => _done;
         set { if (Set(ref _done, value)) RaiseSection(); }
+    }
+
+    /// <summary>Marks this as an actionable priority that agents process before all ordinary tasks.</summary>
+    public bool Priority
+    {
+        get => _priority;
+        set { if (Set(ref _priority, value)) RaiseSection(); }
     }
 
     /// <summary>Marks the task as a bug. Bugs sort to the very top (list and file).</summary>
@@ -192,6 +200,7 @@ public sealed class TaskItem : Observable
         Archived ? "Archived" :
         Locked ? "Locked" :
         Done ? "Done" :
+        Priority ? "Priority" :
         Bug ? "Bug" :
         Error ? "Error" :
         IsBlocked ? "Blocked" :
@@ -446,6 +455,7 @@ public sealed class TaskItem : Observable
             Requirements = Requirements,
             InProgress = InProgress,
             Done = Done,
+            Priority = Priority,
             Bug = Bug,
             Error = Error,
             ErrorMessage = ErrorMessage,
@@ -479,6 +489,7 @@ public sealed class TaskItem : Observable
         Requirements = other.Requirements;
         InProgress = other.InProgress;
         Done = other.Done;
+        Priority = other.Priority;
         Bug = other.Bug;
         Error = other.Error;
         ErrorMessage = other.ErrorMessage;

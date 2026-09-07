@@ -10,11 +10,13 @@ the task is NOT complete unless the requirements have been met, if a task is imp
 
 if the task has a build tag set to true, the project should be built to project_root/builds/debug, if you need to test build to project_root/builds/test, if it has a release tag set use project_root/builds/release
 
-if a task is a bug, it takes top priority.
+if a task has <priority>true</priority>, process it before EVERY non-priority task, including in-progress tasks and bugs. if multiple tasks have priority set, process them in their existing listing order.
+
+if a task is a bug, it takes priority over ordinary tasks.
 
 if a task is blocked by another task, finish the task that is blocking it first, then return to the first task.
 
-if a task is in-progress it is the number 1 priority over even bugs.
+if a non-priority task is in-progress it takes priority over bugs and other ordinary tasks.
 
 COMPLETELY ignore the acrhive tags contents, dont even proccess it once you see it.
 
