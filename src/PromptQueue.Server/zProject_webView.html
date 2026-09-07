@@ -125,11 +125,12 @@
   .flag.priority[aria-pressed=true]{background:color-mix(in srgb,var(--st-bug) 24%,var(--surface)); border-color:var(--st-bug); color:var(--st-bug)}
 
   .subhead{font-size:12.5px; font-weight:600; color:var(--ink-2); padding:18px 14px 0}
-  .subs{padding:6px 14px 0}
+  .subs{padding:6px 14px 0; max-height:280px; overflow-y:auto}
   .sub{display:flex; align-items:center; gap:9px; padding:5px 0}
   .sub input[type=checkbox]{width:20px; height:20px; flex:none}
   input[type=checkbox]{accent-color:var(--zui-accent)}
   .sub .tx{flex:1}
+  .sub input.tx{min-width:0; font:inherit; font-size:16px; color:var(--ink); background:var(--surface); border:1px solid var(--line-strong); border-radius:var(--radius); padding:6px 8px}
   .sub .tx.done{text-decoration:line-through; color:var(--ink-2)}
   .sub-add{display:flex; gap:8px; padding:8px 14px 0}
   .sub-add input{flex:1; font:inherit; font-size:16px; padding:8px 10px; border:1px solid var(--line-strong); border-radius:var(--radius); background:var(--surface)}
@@ -420,7 +421,7 @@ async function renderTask(pi, tid){
         ${(t.subtasks||[]).map((s,i) => `
           <div class="sub" data-i="${i}">
             <input type="checkbox" ${s.done ? 'checked' : ''}>
-            <span class="tx ${s.done ? 'done' : ''}">${esc(s.text)}</span>
+            <input type="text" class="tx ${s.done ? 'done' : ''}" value="${av(s.text)}" data-original="${av(s.text)}" aria-label="Subtask text">
           </div>`).join('') || '<div class="muted" style="padding:2px 0">None yet.</div>'}
       </div>
       <div class="sub-add">
@@ -463,7 +464,10 @@ async function renderTask(pi, tid){
     e.target.textContent = (box.hidden ? 'Show' : 'Hide') + ' agent output & dates';
   };
   app.querySelectorAll('#subs .sub input').forEach(cb => cb.onchange = () => {
-    cb.nextElementSibling.classList.toggle('done', cb.checked);
+    if (cb.type === 'checkbox') cb.nextElementSibling.classList.toggle('done', cb.checked);
+  });
+  app.querySelectorAll('#subs .sub input.tx').forEach(input => input.onblur = () => {
+    if (!input.value.trim()) input.value = input.dataset.original;
   });
   document.getElementById('addsub').onclick = () => {
     const inp = document.getElementById('f_newsub');
@@ -473,7 +477,7 @@ async function renderTask(pi, tid){
     if (wrap.querySelector('.muted')) wrap.innerHTML = '';
     const d = document.createElement('div');
     d.className = 'sub'; d.dataset.new = '1';
-    d.innerHTML = `<input type="checkbox" disabled><span class="tx">${esc(v)}</span>`;
+    d.innerHTML = `<input type="checkbox" disabled><input type="text" class="tx" value="${av(v)}" data-original="${av(v)}" aria-label="Subtask text">`;
     wrap.appendChild(d);
     inp.value = '';
   };
@@ -532,9 +536,13 @@ async function saveTask(pi, pname, isNew, t, orig){
   for (let i = 0; i < rows.length; i++){
     const el = rows[i];
     if (el.dataset.new){
-      await op('new_subtask', id, el.querySelector('.tx').textContent);
+      const newText = el.querySelector('.tx').value.trim();
+      if (newText) await op('new_subtask', id, newText);
     } else {
-      const nowDone = el.querySelector('input').checked;
+      const nowText = el.querySelector('.tx').value.trim();
+      if (orig.subtasks[i] && nowText && orig.subtasks[i].text !== nowText)
+        await op('subtask_text', id, i, nowText);
+      const nowDone = el.querySelector('input[type=checkbox]').checked;
       if (orig.subtasks[i] && orig.subtasks[i].done !== nowDone)
         await op('subtask_done', id, i, nowDone);
     }

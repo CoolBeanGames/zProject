@@ -148,6 +148,11 @@ public static class OperatorEngine
         => Enqueue(new OperatorJob("subtask_done", taskId,
             index.ToString(CultureInfo.InvariantCulture), done ? "true" : "false"));
 
+    /// <summary>Queues an edit to one subtask's text.</summary>
+    public static OperatorResult SetSubtaskText(string taskId, int index, string text)
+        => Enqueue(new OperatorJob("subtask_text", taskId,
+            index.ToString(CultureInfo.InvariantCulture), text));
+
     /// <summary>Queues "send this task to the archive" (ZP-72): done + archived, out of the queue.</summary>
     public static OperatorResult Archive(string taskId)
         => Enqueue(new OperatorJob("archive", taskId));
@@ -329,6 +334,22 @@ public static class OperatorEngine
                 task.Subtasks[si].Done = job.Arg(2) is "true" or "1";
                 touched.Add(project!);
                 return OperatorResult.Pass($"{task.Id} subtask #{si} = {task.Subtasks[si].Done}");
+            }
+
+            case "subtask_text":
+            {
+                var (project, task) = ResolveTask(ws, job.Arg(0));
+                if (task == null)
+                    return OperatorResult.Fail($"No task \"{job.Arg(0)}\".");
+                if (!int.TryParse(job.Arg(1), NumberStyles.Integer, CultureInfo.InvariantCulture, out var si)
+                    || si < 0 || si >= task.Subtasks.Count)
+                    return OperatorResult.Fail($"{task.Id} has no subtask #{job.Arg(1)}.");
+                var text = job.Arg(2).Trim();
+                if (text.Length == 0)
+                    return OperatorResult.Fail("Subtask text cannot be empty.");
+                task.Subtasks[si].Text = text;
+                touched.Add(project!);
+                return OperatorResult.Pass($"{task.Id} subtask #{si} text updated");
             }
 
             case "delete":

@@ -436,7 +436,7 @@ public sealed class TaskFormViewModel : Observable
         task.Image = Image;
 
         task.Subtasks.Clear();
-        foreach (var s in Subtasks)
+        foreach (var s in Subtasks.Where(s => !string.IsNullOrWhiteSpace(s.Text)))
             task.Subtasks.Add(new Subtask { Text = s.Text.Trim(), Done = s.Done });
     }
 

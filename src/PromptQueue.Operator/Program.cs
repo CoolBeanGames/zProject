@@ -70,6 +70,7 @@ internal static class Program
         "sync_many" when a.Length >= 3 => OperatorEngine.SyncMany(a[0], Pairs(a.Skip(1))),
         "new_subtask" when a.Length >= 2 => OperatorEngine.NewSubtask(a[0], string.Join(' ', a.Skip(1))),
         "subtask_done" when a.Length >= 3 && int.TryParse(a[1], out var sdi) => OperatorEngine.SetSubtaskDone(a[0], sdi, a[2] is "true" or "1"),
+        "subtask_text" when a.Length >= 3 && int.TryParse(a[1], out var sti) => OperatorEngine.SetSubtaskText(a[0], sti, string.Join(' ', a.Skip(2))),
         "delete" when a.Length >= 1 => OperatorEngine.Delete(a[0]),
         "archive" when a.Length >= 1 => OperatorEngine.Archive(a[0]),
         "agent_lock" when a.Length >= 2 => OperatorEngine.AgentLock(a[0], a[1]),
@@ -104,6 +105,7 @@ internal static class Program
           operator new_project <name> [directory]
           operator new_subtask <task_id> <text...>
           operator subtask_done <task_id> <index> <true|false>
+          operator subtask_text <task_id> <index> <text...>
           operator sync_many  <task_id> <field> <value> [<field> <value> ...]
           operator delete     <task_id>
           operator move       <task_id> <index>
