@@ -1,36 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <tasks project="zProject" nextIndex="124">
-  <task id="ZP-122">
-    <name>subtask list length</name>
-    <prompt>subtask lists overflow over buttons making lower tasks unreadable and undeletable</prompt>
-    <requirements></requirements>
-    <inProgress>true</inProgress>
-    <done>false</done>
-    <bug>true</bug>
-    <error>false</error>
-    <errorMessage></errorMessage>
-    <lockKey>cx9K4mQ7vL2</lockKey>
-    <locked>false</locked>
-    <archived>false</archived>
-    <blockedBy></blockedBy>
-    <dateStarted></dateStarted>
-    <dueDate></dueDate>
-    <commit>true</commit>
-    <build>true</build>
-    <release>true</release>
-    <merge>false</merge>
-    <branch>main</branch>
-    <tags></tags>
-    <notes>Constrained desktop task-card and editor subtask lists with independent scrolling, fixed the editor body/footer flex layout so actions stay reachable, and bounded the mobile subtask editor. This release also includes editable existing subtask text on desktop/mobile with operator and API support. Verified zero-warning Debug build, inline JavaScript syntax, diff checks, Release test publishes, Debug/Release packaging, operator lookup, and packaged server HTTP self-check.</notes>
-    <filesChanged>src/PromptQueue.Core/Operator/OperatorEngine.cs; src/PromptQueue.Operator/Program.cs; src/PromptQueue.Server/Program.cs; src/PromptQueue.Server/zProject_webView.html; src/PromptQueue.App/ViewModels/TaskFormViewModel.cs; src/PromptQueue.App/ui/main.html; tasks.xml</filesChanged>
-    <image>ZP-123.png</image>
-    <subtasks>
-      <subtask done="true">Inspect the attached overflow screenshot and trace desktop/mobile subtask-card layout constraints</subtask>
-      <subtask done="true">Constrain long subtask lists and text so card actions and following tasks remain readable and reachable</subtask>
-      <subtask done="true">Verify short/long lists, editing and deletion controls, desktop/mobile syntax, and full test/release builds</subtask>
-      <subtask done="false">Record metadata, commit/push main fixes, and publish the next GitHub release with complete patch notes</subtask>
-    </subtasks>
-  </task>
   <task id="ZP-123">
     <name>update_icon</name>
     <prompt>update the icon (dont forget the taskbar and titlebar)</prompt>
