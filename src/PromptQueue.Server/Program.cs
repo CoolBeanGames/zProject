@@ -384,6 +384,10 @@ internal static class Program
                 OperatorEngine.SetSubtaskDone(a[0], sdi, a[2] is "true" or "1"),
             "subtask_text" when a.Length >= 3 && int.TryParse(a[1], out var sti) =>
                 OperatorEngine.SetSubtaskText(a[0], sti, string.Join(' ', a.Skip(2))),
+            "new_approval" when a.Length >= 2 => OperatorEngine.NewApproval(a[0], string.Join(' ', a.Skip(1))),
+            "approval_text" when a.Length >= 3 && int.TryParse(a[1], out var ati) =>
+                OperatorEngine.SetApprovalText(a[0], ati, string.Join(' ', a.Skip(2))),
+            "approval_delete" when a.Length >= 2 && int.TryParse(a[1], out var adi) => OperatorEngine.DeleteApproval(a[0], adi),
             "sync_many" when a.Length >= 3 => OperatorEngine.SyncMany(a[0], Pairs(a.Skip(1).ToArray())),
             "delete" when a.Length >= 1 => OperatorEngine.Delete(a[0]),
             "archive" when a.Length >= 1 => OperatorEngine.Archive(a[0]),
@@ -587,6 +591,7 @@ internal static class Program
                 displayName = t.DisplayName,
                 prompt = t.Prompt,
                 requirements = t.Requirements,
+                approvals = t.ApprovalItems.ToArray(),
                 inProgress = t.InProgress,
                 done = t.Done,
                 priority = t.Priority,

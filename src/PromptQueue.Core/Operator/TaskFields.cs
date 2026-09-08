@@ -20,6 +20,7 @@ public static class TaskFields
             ["stopexecution"] = (t, v) => t.StopExecution = Bool(v),
             ["prompt"] = (t, v) => t.Prompt = v,
             ["requirements"] = (t, v) => t.Requirements = v,
+            ["forapproval"] = (t, v) => t.Requirements = v,
             ["inprogress"] = (t, v) => t.InProgress = Bool(v),
             ["done"] = (t, v) => SetDone(t, Bool(v)),
             ["priority"] = (t, v) => t.Priority = Bool(v),
@@ -63,6 +64,7 @@ public static class TaskFields
             ["is_note"] = "isnote",
             ["clear_after_reading"] = "clearafterreading",
             ["stop_execution"] = "stopexecution",
+            ["for_approval"] = "forapproval",
             ["agent_notes"] = "notes",
         };
 
@@ -79,6 +81,7 @@ public static class TaskFields
             ["stopexecution"] = t => t.StopExecution ? "true" : "false",
             ["prompt"] = t => t.Prompt,
             ["requirements"] = t => t.Requirements,
+            ["forapproval"] = t => t.Requirements,
             ["inprogress"] = t => t.InProgress ? "true" : "false",
             ["done"] = t => t.Done ? "true" : "false",
             ["priority"] = t => t.Priority ? "true" : "false",

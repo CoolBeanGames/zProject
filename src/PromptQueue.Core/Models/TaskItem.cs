@@ -106,8 +106,22 @@ public sealed class TaskItem : Observable
     public string Requirements
     {
         get => _requirements;
-        set => Set(ref _requirements, value);
+        set
+        {
+            if (Set(ref _requirements, value))
+                Raise(nameof(ApprovalItems));
+        }
     }
+
+    /// <summary>Structured approval entries exposed over the legacy newline facade.</summary>
+    public IReadOnlyList<string> ApprovalItems => SplitApprovalItems(Requirements);
+
+    public void SetApprovalItems(IEnumerable<string> items)
+        => Requirements = string.Join("\n", items.Select(item => item.Trim()).Where(item => item.Length > 0));
+
+    public static IReadOnlyList<string> SplitApprovalItems(string? value)
+        => (value ?? "").Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n')
+            .Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
     /// <summary>Invisible tag: the task is currently being worked on.</summary>
     public bool InProgress

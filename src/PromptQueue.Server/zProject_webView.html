@@ -441,7 +441,7 @@ function row(pi, t){
   if (!t.isNote && !t.isStop && (t.prompt || t.requirements)) {
     preview = '<span class="qpreview">';
     if (t.prompt) preview += `<div title="${av(t.prompt)}"><b>Prompt</b>${esc(t.prompt)}</div>`;
-    if (t.requirements) preview += `<div title="${av(t.requirements)}"><b>Requirements</b>${esc(t.requirements)}</div>`;
+    if (t.requirements) preview += `<div title="${av(t.requirements)}"><b>For approval</b>${esc(t.requirements)}</div>`;
     preview += '</span>';
   }
   return `<div class="q ${sc}${t.isNote ? ' note' : ''}${t.isStop ? ' stop' : ''}" data-id="${av(t.id)}">
@@ -453,7 +453,7 @@ function row(pi, t){
 }
 
 /* ---- task page ---- */
-const BLANK = { id:'', name:'', prompt:'', requirements:'', tags:[], blockedBy:'',
+const BLANK = { id:'', name:'', prompt:'', requirements:'', approvals:[], tags:[], blockedBy:'',
   dateStarted:'', dueDate:'', dateFinished:'', notes:'', filesChanged:'', errorMessage:'',
   isNote:false, note:'', clearAfterReading:false,
   priority:false, bug:false, done:false, inProgress:false, locked:false, error:false, archived:false,
@@ -489,8 +489,16 @@ async function renderTask(pi, tid){
         <input type="text" id="f_name" value="${av(t.name)}" placeholder="Short title"></div>
       <div class="field big"><label for="f_prompt">Prompt</label>
         <textarea id="f_prompt" placeholder="What the agent should do">${esc(t.prompt)}</textarea></div>
-      <div class="field"><label for="f_requirements">Requirements</label>
-        <textarea id="f_requirements" placeholder="What must be true when it's done">${esc(t.requirements)}</textarea></div>
+      <div class="subhead">For approval</div>
+      <div class="subs" id="approvals">
+        ${(t.approvals||[]).map((item,i) => `<div class="sub approval" data-i="${i}">
+          <input type="text" class="tx" value="${av(item)}" aria-label="Approval item">
+          <button type="button" class="approval-remove">Remove</button></div>`).join('') || '<div class="muted" style="padding:2px 0">None yet.</div>'}
+      </div>
+      <div class="sub-add">
+        <input type="text" id="f_newapproval" placeholder="Add an approval item">
+        <button id="addapproval" type="button">Add</button>
+      </div>
       <div class="subhead">Attachments</div>
       <div class="attachments" id="taskAttachments">${attachmentRows(t.attachments || [])}</div>
       <div class="field">
@@ -570,6 +578,7 @@ async function renderTask(pi, tid){
     b.setAttribute('aria-pressed', String(!on));
     t[b.dataset.f] = !on;
   });
+  bindApprovals();
   bindTaskAttachments(pi, t, isNew);
   document.getElementById('agentToggle').onclick = e => {
     const box = document.getElementById('agent');
@@ -610,6 +619,30 @@ function attachmentRows(attachments){
     <a href="${av(a.url)}" target="_blank" rel="noopener">${a.isImage ? `<img src="${av(a.url)}" alt="">` : ''}<span>${esc(a.name)}</span></a>
     <button type="button" data-remove-attachment="${av(a.name)}">Remove</button>
   </div>`).join('');
+}
+
+function bindApprovals(){
+  const bindRemovers = () => {
+    app.querySelectorAll('#approvals .approval-remove').forEach(button => button.onclick = () => {
+      button.closest('.approval').remove();
+      if (!app.querySelector('#approvals .approval'))
+        document.getElementById('approvals').innerHTML = '<div class="muted" style="padding:2px 0">None yet.</div>';
+    });
+  };
+  bindRemovers();
+  document.getElementById('addapproval').onclick = () => {
+    const input = document.getElementById('f_newapproval');
+    const value = input.value.trim();
+    if (!value) return;
+    const wrap = document.getElementById('approvals');
+    if (wrap.querySelector('.muted')) wrap.innerHTML = '';
+    const row = document.createElement('div');
+    row.className = 'sub approval';
+    row.innerHTML = `<input type="text" class="tx" value="${av(value)}" aria-label="Approval item"><button type="button" class="approval-remove">Remove</button>`;
+    wrap.appendChild(row);
+    input.value = '';
+    bindRemovers();
+  };
 }
 
 function bindTaskAttachments(pi, t, isNew){
@@ -706,7 +739,8 @@ async function saveTask(pi, pname, isNew, t, orig){
   const g = id => document.getElementById(id);
   const val = id => g(id) ? g(id).value.trim() : '';
   const text = {
-    name: val('f_name'), prompt: g('f_prompt').value, requirements: g('f_requirements').value,
+    name: val('f_name'), prompt: g('f_prompt').value,
+    requirements: [...document.querySelectorAll('#approvals .approval .tx')].map(input => input.value.trim()).filter(Boolean).join('\n'),
     branch: val('f_branch') || 'main',
     tags: val('f_tags').split(',').map(s=>s.trim()).filter(Boolean).join(', '),
     blockedBy: val('f_blockedBy'), dueDate: val('f_dueDate'),

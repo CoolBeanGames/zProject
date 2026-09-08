@@ -111,9 +111,9 @@
     .attachment-row { display:flex; align-items:center; gap:var(--zui-space-2); padding:4px 0; border-bottom:1px solid var(--zui-border); }
     .attachment-row img { width:48px; height:36px; object-fit:cover; border:1px solid var(--zui-border); }
     .attachment-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    #form-subtask-list { max-height:220px; overflow-y:auto; padding-right:var(--zui-space-1) !important; }
-    #form-subtask-list li { display:flex; align-items:center; gap:var(--zui-space-2); flex:0 0 auto; }
-    #form-subtask-list .st-text { min-width:0; flex:1; }
+    #form-subtask-list, #form-approval-list { max-height:220px; overflow-y:auto; padding-right:var(--zui-space-1) !important; }
+    #form-subtask-list li, #form-approval-list li { display:flex; align-items:center; gap:var(--zui-space-2); flex:0 0 auto; }
+    #form-subtask-list .st-text, #form-approval-list .approval-text { min-width:0; flex:1; }
     #empty-state { display: none; }
     #empty-state.visible { display: flex; }
     .proj-local-badge { font-size: var(--zui-fs-small); color: var(--zui-text-secondary); float:right; }
@@ -253,8 +253,12 @@
       <textarea class="zui-textarea" id="form-prompt" placeholder="Task description for the agent…" rows="4"></textarea>
     </div>
     <div class="zui-col zui-gap-1 task-only-group">
-      <label class="zui-t-small zui-text-secondary">Requirements</label>
-      <textarea class="zui-textarea" id="form-requirements" placeholder="Specific requirements…" rows="3"></textarea>
+      <label class="zui-t-small zui-text-secondary">For Approval</label>
+      <ul style="list-style:none;display:flex;flex-direction:column;gap:3px;padding:0;margin:0" id="form-approval-list"></ul>
+      <div class="zui-row zui-gap-2">
+        <input type="text" class="zui-input zui-fill" id="form-new-approval" placeholder="New approval item…">
+        <button class="zui-btn" id="form-add-approval" type="button">Add</button>
+      </div>
     </div>
     <div class="zui-col zui-gap-1 task-only-group" id="form-image-group">
       <label class="zui-t-small zui-text-secondary">Attachments</label>
@@ -610,7 +614,7 @@ function renderTaskCard(task, sectionColor) {
   if (!task.isNote && !task.isStop && (task.prompt || task.requirements)) {
     copyPreviewHtml = '<div class="task-copy-preview">';
     if (task.prompt) copyPreviewHtml += `<div title="${esc(task.prompt)}"><span class="task-copy-label">Prompt</span>${esc(task.prompt)}</div>`;
-    if (task.requirements) copyPreviewHtml += `<div title="${esc(task.requirements)}"><span class="task-copy-label">Requirements</span>${esc(task.requirements)}</div>`;
+    if (task.requirements) copyPreviewHtml += `<div title="${esc(task.requirements)}"><span class="task-copy-label">For approval</span>${esc(task.requirements)}</div>`;
     copyPreviewHtml += '</div>';
   }
 
@@ -804,7 +808,6 @@ function openTaskForm(data) {
   document.getElementById('form-tags').value = data.tagText || '';
   document.getElementById('form-prompt').value = noteMode ? (data.note || '') : (data.prompt || '');
   document.getElementById('form-clear-after-reading').checked = !!data.clearAfterReading;
-  document.getElementById('form-requirements').value = data.requirements || '';
   document.getElementById('form-notes').value = data.notes || '';
   document.getElementById('form-files').value = data.filesChanged || '';
   document.getElementById('form-error-msg').value = data.errorMessage || '';
@@ -830,6 +833,7 @@ function openTaskForm(data) {
 
   // Subtasks
   renderFormSubtasks(data.subtasks || []);
+  renderFormApprovals(data.approvals || []);
 
   // Delete button visibility
   document.getElementById('form-delete-btn').style.display = data.isNew ? 'none' : '';
@@ -890,6 +894,25 @@ function renderFormSubtasks(subtasks) {
   }
 }
 
+function renderFormApprovals(approvals) {
+  state.formTask.approvals = approvals.slice();
+  const ul = document.getElementById('form-approval-list');
+  ul.innerHTML = '';
+  for (let i = 0; i < state.formTask.approvals.length; i++) {
+    const li = document.createElement('li');
+    li.innerHTML = `<input class="zui-input approval-text" value="${esc(state.formTask.approvals[i])}" aria-label="Approval item">
+      <button class="zui-btn approval-remove" type="button">Delete</button>`;
+    li.querySelector('.approval-text').addEventListener('input', event => {
+      state.formTask.approvals[i] = event.target.value;
+    });
+    li.querySelector('.approval-remove').addEventListener('click', () => {
+      state.formTask.approvals.splice(i, 1);
+      renderFormApprovals(state.formTask.approvals);
+    });
+    ul.appendChild(li);
+  }
+}
+
 function closeTaskForm() {
   state.formTask = null;
   document.getElementById('overlay-scrim').classList.remove('visible');
@@ -919,7 +942,7 @@ function saveTaskForm() {
     blockedBy: document.getElementById('form-blocked-by').value,
     tagText: document.getElementById('form-tags').value,
     prompt: state.formTask.isNote ? '' : document.getElementById('form-prompt').value,
-    requirements: document.getElementById('form-requirements').value,
+    requirements: (state.formTask.approvals || []).map(item => item.trim()).filter(Boolean).join('\n'),
     notes: document.getElementById('form-notes').value,
     filesChanged: document.getElementById('form-files').value,
     errorMessage: document.getElementById('form-error-msg').value,
@@ -1113,6 +1136,19 @@ document.getElementById('form-add-subtask').addEventListener('click', () => {
 });
 document.getElementById('form-new-subtask').addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('form-add-subtask').click();
+});
+document.getElementById('form-add-approval').addEventListener('click', () => {
+  const input = document.getElementById('form-new-approval');
+  const text = input.value.trim();
+  if (!text || !state.formTask) return;
+  state.formTask.approvals = state.formTask.approvals || [];
+  state.formTask.approvals.push(text);
+  renderFormApprovals(state.formTask.approvals);
+  input.value = '';
+  input.focus();
+});
+document.getElementById('form-new-approval').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); document.getElementById('form-add-approval').click(); }
 });
 document.getElementById('form-run-codex').addEventListener('click', () => {
   if (state.formTask) zui.send('run-task-with-agent', { taskId: state.formTask.id, agent: 'codex' });

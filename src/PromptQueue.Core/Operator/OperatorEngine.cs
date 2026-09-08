@@ -176,6 +176,17 @@ public static class OperatorEngine
         => Enqueue(new OperatorJob("subtask_text", taskId,
             index.ToString(CultureInfo.InvariantCulture), text));
 
+    public static OperatorResult NewApproval(string taskId, string text)
+        => Enqueue(new OperatorJob("new_approval", taskId, text));
+
+    public static OperatorResult SetApprovalText(string taskId, int index, string text)
+        => Enqueue(new OperatorJob("approval_text", taskId,
+            index.ToString(CultureInfo.InvariantCulture), text));
+
+    public static OperatorResult DeleteApproval(string taskId, int index)
+        => Enqueue(new OperatorJob("approval_delete", taskId,
+            index.ToString(CultureInfo.InvariantCulture)));
+
     /// <summary>Queues "send this task to the archive" (ZP-72): done + archived, out of the queue.</summary>
     public static OperatorResult Archive(string taskId)
         => Enqueue(new OperatorJob("archive", taskId));
@@ -439,6 +450,45 @@ public static class OperatorEngine
                 task.Subtasks[si].Text = text;
                 touched.Add(project!);
                 return OperatorResult.Pass($"{task.Id} subtask #{si} text updated");
+            }
+
+            case "new_approval":
+            {
+                var (project, task) = ResolveTask(ws, job.Arg(0));
+                if (task == null)
+                    return OperatorResult.Fail($"No task \"{job.Arg(0)}\".");
+                if (task.IsNote || task.StopExecution)
+                    return OperatorResult.Fail($"{task.Id} cannot have approval entries.");
+                var text = job.Arg(1).Trim();
+                if (text.Length == 0)
+                    return OperatorResult.Fail("Approval text cannot be empty.");
+                task.SetApprovalItems(task.ApprovalItems.Append(text));
+                touched.Add(project!);
+                return OperatorResult.Pass($"{task.Id} +approval");
+            }
+
+            case "approval_text":
+            case "approval_delete":
+            {
+                var (project, task) = ResolveTask(ws, job.Arg(0));
+                if (task == null)
+                    return OperatorResult.Fail($"No task \"{job.Arg(0)}\".");
+                var approvals = task.ApprovalItems.ToList();
+                if (!int.TryParse(job.Arg(1), NumberStyles.Integer, CultureInfo.InvariantCulture, out var ai) ||
+                    ai < 0 || ai >= approvals.Count)
+                    return OperatorResult.Fail($"{task.Id} has no approval #{job.Arg(1)}.");
+                if (job.Command == "approval_delete")
+                    approvals.RemoveAt(ai);
+                else
+                {
+                    var text = job.Arg(2).Trim();
+                    if (text.Length == 0)
+                        return OperatorResult.Fail("Approval text cannot be empty.");
+                    approvals[ai] = text;
+                }
+                task.SetApprovalItems(approvals);
+                touched.Add(project!);
+                return OperatorResult.Pass($"{task.Id} approval #{ai} {(job.Command == "approval_delete" ? "deleted" : "updated")}");
             }
 
             case "delete":

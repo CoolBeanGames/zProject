@@ -89,7 +89,8 @@ public static class TaskXmlSerializer
             new XAttribute("id", task.Id),
             new XElement("name", task.Name),
             new XElement("prompt", task.Prompt),
-            new XElement("requirements", task.Requirements),
+            new XElement("forApproval",
+                task.ApprovalItems.Select(item => new XElement("approval", item))),
             new XElement("inProgress", task.InProgress),
             new XElement("done", task.Done),
             new XElement("priority", task.Priority),
@@ -177,7 +178,7 @@ public static class TaskXmlSerializer
                 ClearAfterReading = ParseBool(el.Element("clearAfterReading")),
                 StopExecution = ParseBool(el.Element("stopExecution")),
                 Prompt = (string?)el.Element("prompt") ?? "",
-                Requirements = (string?)el.Element("requirements") ?? "",
+                Requirements = ReadApprovals(el),
                 InProgress = ParseBool(el.Element("inProgress")),
                 Done = ParseBool(el.Element("done")),
                 Priority = ParseBool(el.Element("priority")),
@@ -260,9 +261,20 @@ public static class TaskXmlSerializer
     /// <summary>Elements whose content is free text an agent might not escape.</summary>
     private static readonly string[] TextElements =
     {
-        "name", "note", "prompt", "requirements", "errorMessage",
+        "name", "note", "prompt", "requirements", "approval", "errorMessage",
         "blockedBy", "branch", "tags", "notes", "filesChanged", "lockKey", "image", "attachment",
     };
+
+    private static string ReadApprovals(XElement task)
+    {
+        var structured = task.Element("forApproval")?.Elements("approval")
+            .Select(item => item.Value.Trim())
+            .Where(item => item.Length > 0)
+            .ToList();
+        return structured is { Count: > 0 }
+            ? string.Join("\n", structured)
+            : (string?)task.Element("requirements") ?? "";
+    }
 
     private static string RepairMarkup(string xml)
     {
