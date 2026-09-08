@@ -1062,6 +1062,33 @@ public sealed class MainViewModel : Observable
             r => r.Ok ? r.Message : $"Operator: {r.Message}");
     }
 
+    /// <summary>Stores and immediately persists an image dropped on a compact task card.</summary>
+    public void AddDroppedTaskImage(TaskItem task, byte[] bytes, string? contentType, string? suggestedName)
+    {
+        var project = SelectedProject;
+        if (project == null || task.IsNote || task.Done || task.Archived || !project.Tasks.Contains(task))
+            return;
+
+        string? storedName = null;
+        ApplyViaOperator(
+            _ =>
+            {
+                var form = new TaskFormViewModel(
+                    false, task.Id, task, _ => { }, () => { }, projectDirectory: project.Directory);
+                storedName = form.AddPastedImage(bytes, contentType, suggestedName);
+                var result = OperatorEngine.Sync(task.Id, "attachments", string.Join(", ", form.Attachments));
+                if (!result.Ok && storedName != null)
+                {
+                    var storedPath = Path.Combine(project.Directory, TaskFormViewModel.ImageFolderName, storedName);
+                    if (File.Exists(storedPath)) File.Delete(storedPath);
+                }
+                return result;
+            },
+            result => result.Ok
+                ? $"Attached {storedName} to {task.Id}"
+                : $"Operator: {result.Message}");
+    }
+
     /// <summary>Locks or unlocks every unfinished task in a branch through one operator mutation.</summary>
     public void SetBranchLocked(string branch, bool locked)
     {

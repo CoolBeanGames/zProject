@@ -256,6 +256,28 @@ public partial class MainWindow : Window
                     "zProject", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
             }
         }));
+        _ui.On("drop-task-image", p => Dispatcher.Invoke(() =>
+        {
+            var taskId = p.GetProperty("taskId").GetString();
+            var task = Vm?.SelectedProject?.Tasks.FirstOrDefault(candidate =>
+                string.Equals(candidate.Id, taskId, StringComparison.OrdinalIgnoreCase));
+            if (task == null) return;
+            try
+            {
+                var bytes = Convert.FromBase64String(p.GetProperty("base64").GetString() ?? "");
+                Vm?.AddDroppedTaskImage(
+                    task,
+                    bytes,
+                    p.GetProperty("contentType").GetString(),
+                    p.GetProperty("name").GetString());
+            }
+            catch (FormatException ex)
+            {
+                System.Windows.MessageBox.Show(
+                    $"Could not attach the dropped image:\n\n{ex.Message}",
+                    "zProject", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            }
+        }));
 
         // Agent deploys
         _ui.On("deploy-agent", p => Dispatcher.Invoke(() =>
