@@ -369,6 +369,7 @@ internal static class Program
         OperatorResult result = req.Command.ToLowerInvariant() switch
         {
             "read" when a.Length >= 1 => OperatorEngine.Read(a[0]),
+            "instructions" when a.Length >= 1 => OperatorEngine.Instructions(a[0]),
             "get_archive" when a.Length >= 1 => OperatorEngine.GetArchive(a[0]),
             "get_finished_today" when a.Length >= 1 => OperatorEngine.GetFinishedToday(a[0]),
             "get_tag" when a.Length >= 2 => OperatorEngine.GetTag(a[0], a[1]),
@@ -380,22 +381,25 @@ internal static class Program
             "new_project" when a.Length >= 1 => OperatorEngine.NewProject(a[0], a.Length > 1 ? a[1] : null),
             "new_local_project" when a.Length >= 1 => OperatorEngine.NewLocalProject(a[0]),
             "new_subtask" when a.Length >= 2 => OperatorEngine.NewSubtask(a[0], string.Join(' ', a.Skip(1))),
-            "subtask_done" when a.Length >= 3 && int.TryParse(a[1], out var sdi) =>
-                OperatorEngine.SetSubtaskDone(a[0], sdi, a[2] is "true" or "1"),
+            "subtask_done" when a.Length >= 3 && int.TryParse(a[1], out var sdi) && TryBool(a[2], out var sdv) =>
+                OperatorEngine.SetSubtaskDone(a[0], sdi, sdv),
             "subtask_text" when a.Length >= 3 && int.TryParse(a[1], out var sti) =>
                 OperatorEngine.SetSubtaskText(a[0], sti, string.Join(' ', a.Skip(2))),
             "new_approval" when a.Length >= 2 => OperatorEngine.NewApproval(a[0], string.Join(' ', a.Skip(1))),
             "approval_text" when a.Length >= 3 && int.TryParse(a[1], out var ati) =>
                 OperatorEngine.SetApprovalText(a[0], ati, string.Join(' ', a.Skip(2))),
             "approval_delete" when a.Length >= 2 && int.TryParse(a[1], out var adi) => OperatorEngine.DeleteApproval(a[0], adi),
-            "sync_many" when a.Length >= 3 => OperatorEngine.SyncMany(a[0], Pairs(a.Skip(1).ToArray())),
+            "sync_many" when a.Length >= 3 && a.Length % 2 == 1 => OperatorEngine.SyncMany(a[0], Pairs(a.Skip(1).ToArray())),
             "delete" when a.Length >= 1 => OperatorEngine.Delete(a[0]),
             "archive" when a.Length >= 1 => OperatorEngine.Archive(a[0]),
             "agent_lock" when a.Length >= 2 => OperatorEngine.AgentLock(a[0], a[1]),
             "agent_unlock" when a.Length >= 2 => OperatorEngine.AgentUnlock(a[0], a[1]),
             "move" when a.Length >= 2 && int.TryParse(a[1], out var mi) => OperatorEngine.Move(a[0], mi),
+            "move_relative" when a.Length >= 3 &&
+                (a[2].Equals("above", StringComparison.OrdinalIgnoreCase) || a[2].Equals("below", StringComparison.OrdinalIgnoreCase)) =>
+                OperatorEngine.MoveRelative(a[0], a[1], a[2].Equals("above", StringComparison.OrdinalIgnoreCase)),
             "block_task" when a.Length >= 2 => OperatorEngine.BlockTask(a[0], a[1]),
-            "branch_lock" when a.Length >= 3 => OperatorEngine.SetBranchLocked(a[0], a[1], a[2] is "true" or "1"),
+            "branch_lock" when a.Length >= 3 && TryBool(a[2], out var blv) => OperatorEngine.SetBranchLocked(a[0], a[1], blv),
             "branch_move" when a.Length >= 3 &&
                 (a[2].Equals("up", StringComparison.OrdinalIgnoreCase) || a[2].Equals("down", StringComparison.OrdinalIgnoreCase)) =>
                 OperatorEngine.MoveBranch(a[0], a[1], a[2].Equals("up", StringComparison.OrdinalIgnoreCase) ? -1 : 1),
@@ -733,6 +737,22 @@ internal static class Program
             message = result.Summary,
         });
         return ctx.Response.StatusCode;
+    }
+
+    private static bool TryBool(string value, out bool parsed)
+    {
+        if (value.Equals("true", StringComparison.OrdinalIgnoreCase) || value == "1")
+        {
+            parsed = true;
+            return true;
+        }
+        if (value.Equals("false", StringComparison.OrdinalIgnoreCase) || value == "0")
+        {
+            parsed = false;
+            return true;
+        }
+        parsed = false;
+        return false;
     }
 
     private static int ServeTaskAttachment(HttpListenerContext ctx, Project project, string taskId, string fileName)

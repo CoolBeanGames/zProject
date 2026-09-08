@@ -70,9 +70,11 @@ internal static class Program
         "new_stop" when a.Length >= 1 => OperatorEngine.NewStop(a[0]),
         "new_project" when a.Length >= 1 => OperatorEngine.NewProject(a[0], a.Length > 1 ? a[1] : null),
         "new_local_project" when a.Length >= 1 => OperatorEngine.NewLocalProject(a[0]),
-        "sync_many" when a.Length >= 3 => OperatorEngine.SyncMany(a[0], Pairs(a.Skip(1))),
+        "sync_many" when a.Length >= 3 && a.Length % 2 == 1 => OperatorEngine.SyncMany(a[0], Pairs(a.Skip(1))),
+        "sync_many" => OperatorResult.Fail("sync_many needs complete <field> <value> pairs"),
         "new_subtask" when a.Length >= 2 => OperatorEngine.NewSubtask(a[0], string.Join(' ', a.Skip(1))),
-        "subtask_done" when a.Length >= 3 && int.TryParse(a[1], out var sdi) => OperatorEngine.SetSubtaskDone(a[0], sdi, a[2] is "true" or "1"),
+        "subtask_done" when a.Length >= 3 && int.TryParse(a[1], out var sdi) && TryBool(a[2], out var sdv) =>
+            OperatorEngine.SetSubtaskDone(a[0], sdi, sdv),
         "subtask_text" when a.Length >= 3 && int.TryParse(a[1], out var sti) => OperatorEngine.SetSubtaskText(a[0], sti, string.Join(' ', a.Skip(2))),
         "new_approval" when a.Length >= 2 => OperatorEngine.NewApproval(a[0], string.Join(' ', a.Skip(1))),
         "approval_text" when a.Length >= 3 && int.TryParse(a[1], out var ati) => OperatorEngine.SetApprovalText(a[0], ati, string.Join(' ', a.Skip(2))),
@@ -83,9 +85,13 @@ internal static class Program
         "agent_unlock" when a.Length >= 2 => OperatorEngine.AgentUnlock(a[0], a[1]),
         "move" when a.Length >= 2 && int.TryParse(a[1], out var i) => OperatorEngine.Move(a[0], i),
         "move" => OperatorResult.Fail("move needs: <task_id> <index>"),
+        "move_relative" when a.Length >= 3 &&
+            (a[2].Equals("above", StringComparison.OrdinalIgnoreCase) || a[2].Equals("below", StringComparison.OrdinalIgnoreCase)) =>
+            OperatorEngine.MoveRelative(a[0], a[1], a[2].Equals("above", StringComparison.OrdinalIgnoreCase)),
+        "move_relative" => OperatorResult.Fail("move_relative needs: <task_id> <target_id> <above|below>"),
         "block_task" when a.Length >= 2 => OperatorEngine.BlockTask(a[0], a[1]),
         "block_task" => OperatorResult.Fail("block_task needs: <task_id> <blocker_id>"),
-        "branch_lock" when a.Length >= 3 => OperatorEngine.SetBranchLocked(a[0], a[1], a[2] is "true" or "1"),
+        "branch_lock" when a.Length >= 3 && TryBool(a[2], out var blv) => OperatorEngine.SetBranchLocked(a[0], a[1], blv),
         "branch_lock" => OperatorResult.Fail("branch_lock needs: <project> <branch> <true|false>"),
         "branch_move" when a.Length >= 3 &&
             (a[2].Equals("up", StringComparison.OrdinalIgnoreCase) || a[2].Equals("down", StringComparison.OrdinalIgnoreCase)) =>
@@ -97,6 +103,22 @@ internal static class Program
         "branch_add" => OperatorResult.Fail("branch_add needs: <project> <branch>"),
         _ => OperatorResult.Fail($"bad or incomplete command. \n{Usage}"),
     };
+
+    private static bool TryBool(string value, out bool parsed)
+    {
+        if (value.Equals("true", StringComparison.OrdinalIgnoreCase) || value == "1")
+        {
+            parsed = true;
+            return true;
+        }
+        if (value.Equals("false", StringComparison.OrdinalIgnoreCase) || value == "0")
+        {
+            parsed = false;
+            return true;
+        }
+        parsed = false;
+        return false;
+    }
 
     private static IEnumerable<KeyValuePair<string, string>> Pairs(IEnumerable<string> items)
     {
@@ -122,6 +144,7 @@ internal static class Program
           operator new_note   <project> <name> [note]
           operator new_stop   <project>
           operator new_project <name> [directory]
+          operator new_local_project <name>
           operator new_subtask <task_id> <text...>
           operator subtask_done <task_id> <index> <true|false>
           operator subtask_text <task_id> <index> <text...>
@@ -131,6 +154,7 @@ internal static class Program
           operator sync_many  <task_id> <field> <value> [<field> <value> ...]
           operator delete     <task_id>
           operator move       <task_id> <index>
+          operator move_relative <task_id> <target_id> <above|below>
           operator block_task <task_id> <blocker_id>
           operator branch_lock <project> <branch> <true|false>
           operator branch_move <project> <branch> <up|down>
