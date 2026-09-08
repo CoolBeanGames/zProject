@@ -80,6 +80,7 @@
     .task-card.dragging { opacity: 0.4; }
     .task-card.drag-over-above { border-top: 2px solid var(--zui-accent); }
     .task-card.drag-over-below { border-bottom: 2px solid var(--zui-accent); }
+    .section-header.drag-branch-over { outline: 2px solid var(--zui-accent); outline-offset: -2px; }
     .task-card.priority { background: color-mix(in srgb, var(--zui-error) 24%, var(--zui-bg-surface)); border-color: var(--zui-error); }
     .task-card.note { background: color-mix(in srgb, var(--zui-accent) 9%, var(--zui-bg-surface)); }
     .note-content { margin-top:var(--zui-space-1); color:var(--zui-text-secondary); white-space:pre-wrap; overflow-wrap:anywhere; max-height:5.4em; overflow:auto; padding-right:var(--zui-space-1); }
@@ -345,9 +346,10 @@ function taskPriorityGroup(task) {
 }
 
 function sameReorderGroup(a, b) {
+  if (!a || !b || a.done || a.archived || b.done || b.archived) return false;
   const aBranch = (a.branch || 'main').trim().toLowerCase();
   const bBranch = (b.branch || 'main').trim().toLowerCase();
-  if (a.isNote && !b.priority && taskPriorityGroup(b) === 2) return true;
+  if (aBranch !== bBranch) return true;
   return aBranch === bBranch && !!a.priority === !!b.priority && taskPriorityGroup(a) === taskPriorityGroup(b);
 }
 
@@ -474,6 +476,31 @@ function renderTaskList() {
       e.stopPropagation();
       zui.send('set-branch-lock', { branch: section.key, locked: !allLocked });
     });
+    if (lockable.length > 0) {
+      hdr.addEventListener('dragover', e => {
+        const source = state.tasks.find(t => t.id === state.dragTask);
+        const target = lockable.find(t => t.id !== state.dragTask);
+        if (!source || !target || !sameReorderGroup(source, target) ||
+            (source.branch || 'main').trim().toLowerCase() === (target.branch || 'main').trim().toLowerCase()) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        hdr.classList.add('drag-branch-over');
+      });
+      hdr.addEventListener('dragleave', e => {
+        if (!hdr.contains(e.relatedTarget)) hdr.classList.remove('drag-branch-over');
+      });
+      hdr.addEventListener('drop', e => {
+        const source = state.tasks.find(t => t.id === state.dragTask);
+        const target = lockable.find(t => t.id !== state.dragTask);
+        hdr.classList.remove('drag-branch-over');
+        if (!source || !target || !sameReorderGroup(source, target) ||
+            (source.branch || 'main').trim().toLowerCase() === (target.branch || 'main').trim().toLowerCase()) return;
+        e.preventDefault();
+        e.stopPropagation();
+        zui.send('move-task', { taskId: source.id, targetId: target.id, above: true });
+        state.dragTask = null;
+      });
+    }
     listEl.appendChild(hdr);
 
     if (collapsed) continue;
@@ -642,8 +669,8 @@ function renderTaskCard(task, sectionColor) {
 }
 
 function clearDragOver() {
-  document.querySelectorAll('.drag-over-above,.drag-over-below').forEach(el => {
-    el.classList.remove('drag-over-above', 'drag-over-below');
+  document.querySelectorAll('.drag-over-above,.drag-over-below,.drag-branch-over').forEach(el => {
+    el.classList.remove('drag-over-above', 'drag-over-below', 'drag-branch-over');
   });
   state.dragOverTask = null;
   state.dragAbove = false;
@@ -941,6 +968,36 @@ document.getElementById('form-choose-image').addEventListener('click', () => {
 document.getElementById('form-attachment-list').addEventListener('click', e => {
   const button = e.target.closest('[data-remove-attachment]');
   if (button && state.formTask) zui.send('remove-task-attachment', button.dataset.removeAttachment);
+});
+
+// Ctrl+V attaches an image only while a full task editor is open. Normal text
+// paste remains untouched in every other field and view.
+document.addEventListener('paste', e => {
+  if (!state.formTask || state.formTask.isNote) return;
+  const item = Array.from(e.clipboardData?.items || []).find(candidate =>
+    candidate.kind === 'file' && candidate.type.toLowerCase().startsWith('image/'));
+  if (!item) return;
+
+  const file = item.getAsFile();
+  if (!file) return;
+  e.preventDefault();
+  if (file.size > 25 * 1024 * 1024) {
+    document.getElementById('status-text').textContent = 'Clipboard images must be 25 MB or smaller.';
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    const result = typeof reader.result === 'string' ? reader.result : '';
+    const comma = result.indexOf(',');
+    if (comma < 0) return;
+    zui.send('paste-task-image', {
+      name: file.name || 'clipboard-image.png',
+      contentType: file.type || 'image/png',
+      base64: result.slice(comma + 1),
+    });
+  };
+  reader.readAsDataURL(file);
 });
 document.getElementById('form-add-subtask').addEventListener('click', () => {
   const input = document.getElementById('form-new-subtask');

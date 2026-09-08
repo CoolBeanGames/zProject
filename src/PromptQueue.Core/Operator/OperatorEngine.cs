@@ -475,10 +475,17 @@ public static class OperatorEngine
                     return OperatorResult.Pass($"{task.Id} is already in that position");
                 if (task.Archived || target.Archived || task.Done || target.Done)
                     return OperatorResult.Fail("Only active tasks can be reordered.");
-                if (task.IsNote && !target.Priority && target.SectionRank == 2)
-                    task.Branch = target.Branch;
-                else if (task.Priority != target.Priority || task.SectionRank != target.SectionRank ||
-                    !string.Equals(task.BranchDisplay, target.BranchDisplay, StringComparison.OrdinalIgnoreCase))
+
+                bool changesBranch = !string.Equals(
+                    task.BranchDisplay, target.BranchDisplay, StringComparison.OrdinalIgnoreCase);
+                if (changesBranch)
+                {
+                    // A cross-branch drop is primarily a branch change. Keep the
+                    // task's priority/status flags intact; the branch view will
+                    // place it in the matching subgroup after the reload.
+                    task.Branch = target.BranchDisplay;
+                }
+                else if (task.Priority != target.Priority || task.SectionRank != target.SectionRank)
                     return OperatorResult.Fail("Tasks can only be reordered within the same branch and priority group.");
 
                 bool above = string.Equals(job.Arg(2), "above", StringComparison.OrdinalIgnoreCase);
@@ -487,7 +494,9 @@ public static class OperatorEngine
                 int targetIndex = project.Tasks.IndexOf(target) + (above ? 0 : 1);
                 project.Tasks.Insert(targetIndex, task);
                 touched.Add(project);
-                return OperatorResult.Pass($"Moved {task.Id} {(above ? "above" : "below")} {target.Id}");
+                return OperatorResult.Pass(changesBranch
+                    ? $"Moved {task.Id} to branch {target.BranchDisplay}"
+                    : $"Moved {task.Id} {(above ? "above" : "below")} {target.Id}");
             }
 
             case "branch_lock":

@@ -1045,16 +1045,13 @@ public sealed class MainViewModel : Observable
             !project.Tasks.Contains(task) || !project.Tasks.Contains(target))
             return;
 
-        // Keep the visible priority ordering intact and leave branch changes to
-        // the dedicated branch editor. The operator repeats these checks using
-        // freshly loaded data before it mutates the queue.
-        if (task.IsNote && !target.Priority && target.SectionRank == 2)
-        {
-            // Notes may be dragged onto an ordinary task in another branch; the
-            // operator repeats and persists this branch change atomically.
-        }
-        else if (task.Priority != target.Priority || task.SectionRank != target.SectionRank ||
-            !string.Equals(task.BranchDisplay, target.BranchDisplay, StringComparison.OrdinalIgnoreCase))
+        // Cross-branch drops persist the target branch atomically in the
+        // operator. Within one branch, keep the visible priority ordering
+        // intact. The operator repeats these checks against freshly loaded data.
+        bool changesBranch = !string.Equals(
+            task.BranchDisplay, target.BranchDisplay, StringComparison.OrdinalIgnoreCase);
+        if (!changesBranch &&
+            (task.Priority != target.Priority || task.SectionRank != target.SectionRank))
         {
             StatusText = "Tasks can only be reordered within the same branch and priority group";
             return;

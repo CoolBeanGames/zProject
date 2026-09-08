@@ -236,6 +236,53 @@ public sealed class TaskFormViewModel : Observable
 
     public ObservableCollection<string> Attachments { get; } = new();
 
+    /// <summary>
+    /// Stores an image supplied by the browser clipboard in the same collision-safe
+    /// attachment folder used by the file picker. The editor has not necessarily
+    /// been saved yet, so this updates the form copy and lets the normal Save flow
+    /// persist the attachment name on the task.
+    /// </summary>
+    public string AddPastedImage(byte[] bytes, string? contentType, string? suggestedName)
+    {
+        if (string.IsNullOrEmpty(_projectDirectory))
+            throw new InvalidOperationException("This task does not have a project attachment folder.");
+        if (bytes.Length == 0)
+            throw new InvalidDataException("The clipboard image was empty.");
+        if (bytes.Length > 25 * 1024 * 1024)
+            throw new InvalidDataException("Clipboard images must be 25 MB or smaller.");
+
+        var extension = contentType?.ToLowerInvariant() switch
+        {
+            "image/png" => ".png",
+            "image/jpeg" => ".jpg",
+            "image/gif" => ".gif",
+            "image/bmp" => ".bmp",
+            "image/webp" => ".webp",
+            _ => System.IO.Path.GetExtension(suggestedName ?? "").ToLowerInvariant(),
+        };
+        if (!IsImage("image" + extension))
+            throw new InvalidDataException("The clipboard did not contain a supported image type.");
+
+        var folder = System.IO.Path.Combine(_projectDirectory, ImageFolderName);
+        System.IO.Directory.CreateDirectory(folder);
+        var baseName = System.IO.Path.GetFileNameWithoutExtension(suggestedName ?? "clipboard-image");
+        var safeBase = string.Concat(baseName.Select(ch =>
+            System.IO.Path.GetInvalidFileNameChars().Contains(ch) || ch == ',' ? '_' : ch));
+        if (string.IsNullOrWhiteSpace(safeBase)) safeBase = "clipboard-image";
+
+        var stem = $"{Id}-{safeBase}";
+        var fileName = stem + extension;
+        var suffix = 2;
+        while (System.IO.File.Exists(System.IO.Path.Combine(folder, fileName)) ||
+               Attachments.Contains(fileName, StringComparer.OrdinalIgnoreCase))
+            fileName = $"{stem}-{suffix++}{extension}";
+
+        System.IO.File.WriteAllBytes(System.IO.Path.Combine(folder, fileName), bytes);
+        Attachments.Add(fileName);
+        RefreshPrimaryImage();
+        return fileName;
+    }
+
     public void RemoveAttachment(string? name)
     {
         if (string.IsNullOrWhiteSpace(name)) return;

@@ -237,6 +237,25 @@ public partial class MainWindow : Window
             form.RemoveAttachment(name);
             PushFormImageState(form);
         }));
+        _ui.On("paste-task-image", p => Dispatcher.Invoke(() =>
+        {
+            if (Vm?.Overlay is not TaskFormViewModel form || form.IsNote) return;
+            try
+            {
+                var base64 = p.GetProperty("base64").GetString() ?? "";
+                var contentType = p.GetProperty("contentType").GetString();
+                var name = p.GetProperty("name").GetString();
+                var storedName = form.AddPastedImage(Convert.FromBase64String(base64), contentType, name);
+                PushFormImageState(form);
+                PushStatus($"Attached clipboard image {storedName}");
+            }
+            catch (Exception ex) when (ex is FormatException or InvalidDataException or IOException or UnauthorizedAccessException)
+            {
+                System.Windows.MessageBox.Show(
+                    $"Could not attach the clipboard image:\n\n{ex.Message}",
+                    "zProject", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            }
+        }));
 
         // Agent deploys
         _ui.On("deploy-agent", p => Dispatcher.Invoke(() =>
