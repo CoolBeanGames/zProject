@@ -96,21 +96,45 @@ public sealed class Project : Observable
     public string LastTaskBranch
     {
         get => string.IsNullOrWhiteSpace(_lastTaskBranch) ? "main" : _lastTaskBranch;
-        set => Set(ref _lastTaskBranch, string.IsNullOrWhiteSpace(value) ? "main" : value.Trim());
+        set => Set(ref _lastTaskBranch, NormalizeBranchPath(value));
     }
 
     /// <summary>Adds missing task branches, removes duplicates, and guarantees a main option.</summary>
     public void EnsureBranchOrder()
     {
-        var normalized = BranchOrder
+        var requested = BranchOrder
             .Select(branch => string.IsNullOrWhiteSpace(branch) ? "main" : branch.Trim())
             .Append(LastTaskBranch)
             .Concat(Tasks.Where(task => !task.Done && !task.Archived && !task.FinishedToday)
                 .Select(task => task.BranchDisplay))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
-        if (!normalized.Contains("main", StringComparer.OrdinalIgnoreCase))
-            normalized.Add("main");
+
+        var discovered = new List<string>();
+        foreach (var requestedBranch in requested.Append("main"))
+        {
+            var branch = NormalizeBranchPath(requestedBranch);
+            var lineage = new Stack<string>();
+            for (var current = branch; current != null; current = ParentBranch(current))
+                lineage.Push(current);
+            while (lineage.Count > 0)
+            {
+                var member = lineage.Pop();
+                if (!discovered.Contains(member, StringComparer.OrdinalIgnoreCase))
+                    discovered.Add(member);
+            }
+        }
+
+        var normalized = new List<string>();
+        void AppendChildren(string? parent)
+        {
+            foreach (var branch in discovered.Where(candidate =>
+                         string.Equals(ParentBranch(candidate), parent, StringComparison.OrdinalIgnoreCase)))
+            {
+                normalized.Add(branch);
+                AppendChildren(branch);
+            }
+        }
+        AppendChildren(null);
 
         if (BranchOrder.SequenceEqual(normalized, StringComparer.OrdinalIgnoreCase))
             return;
@@ -126,22 +150,40 @@ public sealed class Project : Observable
     /// </summary>
     public IReadOnlyList<string> CloseCompletedBranches()
     {
-        var closed = Tasks
-            .Where(task => task.Merge && task.Done &&
-                           !string.Equals(task.BranchDisplay, "main", StringComparison.OrdinalIgnoreCase))
-            .Select(task => task.BranchDisplay)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Where(branch => !Tasks.Any(task => !task.Done && !task.Archived && !task.FinishedToday &&
-                string.Equals(task.BranchDisplay, branch, StringComparison.OrdinalIgnoreCase)))
-            .ToList();
-
-        foreach (var branch in closed)
-            for (var i = BranchOrder.Count - 1; i >= 0; i--)
-                if (string.Equals(BranchOrder[i], branch, StringComparison.OrdinalIgnoreCase))
-                    BranchOrder.RemoveAt(i);
+        var closed = new List<string>();
+        bool changed;
+        do
+        {
+            changed = false;
+            var candidates = Tasks
+                .Where(task => task.Merge && task.Done &&
+                               !string.Equals(task.BranchDisplay, "main", StringComparison.OrdinalIgnoreCase))
+                .Select(task => NormalizeBranchPath(task.BranchDisplay))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderByDescending(BranchDepth)
+                .ToList();
+            foreach (var branch in candidates)
+            {
+                var branchIndex = BranchOrder.ToList().FindIndex(item =>
+                    string.Equals(item, branch, StringComparison.OrdinalIgnoreCase));
+                if (branchIndex < 0 ||
+                    Tasks.Any(task => !task.Done && !task.Archived && !task.FinishedToday &&
+                        string.Equals(task.BranchDisplay, branch, StringComparison.OrdinalIgnoreCase)) ||
+                    BranchOrder.Any(candidate => IsDescendantBranch(candidate, branch)))
+                    continue;
+                BranchOrder.RemoveAt(branchIndex);
+                closed.Add(branch);
+                changed = true;
+            }
+        } while (changed);
 
         if (closed.Any(branch => string.Equals(branch, LastTaskBranch, StringComparison.OrdinalIgnoreCase)))
-            LastTaskBranch = BranchOrder.FirstOrDefault() ?? "main";
+        {
+            var fallback = ParentBranch(LastTaskBranch);
+            LastTaskBranch = fallback != null && BranchOrder.Contains(fallback, StringComparer.OrdinalIgnoreCase)
+                ? fallback
+                : BranchOrder.FirstOrDefault() ?? "main";
+        }
         return closed;
     }
 
@@ -153,6 +195,77 @@ public sealed class Project : Observable
                 !task.IsNote && !task.StopExecution && !task.Done && !task.Archived &&
                 string.Equals(task.BranchDisplay, mergeTask.BranchDisplay, StringComparison.OrdinalIgnoreCase))
             .ToList();
+
+    /// <summary>Open descendant branches that must close before this branch can merge.</summary>
+    public IReadOnlyList<string> MergeBlockingBranches(TaskItem mergeTask)
+        => BranchOrder.Where(branch => IsDescendantBranch(branch, mergeTask.BranchDisplay)).ToList();
+
+    public IReadOnlyList<string> MergeBlockerLabels(TaskItem mergeTask)
+        => MergeBlockers(mergeTask).Select(task => task.Id)
+            .Concat(MergeBlockingBranches(mergeTask).Select(branch => $"branch:{branch}"))
+            .ToList();
+
+    public int MergeBlockerCount(TaskItem mergeTask) => MergeBlockerLabels(mergeTask).Count;
+
+    public static string NormalizeBranchPath(string? branch)
+    {
+        if (string.IsNullOrWhiteSpace(branch)) return "main";
+        var segments = branch.Replace('\\', '/').Split('/', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        return segments.Length == 0 ? "main" : string.Join('/', segments);
+    }
+
+    public static string? ParentBranch(string? branch)
+    {
+        var normalized = NormalizeBranchPath(branch);
+        var split = normalized.LastIndexOf('/');
+        return split < 0 ? null : normalized[..split];
+    }
+
+    public static bool IsDescendantBranch(string? candidate, string? ancestor)
+    {
+        var child = NormalizeBranchPath(candidate);
+        var parent = NormalizeBranchPath(ancestor);
+        return child.Length > parent.Length && child.StartsWith(parent + "/", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static int BranchDepth(string? branch) => NormalizeBranchPath(branch).Count(ch => ch == '/');
+
+    /// <summary>The concrete source-control name for a logical slash-delimited branch path.</summary>
+    public static string ConcreteBranchName(string? branch) => NormalizeBranchPath(branch).Replace('/', '_');
+
+    /// <summary>Moves a branch and its descendants among siblings without breaking the hierarchy.</summary>
+    public bool MoveBranch(string branch, int offset)
+    {
+        EnsureBranchOrder();
+        branch = NormalizeBranchPath(branch);
+        var parent = ParentBranch(branch);
+        var siblings = BranchOrder.Where(candidate =>
+                string.Equals(ParentBranch(candidate), parent, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        var position = siblings.FindIndex(candidate => string.Equals(candidate, branch, StringComparison.OrdinalIgnoreCase));
+        var targetPosition = position + (offset < 0 ? -1 : 1);
+        if (position < 0 || targetPosition < 0 || targetPosition >= siblings.Count)
+            return false;
+
+        var target = siblings[targetPosition];
+        var sourceGroup = BranchOrder.Where(candidate =>
+                string.Equals(candidate, branch, StringComparison.OrdinalIgnoreCase) || IsDescendantBranch(candidate, branch))
+            .ToList();
+        foreach (var member in sourceGroup)
+            BranchOrder.Remove(member);
+
+        var insertAt = BranchOrder.ToList().FindIndex(candidate =>
+            string.Equals(candidate, target, StringComparison.OrdinalIgnoreCase));
+        if (offset > 0)
+        {
+            insertAt++;
+            while (insertAt < BranchOrder.Count && IsDescendantBranch(BranchOrder[insertAt], target))
+                insertAt++;
+        }
+        for (var i = 0; i < sourceGroup.Count; i++)
+            BranchOrder.Insert(insertAt + i, sourceGroup[i]);
+        return true;
+    }
 
     public int BranchRank(string? branch)
     {

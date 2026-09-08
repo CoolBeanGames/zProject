@@ -50,7 +50,7 @@ An item containing `<stopExecution>true</stopExecution>` is a hard boundary. Do 
 
 BRANCHES, ORDERING, BLOCKING, AND MERGES
 
-Stay on the requested branch and use exact branch names. `main` is reserved. The project branch registry preserves even empty branches and its `lastUsed` branch is the default for new tasks. Use:
+Stay on the requested branch and use exact branch names. `main` is reserved. The project branch registry preserves even empty branches and its `lastUsed` branch is the default for new tasks. Logical subbranches use slash paths such as `update-2/graphics`; the parent must already exist. Their concrete source-control name replaces slashes with underscores, so that example runs on `update-2_graphics`. A subbranch is displayed inside its parent, moves only among siblings together with its whole descendant subtree, and must close before any ancestor can merge. Nested merges close deepest-first. Use:
 
     operator branch_add <project> <branch>
     operator branch_default <project> <branch>
@@ -65,7 +65,7 @@ Tasks and notes may move only within their own branch. Merge tasks remain last i
 
 `block_task` moves the source task and its dependent subtree directly below the blocker. Notes, stop markers, completed tasks, cross-branch relationships, cycles, and chains deeper than four levels are invalid blockers.
 
-A merge task cannot be agent-locked, completed, archived, or replaced as completed while unfinished actionable tasks remain in its branch. When a merge task is completed and no unfinished work remains, that non-main branch closes from the active branch registry while its completed history remains visible. Never merge without any explicit approval stated by the task or user.
+A merge task cannot be agent-locked, completed, archived, or replaced as completed while unfinished actionable tasks remain in its branch or any descendant branch remains open. When a merge task is completed, no unfinished work remains, and all descendants are closed, that non-main branch closes from the active branch registry while its completed history remains visible. Never merge without any explicit approval stated by the task or user.
 
 OPERATOR COMMAND REFERENCE
 

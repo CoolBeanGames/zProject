@@ -75,6 +75,7 @@
     border-bottom:1px solid var(--zui-accent);
   }
   .grp .c{color:var(--ink-3); font-weight:400}
+  .branch-group.subbranch{border-left:2px solid var(--line-strong)}
   .branch-lock{margin-left:auto; border:1px solid var(--line-strong); background:var(--surface); color:var(--ink-2); border-radius:var(--radius); padding:4px 8px; font:inherit; font-size:12px}
   .branch-order{border:1px solid var(--line-strong); background:var(--surface); color:var(--ink-2); border-radius:var(--radius); width:28px; height:28px; font:inherit; cursor:pointer}
   .branch-order:disabled{opacity:.35; cursor:default}
@@ -313,6 +314,15 @@ function branchColor(name){
   return `hsl(${hue}, 65%, 55%)`;
 }
 
+function branchParent(branch){
+  const value = (branch || 'main').trim();
+  const split = value.lastIndexOf('/');
+  return split < 0 ? '' : value.slice(0, split);
+}
+function branchDepth(branch){ return ((branch || '').match(/\//g) || []).length; }
+function branchLeaf(branch){ return (branch || 'main').split('/').pop(); }
+function concreteBranch(branch){ return (branch || 'main').replaceAll('/', '_'); }
+
 const SECT_CLASS = { 'Bugs':'s-bug','Needs attention':'s-err','Completed':'s-done','Archived':'s-arch' };
 
 async function renderList(pi){
@@ -341,16 +351,19 @@ async function renderList(pi){
     const items = groups.get(b) || [];
     const lockable = items.filter(t => !t.done && !t.archived && !t.isStop);
     const allLocked = lockable.length > 0 && lockable.every(t => t.locked);
-    const branchIndex = data.branches.findIndex(branch => branch.toLowerCase() === b.toLowerCase());
-    body += `<div class="grp" style="display:flex;align-items:center;gap:6px;">
+    const depth = branchDepth(b);
+    const siblings = data.branches.filter(branch => branchParent(branch).toLowerCase() === branchParent(b).toLowerCase());
+    const siblingIndex = siblings.findIndex(branch => branch.toLowerCase() === b.toLowerCase());
+    const indent = depth * 18;
+    body += `<div class="branch-group${depth > 0 ? ' subbranch' : ''}" style="margin-left:${indent}px;width:calc(100% - ${indent}px)"><div class="grp" style="display:flex;align-items:center;gap:6px;">
       <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${branchColor(b)};flex:none;"></span>
-      <span>${esc(b)}</span> <span class="c">${items.length}</span>
-      <button class="branch-order" data-branch-move data-branch="${av(b)}" data-direction="up" title="Move branch earlier" ${branchIndex <= 0 ? 'disabled' : ''}>&#8593;</button>
-      <button class="branch-order" data-branch-move data-branch="${av(b)}" data-direction="down" title="Move branch later" ${branchIndex === data.branches.length - 1 ? 'disabled' : ''}>&#8595;</button>
+      <span title="Logical branch: ${av(b)}; source branch: ${av(concreteBranch(b))}">${esc(depth > 0 ? branchLeaf(b) : b)}</span> <span class="c">${items.length}</span>
+      <button class="branch-order" data-branch-move data-branch="${av(b)}" data-direction="up" title="Move branch earlier among siblings" ${siblingIndex <= 0 ? 'disabled' : ''}>&#8593;</button>
+      <button class="branch-order" data-branch-move data-branch="${av(b)}" data-direction="down" title="Move branch later among siblings" ${siblingIndex === siblings.length - 1 ? 'disabled' : ''}>&#8595;</button>
       <button class="branch-lock" data-branch-lock data-branch="${av(b)}" data-locked="${!allLocked}">${allLocked ? 'Unlock' : 'Lock'} branch</button>
     </div><div class="queue">`;
     for (const t of items) body += row(pi, t);
-    body += `</div>`;
+    body += `</div></div>`;
   }
 
   for (const key of ['Completed', 'Finished Today', 'Archived']){
@@ -498,7 +511,7 @@ async function renderTask(pi, tid){
   if (t.isNote) return renderNote(pi, pname, isNew, t, orig, data?.branches || ['main']);
   const flag = (k,label,cls='') =>
     `<button class="flag ${cls}" data-f="${k}" aria-pressed="${!!t[k]}"
-      ${k === 'done' && t.mergeBlocked ? 'disabled title="Finish remaining branch tasks first"' : ''}>${label}</button>`;
+      ${k === 'done' && t.mergeBlocked ? 'disabled title="Finish remaining branch tasks and subbranches first"' : ''}>${label}</button>`;
   const agentOpen = t.notes || t.filesChanged || t.errorMessage;
 
   app.innerHTML = `
@@ -553,7 +566,7 @@ async function renderTask(pi, tid){
         ${flag('error','Error','warn')}
         ${flag('archived','Archived')}
       </div>
-      ${t.mergeBlocked ? `<div class="field"><div class="muted">Merge blocked by ${t.mergeBlockerCount} unfinished task(s) in this branch.</div></div>` : ''}
+      ${t.mergeBlocked ? `<div class="field"><div class="muted">Merge blocked by ${t.mergeBlockerCount} unfinished task/subbranch item(s).</div></div>` : ''}
 
       <div class="subhead">Subtasks</div>
       <div class="subs" id="subs">

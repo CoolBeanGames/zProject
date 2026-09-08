@@ -506,8 +506,8 @@ public static class OperatorEngine
                 var (project, task) = ResolveTask(ws, job.Arg(0));
                 if (task == null)
                     return OperatorResult.Fail($"No task \"{job.Arg(0)}\".");
-                if (task.Merge && project!.MergeBlockers(task).Count > 0)
-                    return MergeBlocked(task, project.MergeBlockers(task));
+                if (task.Merge && project!.MergeBlockerCount(task) > 0)
+                    return MergeBlocked(task, project.MergeBlockerLabels(task));
                 task.InProgress = false;
                 task.LockKey = "";
                 task.Done = true;
@@ -524,8 +524,8 @@ public static class OperatorEngine
                     return OperatorResult.Fail($"No task \"{job.Arg(0)}\".");
                 if (task.IsNote || task.StopExecution)
                     return OperatorResult.Fail($"{task.Id} is not actionable; handle it without taking an agent lock.");
-                if (task.Merge && project!.MergeBlockers(task).Count > 0)
-                    return MergeBlocked(task, project.MergeBlockers(task));
+                if (task.Merge && project!.MergeBlockerCount(task) > 0)
+                    return MergeBlocked(task, project.MergeBlockerLabels(task));
                 var key = job.Arg(1).Trim();
                 if (key.Length == 0)
                     return OperatorResult.Fail("A lock key is required.");
@@ -669,25 +669,15 @@ public static class OperatorEngine
                     return OperatorResult.Fail($"No project matches \"{job.Arg(0)}\".");
 
                 project.EnsureBranchOrder();
-                var branch = string.IsNullOrWhiteSpace(job.Arg(1)) ? "main" : job.Arg(1).Trim();
-                var oldIndex = -1;
-                for (var i = 0; i < project.BranchOrder.Count; i++)
-                    if (string.Equals(project.BranchOrder[i], branch, StringComparison.OrdinalIgnoreCase))
-                    {
-                        oldIndex = i;
-                        break;
-                    }
-                if (oldIndex < 0)
+                var branch = Project.NormalizeBranchPath(job.Arg(1));
+                if (!project.BranchOrder.Contains(branch, StringComparer.OrdinalIgnoreCase))
                     return OperatorResult.Fail($"No branch \"{branch}\" in {project.Name}.");
 
                 var offset = string.Equals(job.Arg(2), "up", StringComparison.OrdinalIgnoreCase) ? -1 : 1;
-                var newIndex = Math.Clamp(oldIndex + offset, 0, project.BranchOrder.Count - 1);
-                if (newIndex == oldIndex)
-                    return OperatorResult.Pass($"Branch {project.BranchOrder[oldIndex]} is already at that edge");
-
-                project.BranchOrder.Move(oldIndex, newIndex);
+                if (!project.MoveBranch(branch, offset))
+                    return OperatorResult.Pass($"Branch {branch} is already at that sibling edge");
                 touched.Add(project);
-                return OperatorResult.Pass($"Moved branch {project.BranchOrder[newIndex]} to position {newIndex + 1}");
+                return OperatorResult.Pass($"Moved branch {branch} {(offset < 0 ? "earlier" : "later")} among its siblings");
             }
 
             case "branch_default":
@@ -695,8 +685,11 @@ public static class OperatorEngine
                 var project = ResolveProject(ws, job.Arg(0));
                 if (project == null)
                     return OperatorResult.Fail($"No project matches \"{job.Arg(0)}\".");
-                project.LastTaskBranch = string.IsNullOrWhiteSpace(job.Arg(1)) ? "main" : job.Arg(1).Trim();
                 project.EnsureBranchOrder();
+                var branch = Project.NormalizeBranchPath(job.Arg(1));
+                if (!project.BranchOrder.Contains(branch, StringComparer.OrdinalIgnoreCase))
+                    return OperatorResult.Fail($"No branch \"{branch}\" in {project.Name}.");
+                project.LastTaskBranch = branch;
                 touched.Add(project);
                 return OperatorResult.Pass($"Default branch for {project.Name} is {project.LastTaskBranch}");
             }
@@ -706,18 +699,33 @@ public static class OperatorEngine
                 var project = ResolveProject(ws, job.Arg(0));
                 if (project == null)
                     return OperatorResult.Fail($"No project matches \"{job.Arg(0)}\".");
-                var branch = job.Arg(1).Trim();
-                if (branch.Length == 0 || branch.Any(char.IsControl))
-                    return OperatorResult.Fail("A valid branch name is required.");
-                if (branch is "Completed" or "Finished Today" or "Archived")
-                    return OperatorResult.Fail($"'{branch}' is reserved for a task section.");
+                var rawBranch = job.Arg(1).Trim();
+                var branch = Project.NormalizeBranchPath(rawBranch);
+                var validationError = ValidateBranchName(rawBranch, branch);
+                if (validationError != null)
+                    return OperatorResult.Fail(validationError);
                 project.EnsureBranchOrder();
                 if (project.BranchOrder.Contains(branch, StringComparer.OrdinalIgnoreCase))
                     return OperatorResult.Fail($"Branch '{branch}' already exists.");
-                project.BranchOrder.Add(branch);
+                var parent = Project.ParentBranch(branch);
+                if (parent != null && !project.BranchOrder.Contains(parent, StringComparer.OrdinalIgnoreCase))
+                    return OperatorResult.Fail($"Create parent branch '{parent}' before its subbranch.");
+                var concrete = Project.ConcreteBranchName(branch);
+                var collision = project.BranchOrder.FirstOrDefault(existing =>
+                    string.Equals(Project.ConcreteBranchName(existing), concrete, StringComparison.OrdinalIgnoreCase));
+                if (collision != null)
+                    return OperatorResult.Fail($"Branch '{branch}' maps to '{concrete}', already used by '{collision}'.");
+                var insertAt = parent == null ? project.BranchOrder.Count : project.BranchOrder
+                    .TakeWhile(existing => !string.Equals(existing, parent, StringComparison.OrdinalIgnoreCase))
+                    .Count() + 1;
+                while (insertAt < project.BranchOrder.Count && Project.IsDescendantBranch(project.BranchOrder[insertAt], parent))
+                    insertAt++;
+                project.BranchOrder.Insert(insertAt, branch);
                 project.LastTaskBranch = branch;
                 touched.Add(project);
-                return OperatorResult.Pass($"Created branch {branch}", branch);
+                return OperatorResult.Pass(Project.ParentBranch(branch) == null
+                    ? $"Created branch {branch}"
+                    : $"Created subbranch {branch} as {concrete}", branch);
             }
 
             case "upsert":
@@ -730,7 +738,7 @@ public static class OperatorEngine
                     string.Equals(t.Id, incoming.Id, StringComparison.OrdinalIgnoreCase));
                 if (incoming.Merge && incoming.Done)
                 {
-                    var blockers = project.MergeBlockers(existing ?? incoming);
+                    var blockers = project.MergeBlockerLabels(existing ?? incoming);
                     if (blockers.Count > 0)
                         return MergeBlocked(incoming, blockers);
                 }
@@ -769,13 +777,29 @@ public static class OperatorEngine
         var setsTrue = value.Trim().Equals("true", StringComparison.OrdinalIgnoreCase) || value.Trim() == "1";
         if (!task.Merge || !normalized.Equals("done", StringComparison.OrdinalIgnoreCase) || !setsTrue)
             return null;
-        var blockers = project.MergeBlockers(task);
+        var blockers = project.MergeBlockerLabels(task);
         return blockers.Count == 0 ? null : MergeBlocked(task, blockers);
     }
 
-    private static OperatorResult MergeBlocked(TaskItem mergeTask, IReadOnlyList<TaskItem> blockers)
-        => OperatorResult.Fail($"{mergeTask.Id} cannot merge while {blockers.Count} task(s) remain on branch " +
-                               $"{mergeTask.BranchDisplay}: {string.Join(", ", blockers.Select(task => task.Id))}");
+    private static OperatorResult MergeBlocked(TaskItem mergeTask, IReadOnlyList<string> blockers)
+        => OperatorResult.Fail($"{mergeTask.Id} cannot merge while {blockers.Count} task/branch item(s) remain under " +
+                               $"{mergeTask.BranchDisplay}: {string.Join(", ", blockers)}");
+
+    private static string? ValidateBranchName(string rawBranch, string normalizedBranch)
+    {
+        if (rawBranch.Length == 0 || rawBranch.Contains('\\') || rawBranch.StartsWith('/') || rawBranch.EndsWith('/') ||
+            rawBranch.Contains("//", StringComparison.Ordinal))
+            return "Use a slash-delimited branch name such as parent/subbranch.";
+        var segments = normalizedBranch.Split('/');
+        if (segments.Any(segment => segment.Length == 0 || segment is "." or ".." ||
+                                    segment.Any(ch => !(char.IsLetterOrDigit(ch) || ch is '-' or '_' or '.'))))
+            return "Branch segments may contain letters, numbers, hyphens, underscores, and periods only.";
+        if (segments.Any(segment => segment.Equals("Completed", StringComparison.OrdinalIgnoreCase) ||
+                                    segment.Equals("Finished Today", StringComparison.OrdinalIgnoreCase) ||
+                                    segment.Equals("Archived", StringComparison.OrdinalIgnoreCase)))
+            return "Completed, Finished Today, and Archived are reserved task section names.";
+        return null;
+    }
 
     private static bool IsDescendant(Project project, TaskItem candidate, TaskItem ancestor)
     {

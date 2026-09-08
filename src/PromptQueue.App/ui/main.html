@@ -126,6 +126,7 @@
     .proj-local-badge { font-size: var(--zui-fs-small); color: var(--zui-text-secondary); float:right; }
     .section-header { display: flex; align-items: center; gap: var(--zui-space-2); padding: var(--zui-space-1) var(--zui-space-3); font-size: var(--zui-fs-small); font-weight: var(--zui-fw-medium); color: var(--zui-label-color); text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 1px solid var(--zui-accent); background: var(--zui-bg-app); position: sticky; top: 0; z-index: 2; user-select: none; cursor: pointer; }
     .section-header .branch-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .section-header.subbranch { border-left:2px solid var(--zui-border-strong); background:var(--zui-bg-surface-alt); }
     .branch-lock-btn { min-width:72px; padding:1px 7px; font-size:var(--zui-fs-small); }
     .branch-order-btn { width:22px; padding:1px 3px; font-size:var(--zui-fs-small); }
     .branch-agent-btn { padding:1px 6px; font-size:var(--zui-fs-small); text-transform:none; letter-spacing:0; }
@@ -377,6 +378,16 @@ function sameReorderGroup(a, b) {
   return aBranch === bBranch && !!a.priority === !!b.priority && taskPriorityGroup(a) === taskPriorityGroup(b);
 }
 
+function branchParent(branch) {
+  const value = (branch || 'main').trim();
+  const split = value.lastIndexOf('/');
+  return split < 0 ? '' : value.slice(0, split);
+}
+
+function branchDepth(branch) { return ((branch || '').match(/\//g) || []).length; }
+function branchLeaf(branch) { return (branch || 'main').split('/').pop(); }
+function concreteBranch(branch) { return (branch || 'main').replaceAll('/', '_'); }
+
 function canBlockOn(a, b) {
   if (!a || !b || a.id === b.id || a.isNote || a.isStop || b.isNote || b.isStop) return false;
   if (a.done || a.archived || b.done || b.archived) return false;
@@ -488,7 +499,14 @@ function renderTaskList() {
 
     // Section header
     const hdr = document.createElement('div');
-    hdr.className = 'section-header';
+    const branchIndex = state.knownBranches.findIndex(branch => branch.toLowerCase() === section.key.toLowerCase());
+    const depth = branchIndex >= 0 ? branchDepth(section.key) : 0;
+    hdr.className = 'section-header' + (depth > 0 ? ' subbranch' : '');
+    if (depth > 0) {
+      const indent = depth * 20;
+      hdr.style.marginLeft = `${indent}px`;
+      hdr.style.width = `calc(100% - ${indent}px)`;
+    }
     hdr.dataset.section = section.key;
     let dotHtml = '';
     if (color) dotHtml = `<span class="branch-dot" style="background:${color}"></span>`;
@@ -497,20 +515,23 @@ function renderTaskList() {
     const lockHtml = lockable.length > 0
       ? `<button class="zui-btn branch-lock-btn" type="button">${allLocked ? 'Unlock branch' : 'Lock branch'}</button>`
       : '';
-    const branchIndex = state.knownBranches.findIndex(branch => branch.toLowerCase() === section.key.toLowerCase());
     const selectedProject = state.projects.find(project => project.id === state.selectedProject);
     const agentHtml = branchIndex >= 0 && selectedProject && !selectedProject.isLocal
       ? `<button class="zui-btn branch-agent-btn" type="button" data-agent="codex" title="Run Codex on this branch only">Codex</button>
          <button class="zui-btn branch-agent-btn" type="button" data-agent="claude" title="Run Claude on this branch only">Claude</button>
          <button class="zui-btn branch-agent-btn" type="button" data-agent="agy" title="Run AGY on this branch only">AGY</button>`
       : '';
-    const orderHtml = branchIndex >= 0 && lockable.length > 0
-      ? `<button class="zui-btn branch-order-btn" type="button" data-direction="up" title="Move branch earlier" ${branchIndex === 0 ? 'disabled' : ''}>&#8593;</button>
-         <button class="zui-btn branch-order-btn" type="button" data-direction="down" title="Move branch later" ${branchIndex === state.knownBranches.length - 1 ? 'disabled' : ''}>&#8595;</button>`
+    const siblings = branchIndex >= 0 ? state.knownBranches.filter(branch => branchParent(branch).toLowerCase() === branchParent(section.key).toLowerCase()) : [];
+    const siblingIndex = siblings.findIndex(branch => branch.toLowerCase() === section.key.toLowerCase());
+    const orderHtml = branchIndex >= 0
+      ? `<button class="zui-btn branch-order-btn" type="button" data-direction="up" title="Move branch earlier among siblings" ${siblingIndex <= 0 ? 'disabled' : ''}>&#8593;</button>
+         <button class="zui-btn branch-order-btn" type="button" data-direction="down" title="Move branch later among siblings" ${siblingIndex === siblings.length - 1 ? 'disabled' : ''}>&#8595;</button>`
       : '';
+    const sectionName = depth > 0 ? branchLeaf(section.label) : section.label;
+    const sectionTitle = branchIndex >= 0 ? ` title="Logical branch: ${esc(section.key)}; source branch: ${esc(concreteBranch(section.key))}"` : '';
     hdr.innerHTML = `
       ${dotHtml}
-      <span>${esc(section.label)}</span>
+      <span${sectionTitle}>${esc(sectionName)}</span>
       <span class="section-count">${section.tasks.length}</span>
       ${agentHtml}
       ${orderHtml}
@@ -560,20 +581,20 @@ function renderTaskList() {
     if (collapsed) continue;
 
     for (const task of section.tasks) {
-      listEl.appendChild(renderTaskCard(task, color));
+      listEl.appendChild(renderTaskCard(task, color, depth));
     }
   }
 }
 
-function renderTaskCard(task, sectionColor) {
+function renderTaskCard(task, sectionColor, branchIndent = 0) {
   const card = document.createElement('div');
   card.className = 'task-card' + (task.priority && !task.done && !task.archived ? ' priority' : '') +
     (task.isNote ? ' note' : '') + (task.isStop ? ' stop' : '') +
     (task.done ? ' done' : '') + (task.indentLevel > 0 ? ' indented' : '');
   card.dataset.taskId = task.id;
   card.draggable = !task.done && !task.archived;
-  if (task.indentLevel > 0) {
-    const indent = Math.min(4, task.indentLevel) * 20;
+  if (task.indentLevel > 0 || branchIndent > 0) {
+    const indent = (branchIndent + Math.min(4, task.indentLevel)) * 20;
     card.style.marginLeft = `${indent}px`;
     card.style.width = `calc(100% - ${indent}px)`;
   }
@@ -592,7 +613,7 @@ function renderTaskCard(task, sectionColor) {
     if (task.build) chips += chipHtml('build', 'BUILD');
     if (task.release) chips += chipHtml('release', 'RELEASE');
     if (task.merge) chips += chipHtml('merge', 'MERGE');
-    if (task.mergeBlocked) chips += chipHtml('blocked', `WAITING ON ${task.mergeBlockerCount} TASK${task.mergeBlockerCount === 1 ? '' : 'S'}`);
+    if (task.mergeBlocked) chips += chipHtml('blocked', `WAITING ON ${task.mergeBlockerCount} ITEM${task.mergeBlockerCount === 1 ? '' : 'S'}`);
     if (task.isBlocked) chips += chipHtml('blocked', `BLOCKED by ${esc(task.blockedBy)}`);
   }
   if (task.isNote && task.clearAfterReading) chips += chipHtml('inprogress', 'CLEAR AFTER READING');
@@ -631,7 +652,7 @@ function renderTaskCard(task, sectionColor) {
       <span class="drag-handle" title="Drag to reorder">⠿</span>
       ${task.isStop ? '' : `<input type="checkbox" class="task-done-cb" ${task.done ? 'checked' : ''}
         ${task.mergeBlocked ? 'disabled' : ''} data-task-id="${task.id}"
-        title="${task.mergeBlocked ? `Finish ${task.mergeBlockerCount} remaining branch task(s) first` : 'Mark done'}">`}
+        title="${task.mergeBlocked ? `Finish ${task.mergeBlockerCount} remaining task/subbranch item(s) first` : 'Mark done'}">`}
       <div class="task-body">
         <div>
           <span class="task-id">${esc(task.id)}</span>

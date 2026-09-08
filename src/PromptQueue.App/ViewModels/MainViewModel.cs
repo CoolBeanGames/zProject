@@ -590,6 +590,7 @@ public sealed class MainViewModel : Observable
         }
         LaunchAgent(agent,
             $"Read prompt.txt in this directory and follow it exactly for task {task.Id} on branch '{task.Branch}' only. " +
+            $"Use source-control branch '{Project.ConcreteBranchName(task.Branch)}'. " +
             $"Complete ONLY task {task.Id}, then stop.",
             _ => $"Running {agent} on {task.Id} (branch: {task.Branch}) only");
     }
@@ -611,8 +612,10 @@ public sealed class MainViewModel : Observable
 
     public static string BuildBranchAgentPrompt(string branch)
     {
-        var normalized = string.IsNullOrWhiteSpace(branch) ? "main" : branch.Trim();
+        var normalized = Project.NormalizeBranchPath(branch);
+        var concrete = Project.ConcreteBranchName(normalized);
         return $"Read prompt.txt in this directory and follow it exactly for branch '{normalized}' only. " +
+               $"Use source-control branch '{concrete}' for this logical branch. " +
                $"Work through every actionable task on branch '{normalized}', then stop. " +
                "Do not continue onto another branch.";
     }

@@ -354,7 +354,7 @@ public sealed class TaskItem : Observable
         get => string.IsNullOrWhiteSpace(_branch) ? "main" : _branch;
         set
         {
-            if (Set(ref _branch, string.IsNullOrWhiteSpace(value) ? "main" : value.Trim()))
+            if (Set(ref _branch, Project.NormalizeBranchPath(value)))
             {
                 Raise(nameof(Branch));
                 RaiseSection();
