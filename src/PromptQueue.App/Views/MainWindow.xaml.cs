@@ -182,6 +182,16 @@ public partial class MainWindow : Window
                 string.Equals(t.Id, id, StringComparison.OrdinalIgnoreCase));
             if (task != null) Vm?.ToggleTaskLockCommand.Execute(task);
         }));
+        _ui.On("quick-toggle-task-field", p => Dispatcher.Invoke(() =>
+        {
+            var id = p.GetProperty("taskId").GetString();
+            var field = p.GetProperty("field").GetString()?.ToLowerInvariant();
+            var value = p.GetProperty("value").GetBoolean();
+            if (field is not ("bug" or "commit" or "build" or "release" or "merge")) return;
+            var task = Vm?.SelectedProject?.Tasks.FirstOrDefault(t =>
+                string.Equals(t.Id, id, StringComparison.OrdinalIgnoreCase));
+            if (task != null) Vm?.PersistTaskFieldChange(task, field, value);
+        }));
         _ui.On("collapse-all", _ => Dispatcher.Invoke(() => Vm?.CollapseAllCommand.Execute(null)));
         _ui.On("expand-all",   _ => Dispatcher.Invoke(() => Vm?.ExpandAllCommand.Execute(null)));
         _ui.On("toggle-subtask", p => Dispatcher.Invoke(() =>

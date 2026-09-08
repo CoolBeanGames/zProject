@@ -112,6 +112,11 @@
   .q.s-bug .state{color:var(--st-bug)} .q.s-err .state{color:var(--st-err)}
   .q.s-done .state{color:var(--st-done)} .q.s-hold .state{color:var(--st-hold)}
   .q .prog{font-variant-numeric:tabular-nums}
+  .qquick{display:flex;align-items:center;gap:3px;flex-wrap:wrap;margin-top:6px}
+  .qquick button{min-width:25px;height:27px;padding:0 5px;border:1px solid var(--line-strong);border-radius:var(--radius);background:var(--surface);color:var(--ink-2);font:inherit;font-size:11px;cursor:pointer}
+  .qquick button[aria-pressed=true]{background:var(--accent-wash);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+  .qquick button[data-quick-field=bug][aria-pressed=true]{background:var(--st-bug-wash);border-color:var(--st-bug);color:var(--st-bug)}
+  .qquick button:disabled{opacity:.55}
   .empty{padding:24px 14px; color:var(--ink-2)}
 
   /* ---- task page ---- */
@@ -403,6 +408,16 @@ async function renderList(pi){
     cache.data = null;
     await renderList(pi);
   };
+  app.querySelectorAll('[data-quick-field]').forEach(button => button.onclick = async e => {
+    e.stopPropagation();
+    if (button.disabled) return;
+    button.disabled = true;
+    const value = button.getAttribute('aria-pressed') !== 'true';
+    const result = await op('sync', button.closest('.q').dataset.id, button.dataset.quickField, String(value));
+    if (!result.ok) toast(result.message, true);
+    cache.data = null;
+    await renderList(pi);
+  });
   app.querySelectorAll('.q:not(.stop)').forEach(el => el.onclick = () => goTask(pi, el.dataset.id));
   app.querySelectorAll('[data-remove-stop]').forEach(el => el.onclick = async e => {
     e.stopPropagation();
@@ -437,6 +452,13 @@ function row(pi, t){
   const prog = (t.subtasks && t.subtasks.length)
     ? `<span class="prog">${t.subtasks.filter(s=>s.done).length}/${t.subtasks.length}</span>` : '';
   const branchBanner = t.branch ? `<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${branchColor(t.branch)};margin-right:6px;flex:none;" title="Branch: ${esc(t.branch)}"></span>` : '';
+  const quick = !t.isNote && !t.isStop ? `<span class="qquick" aria-label="Quick task flags">
+    <button data-quick-field="bug" aria-pressed="${!!t.bug}" title="Toggle bug">Bug</button>
+    <button data-quick-field="commit" aria-pressed="${!!t.commit}" title="Toggle commit">C</button>
+    <button data-quick-field="build" aria-pressed="${!!t.build}" title="Toggle build">B</button>
+    <button data-quick-field="release" aria-pressed="${!!t.release}" title="Toggle release">R</button>
+    <button data-quick-field="merge" aria-pressed="${!!t.merge}" title="Toggle merge">M</button>
+  </span>` : '';
   let preview = '';
   if (!t.isNote && !t.isStop && (t.prompt || t.requirements)) {
     preview = '<span class="qpreview">';
@@ -446,7 +468,7 @@ function row(pi, t){
   }
   return `<div class="q ${sc}${t.isNote ? ' note' : ''}${t.isStop ? ' stop' : ''}" data-id="${av(t.id)}">
     ${branchBanner}
-    ${t.isStop ? `<span class="qstop">STOP EXECUTION<small>Agent processing stops here and awaits instructions</small></span><button class="stop-remove" data-remove-stop="${av(t.id)}">Remove</button>` : t.isNote ? `<span class="qnote"><span class="nm">${esc(t.displayName)}</span><span class="body">${esc(t.note || '')}</span></span>` : `<span class="qmain"><span class="nm">${esc(t.displayName)}</span>${preview}</span>`}
+    ${t.isStop ? `<span class="qstop">STOP EXECUTION<small>Agent processing stops here and awaits instructions</small></span><button class="stop-remove" data-remove-stop="${av(t.id)}">Remove</button>` : t.isNote ? `<span class="qnote"><span class="nm">${esc(t.displayName)}</span><span class="body">${esc(t.note || '')}</span></span>` : `<span class="qmain"><span class="nm">${esc(t.displayName)}</span>${preview}${quick}</span>`}
     <span class="rt">${prog}<span class="state">${esc(state)}</span></span>
     ${!t.isNote && !t.isStop && t.imageUrl ? `<img class="qimg" src="${av(t.imageUrl)}" alt="Attached image">` : ''}
   </div>`;

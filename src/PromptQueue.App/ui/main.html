@@ -25,6 +25,7 @@
     .task-card.selected { background: var(--zui-bg-selected); }
     .task-card.done .task-name { text-decoration: line-through; color: var(--zui-text-secondary); }
     .task-card.indented { margin-left: 20px; }
+    .task-row { display:flex; align-items:flex-start; gap:var(--zui-space-2); width:100%; min-width:0; }
 
     .task-done-cb {
       flex-shrink: 0;
@@ -75,6 +76,12 @@
     .task-actions button { background: none; border: 1px solid var(--zui-border-strong); color: var(--zui-text-secondary); font: inherit; font-size: 11px; padding: 0 5px; height: 20px; cursor: pointer; border-radius: var(--zui-radius); }
     .task-actions button:hover { background: var(--zui-bg-raised); color: var(--zui-text); border-color: var(--zui-accent); }
     .task-actions button.danger:hover { border-color: var(--zui-error); color: var(--zui-error); }
+    .task-quick-flags { display:flex; align-items:center; gap:2px; flex-shrink:0; }
+    .task-quick-flags button { min-width:24px; height:20px; padding:0 4px; border:1px solid var(--zui-border-strong); border-radius:var(--zui-radius); background:transparent; color:var(--zui-text-secondary); font:inherit; font-size:10px; cursor:pointer; }
+    .task-quick-flags button:hover { color:var(--zui-text); border-color:var(--zui-accent); background:var(--zui-bg-raised); }
+    .task-quick-flags button[aria-pressed="true"] { color:var(--zui-accent); border-color:var(--zui-accent); background:var(--zui-bg-selected); font-weight:var(--zui-fw-medium); }
+    .task-quick-flags button[data-quick-field="bug"][aria-pressed="true"] { color:var(--zui-error); border-color:var(--zui-error); }
+    .task-quick-flags button:disabled { opacity:.55; cursor:wait; }
 
     .branch-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: transparent; }
 
@@ -644,6 +651,13 @@ function renderTaskCard(task, sectionColor) {
         <button data-action="run-agy" data-task-id="${task.id}" ${task.mergeBlocked ? 'disabled' : ''}>▶ AGY</button>` : ''}
         <button data-action="delete" data-task-id="${task.id}" class="danger">Del</button>
       </div>
+      ${!task.isNote && !task.isStop ? `<div class="task-quick-flags" aria-label="Quick task flags">
+        <button type="button" data-quick-field="bug" aria-pressed="${!!task.bug}" title="Toggle bug">Bug</button>
+        <button type="button" data-quick-field="commit" aria-pressed="${!!task.commit}" title="Toggle commit">C</button>
+        <button type="button" data-quick-field="build" aria-pressed="${!!task.build}" title="Toggle build">B</button>
+        <button type="button" data-quick-field="release" aria-pressed="${!!task.release}" title="Toggle release">R</button>
+        <button type="button" data-quick-field="merge" aria-pressed="${!!task.merge}" title="Toggle merge">M</button>
+      </div>` : ''}
       ${!task.isNote && !task.isStop && task.imagePreviewUrl ? `<img class="task-card-preview" src="${task.imagePreviewUrl}" alt="Attached image">` : ''}
     </div>`;
 
@@ -891,6 +905,16 @@ function renderFormSubtasks(subtasks) {
       renderFormSubtasks(state.formTask.subtasks);
     });
     ul.appendChild(li);
+  }
+
+  for (const button of card.querySelectorAll('[data-quick-field]')) {
+    button.addEventListener('click', e => {
+      e.stopPropagation();
+      if (button.disabled) return;
+      const value = button.getAttribute('aria-pressed') !== 'true';
+      button.disabled = true;
+      zui.send('quick-toggle-task-field', { taskId: task.id, field: button.dataset.quickField, value });
+    });
   }
 }
 
