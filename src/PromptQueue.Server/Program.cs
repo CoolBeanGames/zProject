@@ -390,6 +390,9 @@ internal static class Program
             "agent_unlock" when a.Length >= 2 => OperatorEngine.AgentUnlock(a[0], a[1]),
             "move" when a.Length >= 2 && int.TryParse(a[1], out var mi) => OperatorEngine.Move(a[0], mi),
             "branch_lock" when a.Length >= 3 => OperatorEngine.SetBranchLocked(a[0], a[1], a[2] is "true" or "1"),
+            "branch_move" when a.Length >= 3 &&
+                (a[2].Equals("up", StringComparison.OrdinalIgnoreCase) || a[2].Equals("down", StringComparison.OrdinalIgnoreCase)) =>
+                OperatorEngine.MoveBranch(a[0], a[1], a[2].Equals("up", StringComparison.OrdinalIgnoreCase) ? -1 : 1),
             _ => OperatorResult.Fail($"bad or incomplete command '{req.Command}'"),
         };
 
@@ -561,16 +564,11 @@ internal static class Program
         {
             name = project.Name,
             directory = project.Directory,
-            branches = project.Tasks.Select(t => t.Branch)
-                .Append("main")
-                .Where(branch => !string.IsNullOrWhiteSpace(branch))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(branch => branch.Equals("main", StringComparison.OrdinalIgnoreCase) ? "" : branch,
-                    StringComparer.OrdinalIgnoreCase)
-                .ToArray(),
+            branches = OrderedBranches(project),
             tasks = project.Tasks
-                .OrderBy(t => !t.Done && !t.Archived && t.Priority ? 0 : 1)
-                .ThenBy(t => !t.Done && !t.Archived && t.Priority ? 0 : t.SectionRank)
+                .OrderBy(t => !t.Done && !t.Archived && t.Priority ? 0 : !t.Done && !t.Archived && t.Bug ? 1 : 2)
+                .ThenBy(t => project.BranchRank(t.BranchDisplay))
+                .ThenBy(t => t.SectionRank)
                 .ThenBy(t => t.Order)
                 .Select(t => new
             {
@@ -616,6 +614,12 @@ internal static class Program
                 subtasks = t.Subtasks.Select(s => new { text = s.Text, done = s.Done }).ToArray(),
             }).ToArray(),
         };
+    }
+
+    private static string[] OrderedBranches(Project project)
+    {
+        project.EnsureBranchOrder();
+        return project.BranchOrder.ToArray();
     }
 
     // ---- helpers ---------------------------------------------------

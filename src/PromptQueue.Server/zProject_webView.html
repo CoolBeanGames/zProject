@@ -76,6 +76,8 @@
   }
   .grp .c{color:var(--ink-3); font-weight:400}
   .branch-lock{margin-left:auto; border:1px solid var(--line-strong); background:var(--surface); color:var(--ink-2); border-radius:var(--radius); padding:4px 8px; font:inherit; font-size:12px}
+  .branch-order{border:1px solid var(--line-strong); background:var(--surface); color:var(--ink-2); border-radius:var(--radius); width:28px; height:28px; font:inherit; cursor:pointer}
+  .branch-order:disabled{opacity:.35; cursor:default}
   .queue{background:var(--surface); border-top:1px solid var(--line); border-bottom:1px solid var(--line)}
   .q{
     display:flex; align-items:center; gap:10px;
@@ -90,6 +92,11 @@
   .q.s-done{border-left-color:var(--st-done)}
   .q.s-hold{border-left-color:var(--st-hold)}
   .q.note{align-items:flex-start; background:color-mix(in srgb,var(--accent) 9%,var(--surface))}
+  .qmain{flex:1; min-width:0}
+  .qmain .nm{display:block; font-weight:600}
+  .qpreview{color:var(--ink-2); font-size:12.5px; margin-top:3px; display:grid; gap:2px}
+  .qpreview div{display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; white-space:pre-line; overflow-wrap:anywhere}
+  .qpreview b{color:var(--ink); font-weight:600; margin-right:4px}
   .qnote{flex:1; min-width:0}
   .qnote .nm{display:block; font-weight:600}
   .qnote .body{color:var(--ink-2); font-size:13px; white-space:pre-wrap; overflow-wrap:anywhere; max-height:5.8em; overflow:auto; margin-top:3px}
@@ -315,16 +322,23 @@ async function renderList(pi){
       if (!branchNames.includes(t.sectionKey)) branchNames.push(t.sectionKey);
     }
   }
-  branchNames.sort((a,b) => a.toLowerCase() === 'main' ? -1 : b.toLowerCase() === 'main' ? 1 : a.localeCompare(b));
+  branchNames.sort((a,b) => {
+    const ai = data.branches.findIndex(branch => branch.toLowerCase() === a.toLowerCase());
+    const bi = data.branches.findIndex(branch => branch.toLowerCase() === b.toLowerCase());
+    return ai - bi;
+  });
 
   for (const b of branchNames){
     const items = groups.get(b);
     if (!items || !items.length) continue;
     const lockable = items.filter(t => !t.done && !t.archived);
     const allLocked = lockable.length > 0 && lockable.every(t => t.locked);
+    const branchIndex = data.branches.findIndex(branch => branch.toLowerCase() === b.toLowerCase());
     body += `<div class="grp" style="display:flex;align-items:center;gap:6px;">
       <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${branchColor(b)};flex:none;"></span>
       <span>${esc(b)}</span> <span class="c">${items.length}</span>
+      <button class="branch-order" data-branch-move data-branch="${av(b)}" data-direction="up" title="Move branch earlier" ${branchIndex <= 0 ? 'disabled' : ''}>&#8593;</button>
+      <button class="branch-order" data-branch-move data-branch="${av(b)}" data-direction="down" title="Move branch later" ${branchIndex === data.branches.length - 1 ? 'disabled' : ''}>&#8595;</button>
       <button class="branch-lock" data-branch-lock data-branch="${av(b)}" data-locked="${!allLocked}">${allLocked ? 'Unlock' : 'Lock'} branch</button>
     </div><div class="queue">`;
     for (const t of items) body += row(pi, t);
@@ -378,6 +392,15 @@ async function renderList(pi){
     if (!r.ok) toast(r.message, true);
     await renderList(pi);
   });
+  app.querySelectorAll('[data-branch-move]').forEach(el => el.onclick = async e => {
+    e.stopPropagation();
+    if (el.disabled) return;
+    el.disabled = true;
+    const r = await op('branch_move', data.directory, el.dataset.branch, el.dataset.direction);
+    if (!r.ok) toast(r.message, true);
+    cache.data = null;
+    await renderList(pi);
+  });
   foot.textContent = `${esc(data.directory)} · ${data.tasks.length} task(s)`;
 }
 
@@ -387,9 +410,16 @@ function row(pi, t){
   const prog = (t.subtasks && t.subtasks.length)
     ? `<span class="prog">${t.subtasks.filter(s=>s.done).length}/${t.subtasks.length}</span>` : '';
   const branchBanner = t.branch ? `<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${branchColor(t.branch)};margin-right:6px;flex:none;" title="Branch: ${esc(t.branch)}"></span>` : '';
+  let preview = '';
+  if (!t.isNote && (t.prompt || t.requirements)) {
+    preview = '<span class="qpreview">';
+    if (t.prompt) preview += `<div title="${av(t.prompt)}"><b>Prompt</b>${esc(t.prompt)}</div>`;
+    if (t.requirements) preview += `<div title="${av(t.requirements)}"><b>Requirements</b>${esc(t.requirements)}</div>`;
+    preview += '</span>';
+  }
   return `<div class="q ${sc}${t.isNote ? ' note' : ''}" data-id="${av(t.id)}">
     ${branchBanner}
-    ${t.isNote ? `<span class="qnote"><span class="nm">${esc(t.displayName)}</span><span class="body">${esc(t.note || '')}</span></span>` : `<span class="nm">${esc(t.displayName)}</span>`}
+    ${t.isNote ? `<span class="qnote"><span class="nm">${esc(t.displayName)}</span><span class="body">${esc(t.note || '')}</span></span>` : `<span class="qmain"><span class="nm">${esc(t.displayName)}</span>${preview}</span>`}
     <span class="rt">${prog}<span class="state">${esc(state)}</span></span>
     ${!t.isNote && t.imageUrl ? `<img class="qimg" src="${av(t.imageUrl)}" alt="Attached image">` : ''}
   </div>`;

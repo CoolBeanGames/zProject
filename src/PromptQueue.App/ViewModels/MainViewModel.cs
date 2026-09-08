@@ -292,13 +292,8 @@ public sealed class MainViewModel : Observable
 
     private void RefreshKnownBranches()
     {
-        var branches = SelectedProject?.Tasks
-            .Select(t => t.Branch)
-            .Concat(new[] { "main" })
-            .Where(b => !string.IsNullOrWhiteSpace(b))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(b => b.Equals("main", StringComparison.OrdinalIgnoreCase) ? "" : b, StringComparer.OrdinalIgnoreCase)
-            .ToList() ?? new List<string> { "main" };
+        SelectedProject?.EnsureBranchOrder();
+        var branches = SelectedProject?.BranchOrder.ToList() ?? new List<string> { "main" };
 
         KnownBranches.Clear();
         foreach (var b in branches)
@@ -692,7 +687,7 @@ public sealed class MainViewModel : Observable
 
         var view = new ListCollectionView(SelectedProject.Tasks)
         {
-            CustomSort = new TaskDisplayComparer(),
+            CustomSort = new TaskDisplayComparer(SelectedProject),
         };
         view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(TaskItem.SectionKey)));
         _tasksView = view;
@@ -708,12 +703,13 @@ public sealed class MainViewModel : Observable
     /// </summary>
     public static void SortIntoSections(Project project)
     {
+        project.EnsureBranchOrder();
         var sorted = project.Tasks
             .OrderBy(t => t.Archived ? 2 : t.Done ? 1 : 0)
             .ThenByDescending(t => !t.Archived && !t.Done && t.Priority)
-            .ThenBy(t => t.Archived || t.Done || t.Priority ? "" :
-                (t.BranchDisplay.Equals("main", StringComparison.OrdinalIgnoreCase) ? "!" : t.BranchDisplay), StringComparer.OrdinalIgnoreCase)
+            .ThenBy(t => t.Archived || t.Done || t.Priority ? 0 : project.BranchRank(t.BranchDisplay))
             .ThenBy(t => !t.Archived && !t.Done && t.Priority ? 0 : t.SectionRank)
+            .ThenBy(t => t.Order)
             .ToList();
         for (int i = 0; i < sorted.Count; i++)
         {
@@ -856,7 +852,7 @@ public sealed class MainViewModel : Observable
         }
     }
 
-    private sealed class TaskDisplayComparer : System.Collections.IComparer
+    private sealed class TaskDisplayComparer(Project project) : System.Collections.IComparer
     {
         public int Compare(object? x, object? y)
         {
@@ -876,12 +872,7 @@ public sealed class MainViewModel : Observable
                 if (a.Priority)
                     return a.DisplayOrder.CompareTo(b.DisplayOrder);
 
-                var aIsMain = a.BranchDisplay.Equals("main", StringComparison.OrdinalIgnoreCase);
-                var bIsMain = b.BranchDisplay.Equals("main", StringComparison.OrdinalIgnoreCase);
-                if (aIsMain != bIsMain)
-                    return aIsMain ? -1 : 1;
-
-                var branchCmp = string.Compare(a.BranchDisplay, b.BranchDisplay, StringComparison.OrdinalIgnoreCase);
+                var branchCmp = project.BranchRank(a.BranchDisplay).CompareTo(project.BranchRank(b.BranchDisplay));
                 if (branchCmp != 0)
                     return branchCmp;
 
@@ -929,7 +920,8 @@ public sealed class MainViewModel : Observable
             },
             onClose: CloseOverlay,
             peers: project.Tasks.ToList(),
-            projectDirectory: project.Directory);
+            projectDirectory: project.Directory,
+            knownBranches: project.BranchOrder);
     }
 
     private void AddNote()
@@ -963,7 +955,8 @@ public sealed class MainViewModel : Observable
             },
             onClose: CloseOverlay,
             peers: project.Tasks.ToList(),
-            projectDirectory: project.Directory);
+            projectDirectory: project.Directory,
+            knownBranches: project.BranchOrder);
     }
 
     private void EditTask(TaskItem? task)
@@ -985,7 +978,8 @@ public sealed class MainViewModel : Observable
             },
             onClose: CloseOverlay,
             peers: project.Tasks.ToList(),
-            projectDirectory: project.Directory);
+            projectDirectory: project.Directory,
+            knownBranches: project.BranchOrder);
     }
 
     private void DeleteTask(TaskItem? task)
@@ -1074,7 +1068,8 @@ public sealed class MainViewModel : Observable
             _ =>
             {
                 var form = new TaskFormViewModel(
-                    false, task.Id, task, _ => { }, () => { }, projectDirectory: project.Directory);
+                    false, task.Id, task, _ => { }, () => { }, projectDirectory: project.Directory,
+                    knownBranches: project.BranchOrder);
                 storedName = form.AddPastedImage(bytes, contentType, suggestedName);
                 var result = OperatorEngine.Sync(task.Id, "attachments", string.Join(", ", form.Attachments));
                 if (!result.Ok && storedName != null)
@@ -1099,6 +1094,17 @@ public sealed class MainViewModel : Observable
         ApplyViaOperator(
             _ => OperatorEngine.SetBranchLocked(project.Directory, branch, locked),
             r => r.Ok ? r.Message : $"Operator: {r.Message}");
+    }
+
+    public void MoveBranch(string branch, int offset)
+    {
+        var project = SelectedProject;
+        if (project == null || string.IsNullOrWhiteSpace(branch) || offset == 0)
+            return;
+
+        ApplyViaOperator(
+            _ => OperatorEngine.MoveBranch(project.Directory, branch, offset),
+            result => result.Ok ? result.Message : $"Operator: {result.Message}");
     }
 
     private void ToggleDone(TaskItem? task)

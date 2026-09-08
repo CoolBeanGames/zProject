@@ -84,6 +84,41 @@ public sealed class Project : Observable
 
     public ObservableCollection<TaskItem> Tasks { get; } = new();
 
+    /// <summary>
+    /// User-controlled processing order for branch groups. It is persisted in
+    /// tasks.xml and also drives the physical order of active task elements so
+    /// command-line agents encounter branches in the same order as the UI.
+    /// </summary>
+    public ObservableCollection<string> BranchOrder { get; } = new();
+
+    /// <summary>Adds missing task branches, removes duplicates, and guarantees a main option.</summary>
+    public void EnsureBranchOrder()
+    {
+        var normalized = BranchOrder
+            .Select(branch => string.IsNullOrWhiteSpace(branch) ? "main" : branch.Trim())
+            .Concat(Tasks.Select(task => task.BranchDisplay))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (!normalized.Contains("main", StringComparer.OrdinalIgnoreCase))
+            normalized.Add("main");
+
+        if (BranchOrder.SequenceEqual(normalized, StringComparer.OrdinalIgnoreCase))
+            return;
+        BranchOrder.Clear();
+        foreach (var branch in normalized)
+            BranchOrder.Add(branch);
+    }
+
+    public int BranchRank(string? branch)
+    {
+        EnsureBranchOrder();
+        var normalized = string.IsNullOrWhiteSpace(branch) ? "main" : branch.Trim();
+        for (var i = 0; i < BranchOrder.Count; i++)
+            if (string.Equals(BranchOrder[i], normalized, StringComparison.OrdinalIgnoreCase))
+                return i;
+        return BranchOrder.Count;
+    }
+
     /// <summary>The id prefix derived from the project name, e.g. "MCA".</summary>
     public string IdPrefix => IdGenerator.PrefixFor(Name);
 

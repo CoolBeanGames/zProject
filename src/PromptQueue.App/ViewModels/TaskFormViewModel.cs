@@ -57,7 +57,8 @@ public sealed class TaskFormViewModel : Observable
         Action<TaskFormViewModel> onSave,
         Action onClose,
         IEnumerable<TaskItem>? peers = null,
-        string? projectDirectory = null)
+        string? projectDirectory = null,
+        IEnumerable<string>? knownBranches = null)
     {
         IsNew = isNew;
         Id = id;
@@ -98,12 +99,10 @@ public sealed class TaskFormViewModel : Observable
         _onSave = onSave;
         _onClose = onClose;
 
-        KnownBranches = (peers ?? Enumerable.Empty<TaskItem>())
-            .Select(t => t.Branch)
+        KnownBranches = (knownBranches ?? (peers ?? Enumerable.Empty<TaskItem>()).Select(t => t.Branch))
             .Concat(new[] { "main", _branch })
             .Where(b => !string.IsNullOrWhiteSpace(b))
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(b => b.Equals("main", StringComparison.OrdinalIgnoreCase) ? "" : b, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         KnownTags = (peers ?? Enumerable.Empty<TaskItem>())

@@ -218,6 +218,13 @@ public partial class MainWindow : Window
             if (!string.IsNullOrWhiteSpace(branch))
                 Vm?.SetBranchLocked(branch, locked);
         }));
+        _ui.On("move-branch", p => Dispatcher.Invoke(() =>
+        {
+            var branch = p.GetProperty("branch").GetString();
+            var direction = p.GetProperty("direction").GetString();
+            if (!string.IsNullOrWhiteSpace(branch))
+                Vm?.MoveBranch(branch, string.Equals(direction, "up", StringComparison.OrdinalIgnoreCase) ? -1 : 1);
+        }));
 
         // Save task form
         _ui.On("save-task", p => Dispatcher.Invoke(() => ApplySaveTask(p)));

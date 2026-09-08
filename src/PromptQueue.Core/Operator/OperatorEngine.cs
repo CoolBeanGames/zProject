@@ -204,6 +204,11 @@ public static class OperatorEngine
     public static OperatorResult SetBranchLocked(string projectRef, string branch, bool locked)
         => Enqueue(new OperatorJob("branch_lock", projectRef, branch, locked ? "true" : "false"));
 
+    /// <summary>Moves a project branch one position up or down in its processing order.</summary>
+    public static OperatorResult MoveBranch(string projectRef, string branch, int offset)
+        => Enqueue(new OperatorJob("branch_move", projectRef, branch,
+            offset < 0 ? "up" : "down"));
+
     /// <summary>
     /// Queues a full replace of a task (matched by id) with the supplied one, or
     /// an add when no task with that id exists. Used by the app, which edits a
@@ -512,6 +517,34 @@ public static class OperatorEngine
                     touched.Add(project);
                 return OperatorResult.Pass(
                     $"{(locked ? "Locked" : "Unlocked")} {affected} task(s) in branch {branch}");
+            }
+
+            case "branch_move":
+            {
+                var project = ResolveProject(ws, job.Arg(0));
+                if (project == null)
+                    return OperatorResult.Fail($"No project matches \"{job.Arg(0)}\".");
+
+                project.EnsureBranchOrder();
+                var branch = string.IsNullOrWhiteSpace(job.Arg(1)) ? "main" : job.Arg(1).Trim();
+                var oldIndex = -1;
+                for (var i = 0; i < project.BranchOrder.Count; i++)
+                    if (string.Equals(project.BranchOrder[i], branch, StringComparison.OrdinalIgnoreCase))
+                    {
+                        oldIndex = i;
+                        break;
+                    }
+                if (oldIndex < 0)
+                    return OperatorResult.Fail($"No branch \"{branch}\" in {project.Name}.");
+
+                var offset = string.Equals(job.Arg(2), "up", StringComparison.OrdinalIgnoreCase) ? -1 : 1;
+                var newIndex = Math.Clamp(oldIndex + offset, 0, project.BranchOrder.Count - 1);
+                if (newIndex == oldIndex)
+                    return OperatorResult.Pass($"Branch {project.BranchOrder[oldIndex]} is already at that edge");
+
+                project.BranchOrder.Move(oldIndex, newIndex);
+                touched.Add(project);
+                return OperatorResult.Pass($"Moved branch {project.BranchOrder[newIndex]} to position {newIndex + 1}");
             }
 
             case "upsert":

@@ -28,7 +28,7 @@ public static class TaskXmlSerializer
     public const string ArchiveFileName = "archive.xml";
     public const string FinishedTodayFileName = "finished_today.xml";
 
-    public sealed record Document(string ProjectName, int NextIndex, List<TaskItem> Tasks);
+    public sealed record Document(string ProjectName, int NextIndex, List<string> BranchOrder, List<TaskItem> Tasks);
 
     /// <summary>Builds the <c>&lt;tasks&gt;</c> element for a project (also reused inside data.cfg).</summary>
     public static XElement ToElement(Project project)
@@ -40,6 +40,10 @@ public static class TaskXmlSerializer
         var root = new XElement("tasks",
             new XAttribute("project", project.Name),
             new XAttribute("nextIndex", project.NextIndex));
+
+        project.EnsureBranchOrder();
+        root.Add(new XElement("branches",
+            project.BranchOrder.Select(branch => new XElement("branch", branch))));
 
         // Actionable priorities precede every ordinary task, retaining their
         // listing order. Bugs remain first among non-priority tasks (ZP-23).
@@ -141,6 +145,11 @@ public static class TaskXmlSerializer
         var root = doc.Root ?? throw new TaskXmlFormatException("tasks.xml has no root element.");
 
         var projectName = (string?)root.Attribute("project") ?? "";
+        var branchOrder = root.Element("branches")?.Elements("branch")
+            .Select(element => element.Value.Trim())
+            .Where(branch => branch.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList() ?? new List<string>();
         var tasks = new List<TaskItem>();
         int order = 0;
 
@@ -204,7 +213,7 @@ public static class TaskXmlSerializer
         var nextIndex = (int?)root.Attribute("nextIndex")
                         ?? InferNextIndex(projectName, tasks);
 
-        return new Document(projectName, nextIndex, tasks);
+        return new Document(projectName, nextIndex, branchOrder, tasks);
     }
 
     /// <summary>
@@ -238,7 +247,7 @@ public static class TaskXmlSerializer
     private static readonly string[] TextElements =
     {
         "name", "note", "prompt", "requirements", "errorMessage",
-        "blockedBy", "tags", "notes", "filesChanged", "lockKey", "image", "attachment",
+        "blockedBy", "branch", "tags", "notes", "filesChanged", "lockKey", "image", "attachment",
     };
 
     private static string RepairMarkup(string xml)

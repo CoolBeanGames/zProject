@@ -81,6 +81,10 @@ internal static class Program
         "move" => OperatorResult.Fail("move needs: <task_id> <index>"),
         "branch_lock" when a.Length >= 3 => OperatorEngine.SetBranchLocked(a[0], a[1], a[2] is "true" or "1"),
         "branch_lock" => OperatorResult.Fail("branch_lock needs: <project> <branch> <true|false>"),
+        "branch_move" when a.Length >= 3 &&
+            (a[2].Equals("up", StringComparison.OrdinalIgnoreCase) || a[2].Equals("down", StringComparison.OrdinalIgnoreCase)) =>
+            OperatorEngine.MoveBranch(a[0], a[1], a[2].Equals("up", StringComparison.OrdinalIgnoreCase) ? -1 : 1),
+        "branch_move" => OperatorResult.Fail("branch_move needs: <project> <branch> <up|down>"),
         _ => OperatorResult.Fail($"bad or incomplete command. \n{Usage}"),
     };
 
@@ -114,6 +118,7 @@ internal static class Program
           operator delete     <task_id>
           operator move       <task_id> <index>
           operator branch_lock <project> <branch> <true|false>
+          operator branch_move <project> <branch> <up|down>
 
         <project> is a project name, id prefix, or directory path.
         <field>   is a tasks.xml element name, e.g. done, inProgress, locked,

@@ -61,7 +61,15 @@ public static class ProjectStore
 
         bool legacyInline = false;
         var loaded = new List<TaskItem>();
+        var branchOrder = new List<string>();
         int nextIndex = project.NextIndex;
+
+        void MergeBranches(IEnumerable<string> branches)
+        {
+            foreach (var branch in branches.Select(value => string.IsNullOrWhiteSpace(value) ? "main" : value.Trim()))
+                if (!branchOrder.Contains(branch, StringComparer.OrdinalIgnoreCase))
+                    branchOrder.Add(branch);
+        }
 
         if (File.Exists(tasksPath))
         {
@@ -69,6 +77,8 @@ public static class ProjectStore
             {
                 var doc = TaskXmlSerializer.Deserialize(File.ReadAllText(tasksPath));
                 nextIndex = doc.NextIndex;
+                MergeBranches(doc.BranchOrder);
+                MergeBranches(doc.Tasks.Select(task => task.BranchDisplay));
                 loaded.AddRange(doc.Tasks);
                 legacyInline = doc.Tasks.Any(t => t.Archived);
             }
@@ -86,6 +96,8 @@ public static class ProjectStore
             {
                 var adoc = TaskXmlSerializer.Deserialize(File.ReadAllText(archivePath));
                 nextIndex = Math.Max(nextIndex, adoc.NextIndex);
+                MergeBranches(adoc.BranchOrder);
+                MergeBranches(adoc.Tasks.Select(task => task.BranchDisplay));
                 foreach (var t in adoc.Tasks)
                 {
                     t.Archived = true;
@@ -107,6 +119,8 @@ public static class ProjectStore
             {
                 var fdoc = TaskXmlSerializer.Deserialize(File.ReadAllText(finishedPath));
                 nextIndex = Math.Max(nextIndex, fdoc.NextIndex);
+                MergeBranches(fdoc.BranchOrder);
+                MergeBranches(fdoc.Tasks.Select(task => task.BranchDisplay));
                 foreach (var t in fdoc.Tasks)
                 {
                     t.Archived = false;
@@ -151,9 +165,13 @@ public static class ProjectStore
 
         project.LoadError = "";
         project.NextIndex = Math.Max(project.NextIndex, nextIndex);
+        project.BranchOrder.Clear();
+        foreach (var branch in branchOrder)
+            project.BranchOrder.Add(branch);
         project.Tasks.Clear();
         foreach (var t in loaded)
             project.Tasks.Add(t);
+        project.EnsureBranchOrder();
         return legacyInline;
     }
 
@@ -174,16 +192,18 @@ public static class ProjectStore
         }
 
         AutoArchiveCompleted(project);
+        project.EnsureBranchOrder();
 
         // Active, completed-today, and older archived work live in separate files.
         // tasks.xml stays small. Order is renumbered within each file.
-        // ZP-82/83: Stable-sort active tasks by Branch (main first) then SectionRank (bugs -> errors -> active)
-        // so tasks.xml file order matches the UI, branch categories and bug priority rules.
+        // Persist the user-controlled branch order physically so agents reading
+        // tasks.xml encounter branch groups in the same order as the UI. Global
+        // priority and bug rules still precede ordinary work.
         var active = project.Tasks.Where(t => !t.Archived && !t.FinishedToday)
-            .OrderByDescending(t => t.Priority && !t.Done)
-            .ThenBy(t => t.Priority && !t.Done ? "" :
-                (t.Branch.Equals("main", StringComparison.OrdinalIgnoreCase) ? "" : t.Branch), StringComparer.OrdinalIgnoreCase)
-            .ThenBy(t => t.Priority && !t.Done ? 0 : t.SectionRank)
+            .OrderBy(t => t.Priority && !t.Done ? 0 : t.Bug && !t.Done ? 1 : 2)
+            .ThenBy(t => project.BranchRank(t.BranchDisplay))
+            .ThenBy(t => t.SectionRank)
+            .ThenBy(t => t.Order)
             .ToList();
         var finishedToday = project.Tasks.Where(t => t.FinishedToday).ToList();
         var archived = project.Tasks.Where(t => t.Archived).ToList();
