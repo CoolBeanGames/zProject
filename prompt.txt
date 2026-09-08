@@ -1,6 +1,13 @@
-follow all instructions returned by `operator instructions zProject` to the letter. If you are prompted to follow this file, along with a specific task_ID then complete ONLY that task and finish at that point.
+Before doing any project work, run:
 
-You can read the full instructions by running:
     operator instructions zProject
 
-The operator is a command-line tool (e.g. zProject_operator.exe or operator) used to read and manage tasks. It is essential to use it to avoid concurrency issues.
+Follow the returned instructions exactly. They are the live, authoritative rules for task ownership, queue order, subtasks, notes, stop markers, branches, builds, commits, releases, and completion metadata. Use the operator one command at a time for task-file state changes so concurrent app, mobile, and agent updates remain safe.
+
+Then run:
+
+    operator read zProject
+
+Work through active tasks in the returned queue order and within the requested branch. Refresh the queue after each completed task because the user may add or reorder work while you are running. Stop immediately when the instructions or queue require it.
+
+If this prompt is supplied with a specific task ID, complete only that task and stop. If it is supplied with a specific branch, process only that branch's eligible tasks while still respecting global priority, blocking, ownership, and STOP EXECUTION rules from the live operator instructions.
