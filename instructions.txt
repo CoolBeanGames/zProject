@@ -1,29 +1,113 @@
-read through tasks.xml and complete tasks in the order they are presented. work through the list until reaching the end or you run out of usage. as you finish a task update the xml to mark it as done, as you begin mark it as in-progress. save the xml every time you make a change.
+ZPROJECT TASK EXECUTION RULES
 
-when finishing a task, set its dateFinished field to the current local date and time before setting done=true. work completed today is kept in finished_today.xml and shown in Finished Today; older completed work rolls into archive.xml on reload. use `operator get_finished_today <project>` to read today's completed work, but never process it as active work.
+Always load these live rules with `operator instructions zProject`, then load the active queue with `operator read zProject`. Use the operator one command at a time for task-file changes. Refresh the queue after every completed item because tasks, flags, dependencies, and stop markers can change while an agent is working. Never process `archive.xml` or `finished_today.xml` as active work.
 
-when starting any task, create subtasks breaking down the work using `operator new_subtask <id> <text>`. as each subtask is completed, check it off immediately using `operator subtask_done <id> <index> true`. a task is NOT complete until all subtasks are finished and checked off.
+QUEUE ORDER AND OWNERSHIP
 
-if a task has a branch specified, agents must be branch-aware and complete tasks on that branch. if <merge> is true, merge the branch into main upon completion.
+Process active items in their returned order, subject to these precedence rules: priority tasks first; then an already in-progress task owned by your lock key; then bugs; then ordinary tasks. If `blockedBy` names an unfinished task, finish that blocker first and return afterward. Do not reorder user-created work merely to change execution priority.
 
-if a task has the tag commit set to true then commit the project and push to github with a meaningful message of all the changes made. Add notes about the changes you made, log all files, and move on to the next task.
+Before touching project files for a task:
 
-the task is NOT complete unless the requirements have been met, if a task is impossible to complete add an "error" flag, set it to true, and add error message text in before saving XML and end execution of tasks there, notifiying your chat of the error and the taskID. 
+1. Run `operator agent_lock <task_id> <your_8+_character_key>`. This sets `lockKey` and `inProgress=true`. If a different key owns it, do not touch that task.
+2. Create a real implementation checklist with one or more `operator new_subtask <task_id> <text>` commands.
+3. Complete subtasks in order and immediately run `operator subtask_done <task_id> <zero_based_index> true` after each one. Use `subtask_text` to correct a checklist entry.
 
-if the task has a build tag set to true, the project should be built to project_root/builds/debug, if you need to test build to project_root/builds/test, if it has a release tag set use project_root/builds/release
+Do not batch progress updates at the end. Keep `inProgress=true` for the entire working period.
 
-if a task has <priority>true</priority>, process it before EVERY non-priority task, including in-progress tasks and bugs. if multiple tasks have priority set, process them in their existing listing order.
+TASK CONTENT AND ACCEPTANCE
 
-if a task is a bug, it takes priority over ordinary tasks.
+`name` is the task title and `prompt` is the requested work. `forApproval` is the acceptance list stored canonically as `<forApproval><approval>...</approval></forApproval>`. The legacy `requirements` field remains an operator alias for newline-separated compatibility, but new XML must use approval entries. Every approval entry must be true before completion; record the verification evidence in `notes`. Use:
 
-if a task is blocked by another task, finish the task that is blocking it first, then return to the first task.
+    operator new_approval <task_id> <text>
+    operator approval_text <task_id> <index> <text>
+    operator approval_delete <task_id> <index>
+    operator get_tag <task_id> forApproval
 
-if a non-priority task is in-progress it takes priority over bugs and other ordinary tasks.
+`subtasks` are the live work checklist, not acceptance criteria. `tags` are free-form labels. `dueDate` is scheduling information. `notes` records implementation and verification results. `filesChanged` must list every file intentionally changed for the task. `image` is the primary screenshot name, while `attachments` is the complete comma-separated attachment list. Attachment files live under `task_images`; inspect all relevant attachments before implementing a task. Do not invent or overwrite attachment names by hand.
 
-COMPLETELY ignore the acrhive tags contents, dont even proccess it once you see it.
+TASK STATE AND CONTROL FLAGS
 
-If a project is a release build, then also release a github release with full patch notes since the last release, tag it as project_name_build# build# is the most recent build# +1 use the gh cli to do this.
+- `priority=true`: run before all non-priority work.
+- `bug=true`: run before ordinary work unless an owned in-progress or priority task takes precedence. If you discover an untracked bug, create and flag its task before fixing it.
+- `inProgress=true`: work is actively owned; pair it with `lockKey` via `agent_lock`.
+- `locked=true`: the user has locked the task from ordinary UI editing; it is distinct from agent ownership.
+- `blockedBy=<task_id>`: the task cannot run until that same-branch actionable blocker is complete. Blocking chains are limited to four visible levels and must never form cycles.
+- `done=true`: the work is complete. Set `dateFinished` first. Clearing done also clears finished/archive state.
+- `archived=true`: the completed item is removed from the active queue. Never process archived contents.
+- `error=true`: the task cannot be completed. Set `errorMessage`, leave clear diagnostic notes, stop execution, and report the task ID.
+- `commit=true`: commit only intentional task files with a meaningful message and push the task branch.
+- `build=true`: produce and verify Debug outputs under `builds/debug` (a task-specific child directory is valid when a running app locks the shared executable).
+- `release=true`: publish self-contained runnable App, Operator, and Server binaries under `builds/release`; upload the runnable ZIP, not the source tree, to the next `zProject_build#` GitHub release with cumulative patch notes since the previous release.
+- `merge=true`: merge only when the branch has no unfinished actionable tasks. Never bypass a merge blocker or user approval requirement.
+- `branch`: the exact project branch that owns the item.
+- `dateStarted`, `dueDate`, `dateFinished`: local timestamps in `yyyy-MM-dd HH:mm` form.
 
-NOTES are informational queue items whose XML contains a <note> element instead of a <prompt>. Read each note when you reach it; do not take an agent lock, set in-progress, create subtasks, add agent notes/files-changed metadata, build, commit, release, or otherwise process it as a task. Keep its name and branch unchanged. If <clearAfterReading>true</clearAfterReading>, archive it immediately after reading with `operator archive <note_id>`; if false, leave it unchanged and continue to the next queue item. A user may mark a note done manually.
+NOTES AND STOP MARKERS
 
-STOP EXECUTION markers are queue items whose XML contains <stopExecution>true</stopExecution>. When one is reached in queue order, do not lock, modify, archive, delete, or otherwise process the marker, and do not process any item after it. Stop immediately, report the marker ID to the user, and await further instructions. Resume beyond the marker only after the user explicitly directs you to proceed or the marker has been removed or moved. Stop markers are not tasks: never add subtasks or task metadata to them, and never include them in CSV task exports.
+An item containing `<note>` (the `isNote=true` task type) is informational. Read it in queue order. Do not lock it, start it, add subtasks or metadata, build, commit, or release for it. If `clearAfterReading=true`, run `operator archive <note_id>` immediately; otherwise leave it unchanged.
+
+An item containing `<stopExecution>true</stopExecution>` is a hard boundary. Do not lock, edit, archive, delete, or otherwise process the marker, and do not process anything after it. Report its ID and await explicit user direction or removal/reordering of the marker. Stop markers never appear in CSV exports.
+
+BRANCHES, ORDERING, BLOCKING, AND MERGES
+
+Stay on the requested branch and use exact branch names. `main` is reserved. The project branch registry preserves even empty branches and its `lastUsed` branch is the default for new tasks. Use:
+
+    operator branch_add <project> <branch>
+    operator branch_default <project> <branch>
+    operator branch_move <project> <branch> <up|down>
+    operator branch_lock <project> <branch> <true|false>
+
+Tasks and notes may move only within their own branch. Merge tasks remain last in their branch. Use atomic commands so concurrent reloads cannot corrupt position or dependencies:
+
+    operator move <task_id> <zero_based_index>
+    operator move_relative <task_id> <target_id> <above|below>
+    operator block_task <task_id> <same_branch_blocker_id>
+
+`block_task` moves the source task and its dependent subtree directly below the blocker. Notes, stop markers, completed tasks, cross-branch relationships, cycles, and chains deeper than four levels are invalid blockers.
+
+A merge task cannot be agent-locked, completed, archived, or replaced as completed while unfinished actionable tasks remain in its branch. When a merge task is completed and no unfinished work remains, that non-main branch closes from the active branch registry while its completed history remains visible. Never merge without any explicit approval stated by the task or user.
+
+OPERATOR COMMAND REFERENCE
+
+Read-only commands:
+
+    operator list
+    operator read <project>
+    operator instructions <project>
+    operator get_archive <project>
+    operator get_finished_today <project>
+    operator get_tag <task_id> <field>
+
+Creation and task updates:
+
+    operator new_project <name> [directory]
+    operator new_local_project <name>
+    operator new_task <project> <name> [prompt]
+    operator new_note <project> <name> [note]
+    operator new_stop <project>
+    operator sync <task_id> <field> <value>
+    operator sync_many <task_id> <field> <value> [<field> <value> ...]
+    operator delete <task_id>
+    operator archive <task_id>
+
+Checklist, ownership, and order commands:
+
+    operator new_subtask <task_id> <text>
+    operator subtask_done <task_id> <index> <true|false>
+    operator subtask_text <task_id> <index> <text>
+    operator agent_lock <task_id> <key>
+    operator agent_unlock <task_id> <key>
+    operator move <task_id> <index>
+    operator move_relative <task_id> <target_id> <above|below>
+    operator block_task <task_id> <blocker_id>
+
+COMPLETING A TASK
+
+Verify every For Approval entry and tick every subtask. Run the required tests/build/release and commit/push actions. Write `notes` and `filesChanged`. Then, in this order:
+
+1. `operator sync <task_id> dateFinished "<current local yyyy-MM-dd HH:mm>"`
+2. `operator sync <task_id> done true`
+3. `operator sync <task_id> inProgress false`
+4. `operator agent_unlock <task_id> <your_key>`
+
+Refresh with `operator read zProject` before selecting the next queue item.
