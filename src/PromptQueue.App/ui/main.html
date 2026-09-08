@@ -83,6 +83,7 @@
     .task-card.dragging { opacity: 0.4; }
     .task-card.drag-over-above { border-top: 2px solid var(--zui-accent); }
     .task-card.drag-over-below { border-bottom: 2px solid var(--zui-accent); }
+    .task-card.drag-block-over { outline:2px solid var(--zui-warn); outline-offset:-2px; }
     .task-card.drag-file-over { outline: 2px solid var(--zui-accent); outline-offset: -2px; }
     .section-header.drag-branch-over { outline: 2px solid var(--zui-accent); outline-offset: -2px; }
     .task-card.priority { background: color-mix(in srgb, var(--zui-error) 24%, var(--zui-bg-surface)); border-color: var(--zui-error); }
@@ -365,6 +366,14 @@ function sameReorderGroup(a, b) {
   return aBranch === bBranch && !!a.priority === !!b.priority && taskPriorityGroup(a) === taskPriorityGroup(b);
 }
 
+function canBlockOn(a, b) {
+  if (!a || !b || a.id === b.id || a.isNote || a.isStop || b.isNote || b.isStop) return false;
+  if (a.done || a.archived || b.done || b.archived) return false;
+  const aBranch = (a.branch || 'main').trim().toLowerCase();
+  const bBranch = (b.branch || 'main').trim().toLowerCase();
+  return aBranch === bBranch && !!a.priority === !!b.priority && taskPriorityGroup(a) === taskPriorityGroup(b);
+}
+
 function chipHtml(cls, label) {
   return `<span class="chip ${cls}">${label}</span>`;
 }
@@ -552,6 +561,11 @@ function renderTaskCard(task, sectionColor) {
     (task.done ? ' done' : '') + (task.indentLevel > 0 ? ' indented' : '');
   card.dataset.taskId = task.id;
   card.draggable = !task.done && !task.archived;
+  if (task.indentLevel > 0) {
+    const indent = Math.min(4, task.indentLevel) * 20;
+    card.style.marginLeft = `${indent}px`;
+    card.style.width = `calc(100% - ${indent}px)`;
+  }
 
   const tc = branchColor(task.branch) || sectionColor;
 
@@ -687,13 +701,20 @@ function renderTaskCard(task, sectionColor) {
     }
     if (!state.dragTask || state.dragTask === task.id) return;
     const source = state.tasks.find(t => t.id === state.dragTask);
-    if (!source || !sameReorderGroup(source, task)) {
+    const rect = card.getBoundingClientRect();
+    const block = canBlockOn(source, task) && e.clientX >= rect.left + 40;
+    if (!source || (!block && !sameReorderGroup(source, task))) {
       clearDragOver();
       return;
     }
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    const rect = card.getBoundingClientRect();
+    if (block) {
+      clearDragOver();
+      state.dragOverTask = task.id;
+      card.classList.add('drag-block-over');
+      return;
+    }
     const above = e.clientY < rect.top + rect.height / 2;
     if (state.dragOverTask !== task.id || state.dragAbove !== above) {
       clearDragOver();
@@ -722,11 +743,18 @@ function renderTaskCard(task, sectionColor) {
     e.preventDefault();
     if (!state.dragTask || state.dragTask === task.id) return;
     const source = state.tasks.find(t => t.id === state.dragTask);
-    if (!source || !sameReorderGroup(source, task)) {
+    const rect = card.getBoundingClientRect();
+    const block = canBlockOn(source, task) && e.clientX >= rect.left + 40;
+    if (!source || (!block && !sameReorderGroup(source, task))) {
       clearDragOver();
       return;
     }
-    const rect = card.getBoundingClientRect();
+    if (block) {
+      clearDragOver();
+      zui.send('block-task', { taskId: state.dragTask, blockerId: task.id });
+      state.dragTask = null;
+      return;
+    }
     const above = e.clientY < rect.top + rect.height / 2;
     clearDragOver();
     zui.send('move-task', { taskId: state.dragTask, targetId: task.id, above });
@@ -737,8 +765,8 @@ function renderTaskCard(task, sectionColor) {
 }
 
 function clearDragOver() {
-  document.querySelectorAll('.drag-over-above,.drag-over-below,.drag-branch-over,.drag-file-over').forEach(el => {
-    el.classList.remove('drag-over-above', 'drag-over-below', 'drag-branch-over', 'drag-file-over');
+  document.querySelectorAll('.drag-over-above,.drag-over-below,.drag-block-over,.drag-branch-over,.drag-file-over').forEach(el => {
+    el.classList.remove('drag-over-above', 'drag-over-below', 'drag-block-over', 'drag-branch-over', 'drag-file-over');
   });
   state.dragOverTask = null;
   state.dragAbove = false;

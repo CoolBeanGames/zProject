@@ -213,6 +213,17 @@ public partial class MainWindow : Window
             var targetAfter  = above ? null   : target;
             Vm?.MoveTaskRelative(task, targetBefore, targetAfter);
         }));
+        _ui.On("block-task", p => Dispatcher.Invoke(() =>
+        {
+            var taskId = p.GetProperty("taskId").GetString();
+            var blockerId = p.GetProperty("blockerId").GetString();
+            var tasks = Vm?.SelectedProject?.Tasks;
+            if (tasks == null) return;
+            var task = tasks.FirstOrDefault(candidate => string.Equals(candidate.Id, taskId, StringComparison.OrdinalIgnoreCase));
+            var blocker = tasks.FirstOrDefault(candidate => string.Equals(candidate.Id, blockerId, StringComparison.OrdinalIgnoreCase));
+            if (task != null && blocker != null)
+                Vm?.BlockTask(task, blocker);
+        }));
         _ui.On("set-branch-lock", p => Dispatcher.Invoke(() =>
         {
             var branch = p.GetProperty("branch").GetString();

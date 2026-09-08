@@ -837,9 +837,8 @@ public sealed class MainViewModel : Observable
     }
 
     /// <summary>
-    /// Recomputes each task's runtime DisplayOrder / IndentLevel so a blocked
-    /// card sits directly under its blocker, indented (ZP-37). Order (the xml
-    /// position) is never touched, so an unblocked card snaps back.
+    /// Recomputes blocked-card indentation. The operator now persists the
+    /// blocker subtree's physical order, so DisplayOrder follows Order exactly.
     /// </summary>
     private void RecomputeBlockedLayout()
     {
@@ -857,8 +856,9 @@ public sealed class MainViewModel : Observable
             t.IndentLevel = 0;
         }
 
-        // A few passes settle short blocker chains; a cycle just stops early.
-        for (int pass = 0; pass < 6; pass++)
+        // Four passes settle the supported four nesting levels. Legacy cycles
+        // cannot grow beyond the visual limit.
+        for (int pass = 0; pass < 4; pass++)
         {
             bool changed = false;
             foreach (var t in project.Tasks)
@@ -868,15 +868,8 @@ public sealed class MainViewModel : Observable
                     ReferenceEquals(blocker, t))
                     continue;
 
-                var siblings = project.Tasks
-                    .Where(x => x.IsBlocked &&
-                                string.Equals(x.BlockedBy.Trim(), blocker.Id, StringComparison.OrdinalIgnoreCase))
-                    .OrderBy(x => x.Order)
-                    .ToList();
-                var idx = siblings.IndexOf(t);
-
-                var newDisplay = blocker.DisplayOrder + 0.0001 * (idx + 1);
-                var newIndent = blocker.IndentLevel + 1;
+                var newDisplay = t.Order;
+                var newIndent = Math.Min(4, blocker.IndentLevel + 1);
 
                 if (Math.Abs(newDisplay - t.DisplayOrder) > 1e-9 || newIndent != t.IndentLevel)
                 {
@@ -1107,6 +1100,13 @@ public sealed class MainViewModel : Observable
         ApplyViaOperator(
             _ => OperatorEngine.MoveRelative(task.Id, target.Id, targetBefore != null),
             r => r.Ok ? r.Message : $"Operator: {r.Message}");
+    }
+
+    public void BlockTask(TaskItem task, TaskItem blocker)
+    {
+        ApplyViaOperator(
+            _ => OperatorEngine.BlockTask(task.Id, blocker.Id),
+            result => result.Ok ? result.Message : $"Operator: {result.Message}");
     }
 
     /// <summary>Stores and immediately persists an image dropped on a compact task card.</summary>

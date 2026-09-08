@@ -80,6 +80,8 @@ internal static class Program
         "agent_unlock" when a.Length >= 2 => OperatorEngine.AgentUnlock(a[0], a[1]),
         "move" when a.Length >= 2 && int.TryParse(a[1], out var i) => OperatorEngine.Move(a[0], i),
         "move" => OperatorResult.Fail("move needs: <task_id> <index>"),
+        "block_task" when a.Length >= 2 => OperatorEngine.BlockTask(a[0], a[1]),
+        "block_task" => OperatorResult.Fail("block_task needs: <task_id> <blocker_id>"),
         "branch_lock" when a.Length >= 3 => OperatorEngine.SetBranchLocked(a[0], a[1], a[2] is "true" or "1"),
         "branch_lock" => OperatorResult.Fail("branch_lock needs: <project> <branch> <true|false>"),
         "branch_move" when a.Length >= 3 &&
@@ -123,6 +125,7 @@ internal static class Program
           operator sync_many  <task_id> <field> <value> [<field> <value> ...]
           operator delete     <task_id>
           operator move       <task_id> <index>
+          operator block_task <task_id> <blocker_id>
           operator branch_lock <project> <branch> <true|false>
           operator branch_move <project> <branch> <up|down>
           operator branch_default <project> <branch>

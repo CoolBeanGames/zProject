@@ -204,6 +204,10 @@ public static class OperatorEngine
     public static OperatorResult MoveRelative(string taskId, string targetId, bool above)
         => Enqueue(new OperatorJob("move_relative", taskId, targetId, above ? "above" : "below"));
 
+    /// <summary>Blocks one task on another and moves its subtree directly below the blocker.</summary>
+    public static OperatorResult BlockTask(string taskId, string blockerId)
+        => Enqueue(new OperatorJob("block_task", taskId, blockerId));
+
     /// <summary>Locks or unlocks every unfinished task in one project branch atomically.</summary>
     public static OperatorResult SetBranchLocked(string projectRef, string branch, bool locked)
         => Enqueue(new OperatorJob("branch_lock", projectRef, branch, locked ? "true" : "false"));
@@ -554,6 +558,45 @@ public static class OperatorEngine
                     : $"Moved {task.Id} {(above ? "above" : "below")} {target.Id}");
             }
 
+            case "block_task":
+            {
+                var (project, task) = ResolveTask(ws, job.Arg(0));
+                if (task == null)
+                    return OperatorResult.Fail($"No task \"{job.Arg(0)}\".");
+                var activeProject = project!;
+                var (blockerProject, blocker) = ResolveTask(ws, job.Arg(1));
+                if (blocker == null || !ReferenceEquals(activeProject, blockerProject))
+                    return OperatorResult.Fail($"No blocker \"{job.Arg(1)}\" in {activeProject.Name}.");
+                if (ReferenceEquals(task, blocker) || IsDescendant(activeProject, blocker, task))
+                    return OperatorResult.Fail("That blocking relationship would create a cycle.");
+                if (task.IsNote || task.StopExecution || blocker.IsNote || blocker.StopExecution ||
+                    task.Done || task.Archived || blocker.Done || blocker.Archived)
+                    return OperatorResult.Fail("Only active actionable tasks can form blocking relationships.");
+                if (!string.Equals(task.BranchDisplay, blocker.BranchDisplay, StringComparison.OrdinalIgnoreCase))
+                    return OperatorResult.Fail("A task can only be blocked by another task in the same branch.");
+                if (task.Priority != blocker.Priority || task.SectionRank != blocker.SectionRank)
+                    return OperatorResult.Fail("Blocking tasks must be in the same priority and status group.");
+
+                var targetDepth = BlockDepth(activeProject, blocker);
+                var subtreeDepth = RelativeSubtreeDepth(activeProject, task);
+                if (targetDepth + 1 + subtreeDepth > 4)
+                    return OperatorResult.Fail("Blocking tasks can be nested at most four levels deep.");
+
+                var subtree = activeProject.Tasks.Where(candidate =>
+                        ReferenceEquals(candidate, task) || IsDescendant(activeProject, candidate, task))
+                    .OrderBy(candidate => activeProject.Tasks.IndexOf(candidate))
+                    .ToList();
+                foreach (var member in subtree)
+                    activeProject.Tasks.Remove(member);
+                var insertAt = activeProject.Tasks.IndexOf(blocker) + 1;
+                task.BlockedBy = blocker.Id;
+                for (var i = 0; i < subtree.Count; i++)
+                    activeProject.Tasks.Insert(insertAt + i, subtree[i]);
+                ProjectStore.Normalize(activeProject);
+                touched.Add(activeProject);
+                return OperatorResult.Pass($"{task.Id} is blocked by {blocker.Id}");
+            }
+
             case "branch_lock":
             {
                 var project = ResolveProject(ws, job.Arg(0));
@@ -683,6 +726,49 @@ public static class OperatorEngine
     private static OperatorResult MergeBlocked(TaskItem mergeTask, IReadOnlyList<TaskItem> blockers)
         => OperatorResult.Fail($"{mergeTask.Id} cannot merge while {blockers.Count} task(s) remain on branch " +
                                $"{mergeTask.BranchDisplay}: {string.Join(", ", blockers.Select(task => task.Id))}");
+
+    private static bool IsDescendant(Project project, TaskItem candidate, TaskItem ancestor)
+    {
+        var current = candidate;
+        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        while (!string.IsNullOrWhiteSpace(current.BlockedBy) && visited.Add(current.Id))
+        {
+            if (string.Equals(current.BlockedBy.Trim(), ancestor.Id, StringComparison.OrdinalIgnoreCase))
+                return true;
+            var parent = project.Tasks.FirstOrDefault(task =>
+                string.Equals(task.Id, current.BlockedBy.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (parent == null)
+                break;
+            current = parent;
+        }
+        return false;
+    }
+
+    private static int BlockDepth(Project project, TaskItem task)
+    {
+        var depth = 0;
+        var current = task;
+        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { task.Id };
+        while (!string.IsNullOrWhiteSpace(current.BlockedBy))
+        {
+            var parent = project.Tasks.FirstOrDefault(candidate =>
+                string.Equals(candidate.Id, current.BlockedBy.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (parent == null || !visited.Add(parent.Id))
+                break;
+            depth++;
+            current = parent;
+        }
+        return depth;
+    }
+
+    private static int RelativeSubtreeDepth(Project project, TaskItem root)
+    {
+        var rootDepth = BlockDepth(project, root);
+        return project.Tasks.Where(candidate => IsDescendant(project, candidate, root))
+            .Select(candidate => Math.Max(0, BlockDepth(project, candidate) - rootDepth))
+            .DefaultIfEmpty(0)
+            .Max();
+    }
 
     // ---- resolve -------------------------------------------------------
 

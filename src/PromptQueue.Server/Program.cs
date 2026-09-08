@@ -390,6 +390,7 @@ internal static class Program
             "agent_lock" when a.Length >= 2 => OperatorEngine.AgentLock(a[0], a[1]),
             "agent_unlock" when a.Length >= 2 => OperatorEngine.AgentUnlock(a[0], a[1]),
             "move" when a.Length >= 2 && int.TryParse(a[1], out var mi) => OperatorEngine.Move(a[0], mi),
+            "block_task" when a.Length >= 2 => OperatorEngine.BlockTask(a[0], a[1]),
             "branch_lock" when a.Length >= 3 => OperatorEngine.SetBranchLocked(a[0], a[1], a[2] is "true" or "1"),
             "branch_move" when a.Length >= 3 &&
                 (a[2].Equals("up", StringComparison.OrdinalIgnoreCase) || a[2].Equals("down", StringComparison.OrdinalIgnoreCase)) =>
