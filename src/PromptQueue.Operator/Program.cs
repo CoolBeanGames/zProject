@@ -76,6 +76,7 @@ internal static class Program
         "subtask_done" when a.Length >= 3 && int.TryParse(a[1], out var sdi) && TryBool(a[2], out var sdv) =>
             OperatorEngine.SetSubtaskDone(a[0], sdi, sdv),
         "subtask_text" when a.Length >= 3 && int.TryParse(a[1], out var sti) => OperatorEngine.SetSubtaskText(a[0], sti, string.Join(' ', a.Skip(2))),
+        "subtask_delete" when a.Length >= 2 && int.TryParse(a[1], out var sxi) => OperatorEngine.DeleteSubtask(a[0], sxi),
         "new_approval" when a.Length >= 2 => OperatorEngine.NewApproval(a[0], string.Join(' ', a.Skip(1))),
         "approval_text" when a.Length >= 3 && int.TryParse(a[1], out var ati) => OperatorEngine.SetApprovalText(a[0], ati, string.Join(' ', a.Skip(2))),
         "approval_delete" when a.Length >= 2 && int.TryParse(a[1], out var adi) => OperatorEngine.DeleteApproval(a[0], adi),
@@ -148,6 +149,7 @@ internal static class Program
           operator new_subtask <task_id> <text...>
           operator subtask_done <task_id> <index> <true|false>
           operator subtask_text <task_id> <index> <text...>
+          operator subtask_delete <task_id> <index>
           operator new_approval <task_id> <text...>
           operator approval_text <task_id> <index> <text...>
           operator approval_delete <task_id> <index>

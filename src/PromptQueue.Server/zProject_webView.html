@@ -118,6 +118,13 @@
   .qquick button[aria-pressed=true]{background:var(--accent-wash);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
   .qquick button[data-quick-field=bug][aria-pressed=true]{background:var(--st-bug-wash);border-color:var(--st-bug);color:var(--st-bug)}
   .qquick button:disabled{opacity:.55}
+  .sq{display:flex;align-items:center;gap:8px;min-height:38px;margin-left:18px;padding:6px 10px;border-bottom:1px solid var(--line);border-left:3px solid var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--surface))}
+  .sq.done{border-left-color:var(--st-done);background:color-mix(in srgb,var(--st-done) 10%,var(--surface))}
+  .sqname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink-2);font-size:13px}
+  .sq.done .sqname{text-decoration:line-through;opacity:.65}
+  .sqactions{display:flex;gap:4px;flex:none}
+  .sqactions button{min-height:28px;padding:3px 7px;border:1px solid var(--line-strong);border-radius:var(--radius);background:var(--surface);color:var(--ink-2);font:inherit;font-size:11px;cursor:pointer}
+  .sqactions button[data-subtask-delete]{color:var(--st-err)}
   .empty{padding:24px 14px; color:var(--ink-2)}
 
   /* ---- task page ---- */
@@ -431,6 +438,33 @@ async function renderList(pi){
     cache.data = null;
     await renderList(pi);
   });
+  app.querySelectorAll('[data-subtask-finish]').forEach(button => button.onclick = async e => {
+    e.stopPropagation();
+    button.disabled = true;
+    const result = await op('subtask_done', button.dataset.taskId, button.dataset.index, button.dataset.done === 'false');
+    if (!result.ok) toast(result.message, true);
+    cache.data = null;
+    await renderList(pi);
+  });
+  app.querySelectorAll('[data-subtask-edit]').forEach(button => button.onclick = async e => {
+    e.stopPropagation();
+    const text = prompt('Edit subtask:', button.dataset.text);
+    if (text === null || !text.trim()) return;
+    button.disabled = true;
+    const result = await op('subtask_text', button.dataset.taskId, button.dataset.index, text.trim());
+    if (!result.ok) toast(result.message, true);
+    cache.data = null;
+    await renderList(pi);
+  });
+  app.querySelectorAll('[data-subtask-delete]').forEach(button => button.onclick = async e => {
+    e.stopPropagation();
+    if (!confirm(`Delete subtask "${button.dataset.text}"?`)) return;
+    button.disabled = true;
+    const result = await op('subtask_delete', button.dataset.taskId, button.dataset.index);
+    if (!result.ok) toast(result.message, true);
+    cache.data = null;
+    await renderList(pi);
+  });
   app.querySelectorAll('.q:not(.stop)').forEach(el => el.onclick = () => goTask(pi, el.dataset.id));
   app.querySelectorAll('[data-remove-stop]').forEach(el => el.onclick = async e => {
     e.stopPropagation();
@@ -479,12 +513,23 @@ function row(pi, t){
     if (t.requirements) preview += `<div title="${av(t.requirements)}"><b>For approval</b>${esc(t.requirements)}</div>`;
     preview += '</span>';
   }
+  const subtaskCards = !t.isNote && !t.isStop ? (t.subtasks || []).map((subtask,index) => {
+    if (t.done && subtask.done) return '';
+    return `<div class="sq${subtask.done ? ' done' : ''}">
+      <span class="sqname">${esc(subtask.text)}</span>
+      <span class="sqactions">
+        <button data-subtask-finish data-task-id="${av(t.id)}" data-index="${index}" data-done="${!!subtask.done}">${subtask.done ? 'Undo' : 'Finish'}</button>
+        <button data-subtask-edit data-task-id="${av(t.id)}" data-index="${index}" data-text="${av(subtask.text)}">Edit</button>
+        <button data-subtask-delete data-task-id="${av(t.id)}" data-index="${index}" data-text="${av(subtask.text)}">Del</button>
+      </span>
+    </div>`;
+  }).join('') : '';
   return `<div class="q ${sc}${t.isNote ? ' note' : ''}${t.isStop ? ' stop' : ''}" data-id="${av(t.id)}">
     ${branchBanner}
     ${t.isStop ? `<span class="qstop">STOP EXECUTION<small>Agent processing stops here and awaits instructions</small></span><button class="stop-remove" data-remove-stop="${av(t.id)}">Remove</button>` : t.isNote ? `<span class="qnote"><span class="nm">${esc(t.displayName)}</span><span class="body">${esc(t.note || '')}</span></span>` : `<span class="qmain"><span class="nm">${esc(t.displayName)}</span>${preview}${quick}</span>`}
     <span class="rt">${prog}<span class="state">${esc(state)}</span></span>
     ${!t.isNote && !t.isStop && t.imageUrl ? `<img class="qimg" src="${av(t.imageUrl)}" alt="Attached image">` : ''}
-  </div>`;
+  </div>${subtaskCards}`;
 }
 
 /* ---- task page ---- */

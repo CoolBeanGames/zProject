@@ -1255,6 +1255,24 @@ public sealed class MainViewModel : Observable
             _ => $"{task.Id} subtask {index + 1} {(done ? "done" : "not done")}");
     }
 
+    public void PersistSubtaskTextChange(TaskItem task, int index, string text)
+    {
+        if (index < 0 || index >= task.Subtasks.Count || string.IsNullOrWhiteSpace(text))
+            return;
+        ApplyViaOperator(
+            _ => OperatorEngine.SetSubtaskText(task.Id, index, text),
+            result => result.Ok ? $"{task.Id} subtask {index + 1} renamed" : $"Operator: {result.Message}");
+    }
+
+    public void DeleteSubtask(TaskItem task, int index)
+    {
+        if (index < 0 || index >= task.Subtasks.Count)
+            return;
+        ApplyViaOperator(
+            _ => OperatorEngine.DeleteSubtask(task.Id, index),
+            result => result.Ok ? $"{task.Id} subtask {index + 1} deleted" : $"Operator: {result.Message}");
+    }
+
     // ---- Overlay -----------------------------------------------------
 
     private void CloseOverlay() => Overlay = null;

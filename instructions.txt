@@ -10,7 +10,7 @@ Before touching project files for a task:
 
 1. Run `operator agent_lock <task_id> <your_8+_character_key>`. This sets `lockKey` and `inProgress=true`. If a different key owns it, do not touch that task.
 2. Create a real implementation checklist with one or more `operator new_subtask <task_id> <text>` commands.
-3. Complete subtasks in order and immediately run `operator subtask_done <task_id> <zero_based_index> true` after each one. Use `subtask_text` to correct a checklist entry.
+3. Complete subtasks in order and immediately run `operator subtask_done <task_id> <zero_based_index> true` after each one. Subtasks appear as nested cards below their parent; finished cards are crossed out and finished subtasks are hidden once the parent is done. Use `subtask_text` to correct a checklist entry and `subtask_delete` only to remove an entry that is genuinely no longer part of the work.
 
 Do not batch progress updates at the end. Keep `inProgress=true` for the entire working period.
 
@@ -95,6 +95,7 @@ Checklist, ownership, and order commands:
     operator new_subtask <task_id> <text>
     operator subtask_done <task_id> <index> <true|false>
     operator subtask_text <task_id> <index> <text>
+    operator subtask_delete <task_id> <index>
     operator agent_lock <task_id> <key>
     operator agent_unlock <task_id> <key>
     operator move <task_id> <index>

@@ -176,6 +176,10 @@ public static class OperatorEngine
         => Enqueue(new OperatorJob("subtask_text", taskId,
             index.ToString(CultureInfo.InvariantCulture), text));
 
+    public static OperatorResult DeleteSubtask(string taskId, int index)
+        => Enqueue(new OperatorJob("subtask_delete", taskId,
+            index.ToString(CultureInfo.InvariantCulture)));
+
     public static OperatorResult NewApproval(string taskId, string text)
         => Enqueue(new OperatorJob("new_approval", taskId, text));
 
@@ -418,7 +422,10 @@ public static class OperatorEngine
                     return OperatorResult.Fail($"No task \"{job.Arg(0)}\".");
                 if (task.IsNote || task.StopExecution)
                     return OperatorResult.Fail($"{task.Id} is not an actionable task and cannot have subtasks.");
-                task.Subtasks.Add(new Subtask { Text = job.Arg(1) });
+                var text = job.Arg(1).Trim();
+                if (text.Length == 0)
+                    return OperatorResult.Fail("Subtask text cannot be empty.");
+                task.Subtasks.Add(new Subtask { Text = text });
                 touched.Add(project!);
                 return OperatorResult.Pass($"{task.Id} +subtask");
             }
@@ -450,6 +457,19 @@ public static class OperatorEngine
                 task.Subtasks[si].Text = text;
                 touched.Add(project!);
                 return OperatorResult.Pass($"{task.Id} subtask #{si} text updated");
+            }
+
+            case "subtask_delete":
+            {
+                var (project, task) = ResolveTask(ws, job.Arg(0));
+                if (task == null)
+                    return OperatorResult.Fail($"No task \"{job.Arg(0)}\".");
+                if (!int.TryParse(job.Arg(1), NumberStyles.Integer, CultureInfo.InvariantCulture, out var si)
+                    || si < 0 || si >= task.Subtasks.Count)
+                    return OperatorResult.Fail($"{task.Id} has no subtask #{job.Arg(1)}.");
+                task.Subtasks.RemoveAt(si);
+                touched.Add(project!);
+                return OperatorResult.Pass($"{task.Id} subtask #{si} deleted");
             }
 
             case "new_approval":

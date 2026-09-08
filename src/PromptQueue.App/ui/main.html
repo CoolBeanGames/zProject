@@ -66,10 +66,15 @@
     .chip.blocked { border-color: var(--zui-warn); color: var(--zui-warn); }
     .chip.tag { background: var(--zui-bg-raised); }
 
-    .task-subtasks { margin-top: 4px; display: flex; gap: var(--zui-space-1); flex-wrap: wrap; max-height:56px; overflow-y:auto; align-content:flex-start; }
-    .subtask-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--zui-text-secondary); }
-    .subtask-item input[type=checkbox] { width: 11px; height: 11px; accent-color: var(--zui-accent); cursor: pointer; }
-    .subtask-item.done-sub { text-decoration: line-through; opacity: 0.5; }
+    .subtask-card { display:flex; align-items:center; gap:var(--zui-space-2); min-height:30px; padding:4px var(--zui-space-3); border-bottom:1px solid var(--zui-border); border-left:3px solid var(--zui-accent); background:color-mix(in srgb,var(--zui-accent) 8%,var(--zui-bg-surface)); }
+    .subtask-card.done { border-left-color:#4f9b72; background:color-mix(in srgb,#4f9b72 10%,var(--zui-bg-surface)); }
+    .subtask-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:var(--zui-fs-small); color:var(--zui-text-secondary); }
+    .subtask-card.done .subtask-name { text-decoration:line-through; opacity:.65; }
+    .subtask-actions { display:flex; align-items:center; gap:3px; }
+    .subtask-actions button { height:21px; padding:0 6px; border:1px solid var(--zui-border-strong); border-radius:var(--zui-radius); background:transparent; color:var(--zui-text-secondary); font:inherit; font-size:10px; cursor:pointer; }
+    .subtask-actions button:hover { border-color:var(--zui-accent); color:var(--zui-text); background:var(--zui-bg-raised); }
+    .subtask-actions button.danger:hover { border-color:var(--zui-error); color:var(--zui-error); }
+    .subtask-edit-input { flex:1; min-width:0; height:23px; padding:1px 5px; border:1px solid var(--zui-accent); border-radius:var(--zui-radius); background:var(--zui-bg-raised); color:var(--zui-text); font:inherit; font-size:var(--zui-fs-small); }
 
     .task-actions { display: flex; align-items: center; gap: var(--zui-space-1); flex-shrink: 0; opacity: 0; transition: opacity var(--zui-dur-fast); }
     .task-card:hover .task-actions { opacity: 1; }
@@ -582,6 +587,13 @@ function renderTaskList() {
 
     for (const task of section.tasks) {
       listEl.appendChild(renderTaskCard(task, color, depth));
+      if (!task.isNote && !task.isStop && task.subtasks) {
+        for (let i = 0; i < task.subtasks.length; i++) {
+          const subtask = task.subtasks[i];
+          if (task.done && subtask.done) continue;
+          listEl.appendChild(renderSubtaskCard(task, subtask, i, depth));
+        }
+      }
     }
   }
 }
@@ -623,20 +635,6 @@ function renderTaskCard(task, sectionColor, branchIndent = 0) {
   if (!task.isNote && task.attachments && task.attachments.length)
     chips += chipHtml('tag', `${task.attachments.length} FILE${task.attachments.length === 1 ? '' : 'S'}`);
 
-  // Subtasks mini-list
-  let subtasksHtml = '';
-  if (!task.isNote && !task.isStop && task.subtasks && task.subtasks.length > 0) {
-    subtasksHtml = '<div class="task-subtasks">';
-    for (let i = 0; i < task.subtasks.length; i++) {
-      const s = task.subtasks[i];
-      subtasksHtml += `<span class="subtask-item${s.done ? ' done-sub' : ''}">
-        <input type="checkbox" ${s.done ? 'checked' : ''}
-          data-task="${task.id}" data-subtask-idx="${i}">
-        <span>${esc(s.text)}</span></span>`;
-    }
-    subtasksHtml += '</div>';
-  }
-
   const barStyle = tc ? `background:${tc}` : '';
   let copyPreviewHtml = '';
   if (!task.isNote && !task.isStop && (task.prompt || task.requirements)) {
@@ -662,7 +660,6 @@ function renderTaskCard(task, sectionColor, branchIndent = 0) {
         ${task.isNote ? `<div class="note-content">${esc(task.note || '')}</div>` : ''}
         ${task.isStop ? '<div class="stop-content">Agent processing stops here and awaits instructions</div>' : ''}
         ${copyPreviewHtml}
-        ${subtasksHtml}
       </div>
       <div class="task-actions">
         <button data-action="edit" data-task-id="${task.id}">Edit</button>
@@ -688,14 +685,6 @@ function renderTaskCard(task, sectionColor, branchIndent = 0) {
       e.stopPropagation();
       zui.send('toggle-done', task.id);
     });
-
-  // Subtask checkboxes
-  for (const cb of card.querySelectorAll('[data-subtask-idx]')) {
-    cb.addEventListener('change', e => {
-      e.stopPropagation();
-      zui.send('toggle-subtask', { taskId: task.id, index: parseInt(cb.dataset.subtaskIdx), done: cb.checked });
-    });
-  }
 
   // Action buttons
   card.addEventListener('click', e => {
@@ -800,6 +789,52 @@ function renderTaskCard(task, sectionColor, branchIndent = 0) {
     state.dragTask = null;
   });
 
+  return card;
+}
+
+function renderSubtaskCard(task, subtask, index, branchIndent = 0) {
+  const card = document.createElement('div');
+  card.className = 'subtask-card' + (subtask.done ? ' done' : '');
+  const indent = (branchIndent + Math.min(4, task.indentLevel || 0) + 1) * 20;
+  card.style.marginLeft = `${indent}px`;
+  card.style.width = `calc(100% - ${indent}px)`;
+  card.innerHTML = `<span class="subtask-name">${esc(subtask.text)}</span>
+    <span class="subtask-actions">
+      <button type="button" data-subtask-finish title="${subtask.done ? 'Mark unfinished' : 'Finish subtask'}">${subtask.done ? 'Undo' : 'Finish'}</button>
+      <button type="button" data-subtask-edit>Edit</button>
+      <button type="button" data-subtask-delete class="danger">Del</button>
+    </span>`;
+  card.querySelector('[data-subtask-finish]').addEventListener('click', () =>
+    zui.send('toggle-subtask', { taskId: task.id, index, done: !subtask.done }));
+  card.querySelector('[data-subtask-delete]').addEventListener('click', () => {
+    if (confirm(`Delete subtask "${subtask.text}"?`))
+      zui.send('delete-subtask', { taskId: task.id, index });
+  });
+  card.querySelector('[data-subtask-edit]').addEventListener('click', () => {
+    const name = card.querySelector('.subtask-name');
+    const input = document.createElement('input');
+    input.className = 'subtask-edit-input';
+    input.value = subtask.text;
+    name.replaceWith(input);
+    input.focus();
+    input.select();
+    let cancelled = false;
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { cancelled = true; input.blur(); }
+      if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    });
+    input.addEventListener('blur', () => {
+      const text = input.value.trim();
+      if (!cancelled && text && text !== subtask.text)
+        zui.send('edit-subtask', { taskId: task.id, index, text });
+      else {
+        const restored = document.createElement('span');
+        restored.className = 'subtask-name';
+        restored.textContent = subtask.text;
+        input.replaceWith(restored);
+      }
+    }, { once:true });
+  });
   return card;
 }
 

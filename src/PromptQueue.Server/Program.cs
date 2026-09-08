@@ -385,6 +385,8 @@ internal static class Program
                 OperatorEngine.SetSubtaskDone(a[0], sdi, sdv),
             "subtask_text" when a.Length >= 3 && int.TryParse(a[1], out var sti) =>
                 OperatorEngine.SetSubtaskText(a[0], sti, string.Join(' ', a.Skip(2))),
+            "subtask_delete" when a.Length >= 2 && int.TryParse(a[1], out var sxi) =>
+                OperatorEngine.DeleteSubtask(a[0], sxi),
             "new_approval" when a.Length >= 2 => OperatorEngine.NewApproval(a[0], string.Join(' ', a.Skip(1))),
             "approval_text" when a.Length >= 3 && int.TryParse(a[1], out var ati) =>
                 OperatorEngine.SetApprovalText(a[0], ati, string.Join(' ', a.Skip(2))),

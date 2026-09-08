@@ -286,6 +286,23 @@ public partial class MainWindow : Window
                     "zProject", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
             }
         }));
+        _ui.On("edit-subtask", p => Dispatcher.Invoke(() =>
+        {
+            var taskId = p.GetProperty("taskId").GetString();
+            var index = p.GetProperty("index").GetInt32();
+            var text = p.GetProperty("text").GetString() ?? "";
+            var task = Vm?.SelectedProject?.Tasks.FirstOrDefault(t =>
+                string.Equals(t.Id, taskId, StringComparison.OrdinalIgnoreCase));
+            if (task != null) Vm?.PersistSubtaskTextChange(task, index, text);
+        }));
+        _ui.On("delete-subtask", p => Dispatcher.Invoke(() =>
+        {
+            var taskId = p.GetProperty("taskId").GetString();
+            var index = p.GetProperty("index").GetInt32();
+            var task = Vm?.SelectedProject?.Tasks.FirstOrDefault(t =>
+                string.Equals(t.Id, taskId, StringComparison.OrdinalIgnoreCase));
+            if (task != null) Vm?.DeleteSubtask(task, index);
+        }));
         _ui.On("drop-task-image", p => Dispatcher.Invoke(() =>
         {
             var taskId = p.GetProperty("taskId").GetString();
