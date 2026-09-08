@@ -594,6 +594,29 @@ public sealed class MainViewModel : Observable
             _ => $"Running {agent} on {task.Id} (branch: {task.Branch}) only");
     }
 
+    /// <summary>Launches an agent for exactly one branch, then tells it to stop.</summary>
+    public void DeployAgentForBranch(string agent, string branch)
+    {
+        if (SelectedProject is not { IsLocal: false } project || string.IsNullOrWhiteSpace(branch))
+            return;
+        var normalized = branch.Trim();
+        if (!project.BranchOrder.Contains(normalized, StringComparer.OrdinalIgnoreCase))
+        {
+            StatusText = $"Branch '{normalized}' no longer exists";
+            return;
+        }
+        LaunchAgent(agent, BuildBranchAgentPrompt(normalized),
+            p => $"Running {agent} on \"{p.Name}\" branch '{normalized}' only");
+    }
+
+    public static string BuildBranchAgentPrompt(string branch)
+    {
+        var normalized = string.IsNullOrWhiteSpace(branch) ? "main" : branch.Trim();
+        return $"Read prompt.txt in this directory and follow it exactly for branch '{normalized}' only. " +
+               $"Work through every actionable task on branch '{normalized}', then stop. " +
+               "Do not continue onto another branch.";
+    }
+
     private void LaunchAgent(string agent, string boot, Func<Project, string> status)
     {
         var project = SelectedProject;
@@ -722,6 +745,7 @@ public sealed class MainViewModel : Observable
             .OrderBy(t => t.Archived ? 2 : t.Done ? 1 : 0)
             .ThenByDescending(t => !t.Archived && !t.Done && t.Priority)
             .ThenBy(t => t.Archived || t.Done || t.Priority ? 0 : project.BranchRank(t.BranchDisplay))
+            .ThenBy(t => t.Merge ? 1 : 0)
             .ThenBy(t => !t.Archived && !t.Done && t.Priority ? 0 : t.SectionRank)
             .ThenBy(t => t.Order)
             .ToList();
@@ -889,6 +913,9 @@ public sealed class MainViewModel : Observable
                 var branchCmp = project.BranchRank(a.BranchDisplay).CompareTo(project.BranchRank(b.BranchDisplay));
                 if (branchCmp != 0)
                     return branchCmp;
+
+                if (a.Merge != b.Merge)
+                    return a.Merge ? 1 : -1;
 
                 var s = a.SectionRank.CompareTo(b.SectionRank);
                 if (s != 0)
@@ -1131,6 +1158,19 @@ public sealed class MainViewModel : Observable
         ApplyViaOperator(
             _ => OperatorEngine.MoveBranch(project.Directory, branch, offset),
             result => result.Ok ? result.Message : $"Operator: {result.Message}");
+    }
+
+    public void AddBranch()
+    {
+        var project = SelectedProject;
+        if (project == null)
+            return;
+        var name = Views.InputPrompt.Ask("New Branch", "Name for the new branch:");
+        if (name == null)
+            return;
+        ApplyViaOperator(
+            _ => OperatorEngine.AddBranch(project.Directory, name),
+            result => result.Ok ? $"Created branch {result.Output}" : $"Operator: {result.Message}");
     }
 
     private void ToggleDone(TaskItem? task)

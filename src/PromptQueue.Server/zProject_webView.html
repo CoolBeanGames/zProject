@@ -333,8 +333,7 @@ async function renderList(pi){
   });
 
   for (const b of branchNames){
-    const items = groups.get(b);
-    if (!items || !items.length) continue;
+    const items = groups.get(b) || [];
     const lockable = items.filter(t => !t.done && !t.archived && !t.isStop);
     const allLocked = lockable.length > 0 && lockable.every(t => t.locked);
     const branchIndex = data.branches.findIndex(branch => branch.toLowerCase() === b.toLowerCase());
@@ -364,6 +363,7 @@ async function renderList(pi){
       <h1>${esc(data.name)}</h1>
       <button class="act" id="nn">New note</button>
       <button class="act" id="ns">Stop execution</button>
+      <button class="act" id="nb">New branch</button>
       <button class="act" id="csv">Export CSV</button>
       <button class="act" id="csvImport">Import CSV</button>
       <input type="file" id="csvFile" accept=".csv,text/csv" hidden>
@@ -375,6 +375,14 @@ async function renderList(pi){
   document.getElementById('ns').onclick = async () => {
     const result = await op('new_stop', data.directory);
     if (!result.ok) toast(result.message, true);
+    cache.data = null;
+    await renderList(pi);
+  };
+  document.getElementById('nb').onclick = async () => {
+    const name = prompt('Name for the new branch:');
+    if (name === null) return;
+    const result = await op('branch_add', data.directory, name.trim());
+    toast(result.message, !result.ok);
     cache.data = null;
     await renderList(pi);
   };
@@ -467,7 +475,8 @@ async function renderTask(pi, tid){
   const orig = JSON.parse(JSON.stringify(t));
   if (t.isNote) return renderNote(pi, pname, isNew, t, orig, data?.branches || ['main']);
   const flag = (k,label,cls='') =>
-    `<button class="flag ${cls}" data-f="${k}" aria-pressed="${!!t[k]}">${label}</button>`;
+    `<button class="flag ${cls}" data-f="${k}" aria-pressed="${!!t[k]}"
+      ${k === 'done' && t.mergeBlocked ? 'disabled title="Finish remaining branch tasks first"' : ''}>${label}</button>`;
   const agentOpen = t.notes || t.filesChanged || t.errorMessage;
 
   app.innerHTML = `
@@ -514,6 +523,7 @@ async function renderTask(pi, tid){
         ${flag('error','Error','warn')}
         ${flag('archived','Archived')}
       </div>
+      ${t.mergeBlocked ? `<div class="field"><div class="muted">Merge blocked by ${t.mergeBlockerCount} unfinished task(s) in this branch.</div></div>` : ''}
 
       <div class="subhead">Subtasks</div>
       <div class="subs" id="subs">
@@ -555,6 +565,7 @@ async function renderTask(pi, tid){
   document.getElementById('cancel').onclick = nav;
 
   app.querySelectorAll('.flag').forEach(b => b.onclick = () => {
+    if (b.disabled) return;
     const on = b.getAttribute('aria-pressed') === 'true';
     b.setAttribute('aria-pressed', String(!on));
     t[b.dataset.f] = !on;

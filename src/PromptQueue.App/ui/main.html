@@ -120,6 +120,7 @@
     .section-header .branch-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
     .branch-lock-btn { min-width:72px; padding:1px 7px; font-size:var(--zui-fs-small); }
     .branch-order-btn { width:22px; padding:1px 3px; font-size:var(--zui-fs-small); }
+    .branch-agent-btn { padding:1px 6px; font-size:var(--zui-fs-small); text-transform:none; letter-spacing:0; }
     .section-header .section-count { color: var(--zui-text-secondary); font-weight: var(--zui-fw-normal); margin-left: auto; }
     .section-header .collapse-arrow { color: var(--zui-text-secondary); font-size: 10px; }
 </style>
@@ -160,6 +161,7 @@
         <button class="zui-btn zui-btn--primary" id="btn-add-task">+ New Task</button>
         <button class="zui-btn" id="btn-add-note">+ New Note</button>
         <button class="zui-btn" id="btn-add-stop" title="Insert an execution barrier">+ Stop Execution</button>
+        <button class="zui-btn" id="btn-add-branch">+ New Branch</button>
         <span class="zui-sep--v" style="height:16px"></span>
         <button class="zui-btn" id="btn-deploy-codex">▶ Codex</button>
         <button class="zui-btn" id="btn-deploy-claude">▶ Claude</button>
@@ -423,6 +425,7 @@ function showProjectContextMenu(e, p) {
 
 function buildSections(tasks) {
   const sections = new Map();
+  for (const branch of state.knownBranches) sections.set(branch, []);
   for (const t of tasks) {
     const key = t.sectionKey || 'main';
     if (!sections.has(key)) sections.set(key, []);
@@ -475,6 +478,12 @@ function renderTaskList() {
       ? `<button class="zui-btn branch-lock-btn" type="button">${allLocked ? 'Unlock branch' : 'Lock branch'}</button>`
       : '';
     const branchIndex = state.knownBranches.findIndex(branch => branch.toLowerCase() === section.key.toLowerCase());
+    const selectedProject = state.projects.find(project => project.id === state.selectedProject);
+    const agentHtml = branchIndex >= 0 && selectedProject && !selectedProject.isLocal
+      ? `<button class="zui-btn branch-agent-btn" type="button" data-agent="codex" title="Run Codex on this branch only">Codex</button>
+         <button class="zui-btn branch-agent-btn" type="button" data-agent="claude" title="Run Claude on this branch only">Claude</button>
+         <button class="zui-btn branch-agent-btn" type="button" data-agent="agy" title="Run AGY on this branch only">AGY</button>`
+      : '';
     const orderHtml = branchIndex >= 0 && lockable.length > 0
       ? `<button class="zui-btn branch-order-btn" type="button" data-direction="up" title="Move branch earlier" ${branchIndex === 0 ? 'disabled' : ''}>&#8593;</button>
          <button class="zui-btn branch-order-btn" type="button" data-direction="down" title="Move branch later" ${branchIndex === state.knownBranches.length - 1 ? 'disabled' : ''}>&#8595;</button>`
@@ -483,6 +492,7 @@ function renderTaskList() {
       ${dotHtml}
       <span>${esc(section.label)}</span>
       <span class="section-count">${section.tasks.length}</span>
+      ${agentHtml}
       ${orderHtml}
       ${lockHtml}
       <span class="collapse-arrow">${collapsed ? '▶' : '▼'}</span>`;
@@ -495,6 +505,10 @@ function renderTaskList() {
     hdr.querySelectorAll('.branch-order-btn').forEach(button => button.addEventListener('click', e => {
       e.stopPropagation();
       if (!button.disabled) zui.send('move-branch', { branch: section.key, direction: button.dataset.direction });
+    }));
+    hdr.querySelectorAll('.branch-agent-btn').forEach(button => button.addEventListener('click', e => {
+      e.stopPropagation();
+      zui.send('run-branch-with-agent', { branch: section.key, agent: button.dataset.agent });
     }));
     if (lockable.length > 0) {
       hdr.addEventListener('dragover', e => {
@@ -553,6 +567,7 @@ function renderTaskCard(task, sectionColor) {
     if (task.build) chips += chipHtml('build', 'BUILD');
     if (task.release) chips += chipHtml('release', 'RELEASE');
     if (task.merge) chips += chipHtml('merge', 'MERGE');
+    if (task.mergeBlocked) chips += chipHtml('blocked', `WAITING ON ${task.mergeBlockerCount} TASK${task.mergeBlockerCount === 1 ? '' : 'S'}`);
     if (task.isBlocked) chips += chipHtml('blocked', `BLOCKED by ${esc(task.blockedBy)}`);
   }
   if (task.isNote && task.clearAfterReading) chips += chipHtml('inprogress', 'CLEAR AFTER READING');
@@ -590,7 +605,8 @@ function renderTaskCard(task, sectionColor) {
       <div class="branch-bar" style="${barStyle}"></div>
       <span class="drag-handle" title="Drag to reorder">⠿</span>
       ${task.isStop ? '' : `<input type="checkbox" class="task-done-cb" ${task.done ? 'checked' : ''}
-        data-task-id="${task.id}" title="Mark done">`}
+        ${task.mergeBlocked ? 'disabled' : ''} data-task-id="${task.id}"
+        title="${task.mergeBlocked ? `Finish ${task.mergeBlockerCount} remaining branch task(s) first` : 'Mark done'}">`}
       <div class="task-body">
         <div>
           <span class="task-id">${esc(task.id)}</span>
@@ -605,9 +621,9 @@ function renderTaskCard(task, sectionColor) {
       <div class="task-actions">
         <button data-action="edit" data-task-id="${task.id}">Edit</button>
         ${!task.isNote ? `<button data-action="lock" data-task-id="${task.id}" title="${task.locked ? 'Unlock' : 'Lock'}">${task.locked ? '🔒' : '🔓'}</button>` : ''}
-        ${!task.isNote && !task.isLocal ? `<button data-action="run-codex" data-task-id="${task.id}">▶ Codex</button>
-        <button data-action="run-claude" data-task-id="${task.id}">▶ Claude</button>
-        <button data-action="run-agy" data-task-id="${task.id}">▶ AGY</button>` : ''}
+        ${!task.isNote && !task.isLocal ? `<button data-action="run-codex" data-task-id="${task.id}" ${task.mergeBlocked ? 'disabled' : ''}>▶ Codex</button>
+        <button data-action="run-claude" data-task-id="${task.id}" ${task.mergeBlocked ? 'disabled' : ''}>▶ Claude</button>
+        <button data-action="run-agy" data-task-id="${task.id}" ${task.mergeBlocked ? 'disabled' : ''}>▶ AGY</button>` : ''}
         <button data-action="delete" data-task-id="${task.id}" class="danger">Del</button>
       </div>
       ${!task.isNote && !task.isStop && task.imagePreviewUrl ? `<img class="task-card-preview" src="${task.imagePreviewUrl}" alt="Attached image">` : ''}
@@ -918,6 +934,7 @@ function esc(s) {
 document.getElementById('btn-add-task').addEventListener('click', () => zui.send('add-task', null));
 document.getElementById('btn-add-note').addEventListener('click', () => zui.send('add-note', null));
 document.getElementById('btn-add-stop').addEventListener('click', () => zui.send('add-stop', null));
+document.getElementById('btn-add-branch').addEventListener('click', () => zui.send('add-branch', null));
 document.getElementById('btn-deploy-codex').addEventListener('click', () => zui.send('deploy-agent', 'codex'));
 document.getElementById('btn-deploy-claude').addEventListener('click', () => zui.send('deploy-agent', 'claude'));
 document.getElementById('btn-deploy-antigravity').addEventListener('click', () => zui.send('deploy-agent', 'agy'));

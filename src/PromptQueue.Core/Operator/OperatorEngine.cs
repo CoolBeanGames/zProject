@@ -217,6 +217,10 @@ public static class OperatorEngine
     public static OperatorResult SetDefaultBranch(string projectRef, string branch)
         => Enqueue(new OperatorJob("branch_default", projectRef, branch));
 
+    /// <summary>Adds an empty branch to a project and makes it the creation default.</summary>
+    public static OperatorResult AddBranch(string projectRef, string branch)
+        => Enqueue(new OperatorJob("branch_add", projectRef, branch));
+
     /// <summary>
     /// Queues a full replace of a task (matched by id) with the supplied one, or
     /// an add when no task with that id exists. Used by the app, which edits a
@@ -288,6 +292,9 @@ public static class OperatorEngine
                 var (project, task) = ResolveTask(ws, job.Arg(0));
                 if (task == null)
                     return OperatorResult.Fail($"No task \"{job.Arg(0)}\".");
+                var mergeError = ValidateMergeCompletion(project!, task, job.Arg(1), job.Arg(2));
+                if (mergeError != null)
+                    return mergeError;
                 if (!TaskFields.Apply(task, job.Arg(1), job.Arg(2)))
                     return OperatorResult.Fail($"Unknown field \"{job.Arg(1)}\".");
                 touched.Add(project!);
@@ -299,6 +306,12 @@ public static class OperatorEngine
                 var (project, task) = ResolveTask(ws, job.Arg(0));
                 if (task == null)
                     return OperatorResult.Fail($"No task \"{job.Arg(0)}\".");
+                for (int i = 1; i + 1 < job.Args.Count; i += 2)
+                {
+                    var mergeError = ValidateMergeCompletion(project!, task, job.Args[i], job.Args[i + 1]);
+                    if (mergeError != null)
+                        return mergeError;
+                }
                 int applied = 0;
                 for (int i = 1; i + 1 < job.Args.Count; i += 2)
                     if (TaskFields.Apply(task, job.Args[i], job.Args[i + 1]))
@@ -439,6 +452,8 @@ public static class OperatorEngine
                 var (project, task) = ResolveTask(ws, job.Arg(0));
                 if (task == null)
                     return OperatorResult.Fail($"No task \"{job.Arg(0)}\".");
+                if (task.Merge && project!.MergeBlockers(task).Count > 0)
+                    return MergeBlocked(task, project.MergeBlockers(task));
                 task.InProgress = false;
                 task.LockKey = "";
                 task.Done = true;
@@ -455,6 +470,8 @@ public static class OperatorEngine
                     return OperatorResult.Fail($"No task \"{job.Arg(0)}\".");
                 if (task.IsNote || task.StopExecution)
                     return OperatorResult.Fail($"{task.Id} is not actionable; handle it without taking an agent lock.");
+                if (task.Merge && project!.MergeBlockers(task).Count > 0)
+                    return MergeBlocked(task, project.MergeBlockers(task));
                 var key = job.Arg(1).Trim();
                 if (key.Length == 0)
                     return OperatorResult.Fail("A lock key is required.");
@@ -491,6 +508,7 @@ public static class OperatorEngine
                 var maxIndex = task.Archived ? project.Tasks.Count : project.Tasks.Count(t => !t.Archived);
                 index = Math.Clamp(index, 0, maxIndex);
                 project.Tasks.Insert(index, task);
+                ProjectStore.Normalize(project);
                 touched.Add(project);
                 return OperatorResult.Pass($"Moved {task.Id} to {index}");
             }
@@ -526,6 +544,10 @@ public static class OperatorEngine
                 project.Tasks.RemoveAt(oldIndex);
                 int targetIndex = project.Tasks.IndexOf(target) + (above ? 0 : 1);
                 project.Tasks.Insert(targetIndex, task);
+                // Collection order is authoritative after a drag. Persist it into
+                // Order before ProjectStore.Save applies its branch/status sort;
+                // otherwise the stale values reconstruct the pre-drag layout.
+                ProjectStore.Normalize(project);
                 touched.Add(project);
                 return OperatorResult.Pass(changesBranch
                     ? $"Moved {task.Id} to branch {target.BranchDisplay}"
@@ -586,6 +608,25 @@ public static class OperatorEngine
                 return OperatorResult.Pass($"Default branch for {project.Name} is {project.LastTaskBranch}");
             }
 
+            case "branch_add":
+            {
+                var project = ResolveProject(ws, job.Arg(0));
+                if (project == null)
+                    return OperatorResult.Fail($"No project matches \"{job.Arg(0)}\".");
+                var branch = job.Arg(1).Trim();
+                if (branch.Length == 0 || branch.Any(char.IsControl))
+                    return OperatorResult.Fail("A valid branch name is required.");
+                if (branch is "Completed" or "Finished Today" or "Archived")
+                    return OperatorResult.Fail($"'{branch}' is reserved for a task section.");
+                project.EnsureBranchOrder();
+                if (project.BranchOrder.Contains(branch, StringComparer.OrdinalIgnoreCase))
+                    return OperatorResult.Fail($"Branch '{branch}' already exists.");
+                project.BranchOrder.Add(branch);
+                project.LastTaskBranch = branch;
+                touched.Add(project);
+                return OperatorResult.Pass($"Created branch {branch}", branch);
+            }
+
             case "upsert":
             {
                 var project = ResolveProject(ws, job.Arg(0));
@@ -594,6 +635,12 @@ public static class OperatorEngine
                 var incoming = DeserializeTask(job.Payload);
                 var existing = project.Tasks.FirstOrDefault(t =>
                     string.Equals(t.Id, incoming.Id, StringComparison.OrdinalIgnoreCase));
+                if (incoming.Merge && incoming.Done)
+                {
+                    var blockers = project.MergeBlockers(existing ?? incoming);
+                    if (blockers.Count > 0)
+                        return MergeBlocked(incoming, blockers);
+                }
                 if (existing != null)
                 {
                     incoming.Order = existing.Order;
@@ -622,6 +669,20 @@ public static class OperatorEngine
             task.Locked = locked;
         return branchTasks.Count;
     }
+
+    private static OperatorResult? ValidateMergeCompletion(Project project, TaskItem task, string field, string value)
+    {
+        var normalized = field.Replace("_", "", StringComparison.Ordinal).Trim();
+        var setsTrue = value.Trim().Equals("true", StringComparison.OrdinalIgnoreCase) || value.Trim() == "1";
+        if (!task.Merge || !normalized.Equals("done", StringComparison.OrdinalIgnoreCase) || !setsTrue)
+            return null;
+        var blockers = project.MergeBlockers(task);
+        return blockers.Count == 0 ? null : MergeBlocked(task, blockers);
+    }
+
+    private static OperatorResult MergeBlocked(TaskItem mergeTask, IReadOnlyList<TaskItem> blockers)
+        => OperatorResult.Fail($"{mergeTask.Id} cannot merge while {blockers.Count} task(s) remain on branch " +
+                               $"{mergeTask.BranchDisplay}: {string.Join(", ", blockers.Select(task => task.Id))}");
 
     // ---- resolve -------------------------------------------------------
 

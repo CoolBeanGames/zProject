@@ -88,6 +88,8 @@ internal static class Program
         "branch_move" => OperatorResult.Fail("branch_move needs: <project> <branch> <up|down>"),
         "branch_default" when a.Length >= 2 => OperatorEngine.SetDefaultBranch(a[0], a[1]),
         "branch_default" => OperatorResult.Fail("branch_default needs: <project> <branch>"),
+        "branch_add" when a.Length >= 2 => OperatorEngine.AddBranch(a[0], string.Join(' ', a.Skip(1))),
+        "branch_add" => OperatorResult.Fail("branch_add needs: <project> <branch>"),
         _ => OperatorResult.Fail($"bad or incomplete command. \n{Usage}"),
     };
 
@@ -124,6 +126,7 @@ internal static class Program
           operator branch_lock <project> <branch> <true|false>
           operator branch_move <project> <branch> <up|down>
           operator branch_default <project> <branch>
+          operator branch_add <project> <branch>
 
         <project> is a project name, id prefix, or directory path.
         <field>   is a tasks.xml element name, e.g. done, inProgress, locked,

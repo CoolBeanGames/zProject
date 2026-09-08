@@ -98,8 +98,6 @@ public static class ProjectStore
             {
                 var adoc = TaskXmlSerializer.Deserialize(File.ReadAllText(archivePath));
                 nextIndex = Math.Max(nextIndex, adoc.NextIndex);
-                MergeBranches(adoc.BranchOrder);
-                MergeBranches(adoc.Tasks.Select(task => task.BranchDisplay));
                 foreach (var t in adoc.Tasks)
                 {
                     t.Archived = true;
@@ -121,8 +119,6 @@ public static class ProjectStore
             {
                 var fdoc = TaskXmlSerializer.Deserialize(File.ReadAllText(finishedPath));
                 nextIndex = Math.Max(nextIndex, fdoc.NextIndex);
-                MergeBranches(fdoc.BranchOrder);
-                MergeBranches(fdoc.Tasks.Select(task => task.BranchDisplay));
                 foreach (var t in fdoc.Tasks)
                 {
                     t.Archived = false;
@@ -197,6 +193,7 @@ public static class ProjectStore
         }
 
         AutoArchiveCompleted(project);
+        project.CloseCompletedBranches();
         project.EnsureBranchOrder();
 
         // Active, completed-today, and older archived work live in separate files.
@@ -207,6 +204,7 @@ public static class ProjectStore
         var active = project.Tasks.Where(t => !t.Archived && !t.FinishedToday)
             .OrderBy(t => t.Priority && !t.Done ? 0 : t.Bug && !t.Done ? 1 : 2)
             .ThenBy(t => project.BranchRank(t.BranchDisplay))
+            .ThenBy(t => t.Merge ? 1 : 0)
             .ThenBy(t => t.SectionRank)
             .ThenBy(t => t.Order)
             .ToList();

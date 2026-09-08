@@ -153,6 +153,7 @@ public partial class MainWindow : Window
         _ui.On("add-task",        _ => Dispatcher.Invoke(() => Vm?.AddTaskCommand.Execute(null)));
         _ui.On("add-note",        _ => Dispatcher.Invoke(() => Vm?.AddNoteCommand.Execute(null)));
         _ui.On("add-stop",        _ => Dispatcher.Invoke(() => Vm?.AddStopCommand.Execute(null)));
+        _ui.On("add-branch",      _ => Dispatcher.Invoke(() => Vm?.AddBranch()));
         _ui.On("open-edit-task",  p => Dispatcher.Invoke(() =>
         {
             var id = p.GetString();
@@ -295,6 +296,13 @@ public partial class MainWindow : Window
             else if (agent == "claude")  Vm?.DeployClaudeCommand.Execute(null);
             else if (agent == "agy")     Vm?.DeployAntigravityCommand.Execute(null); // ZP-86
         }));
+        _ui.On("run-branch-with-agent", p => Dispatcher.Invoke(() =>
+        {
+            var agent = p.GetProperty("agent").GetString() ?? "codex";
+            var branch = p.GetProperty("branch").GetString();
+            if (!string.IsNullOrWhiteSpace(branch) && agent is "codex" or "claude" or "agy")
+                Vm?.DeployAgentForBranch(agent, branch);
+        }));
         _ui.On("run-task-with-agent", p => Dispatcher.Invoke(() =>
         {
             var taskId = p.GetProperty("taskId").GetString();
@@ -402,6 +410,8 @@ public partial class MainWindow : Window
             build        = t.Build,
             release      = t.Release,
             merge        = t.Merge,
+            mergeBlocked = t.Merge && proj.MergeBlockers(t).Count > 0,
+            mergeBlockerCount = t.Merge ? proj.MergeBlockers(t).Count : 0,
             branch       = t.Branch,
             sectionKey   = t.SectionKey,
             tagText      = t.TagText,

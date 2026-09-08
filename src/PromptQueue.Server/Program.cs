@@ -395,6 +395,7 @@ internal static class Program
                 (a[2].Equals("up", StringComparison.OrdinalIgnoreCase) || a[2].Equals("down", StringComparison.OrdinalIgnoreCase)) =>
                 OperatorEngine.MoveBranch(a[0], a[1], a[2].Equals("up", StringComparison.OrdinalIgnoreCase) ? -1 : 1),
             "branch_default" when a.Length >= 2 => OperatorEngine.SetDefaultBranch(a[0], a[1]),
+            "branch_add" when a.Length >= 2 => OperatorEngine.AddBranch(a[0], string.Join(' ', a.Skip(1))),
             _ => OperatorResult.Fail($"bad or incomplete command '{req.Command}'"),
         };
 
@@ -571,6 +572,7 @@ internal static class Program
             tasks = project.Tasks
                 .OrderBy(t => !t.Done && !t.Archived && t.Priority ? 0 : !t.Done && !t.Archived && t.Bug ? 1 : 2)
                 .ThenBy(t => project.BranchRank(t.BranchDisplay))
+                .ThenBy(t => t.Merge ? 1 : 0)
                 .ThenBy(t => t.SectionRank)
                 .ThenBy(t => t.Order)
                 .Select(t => new
@@ -600,6 +602,8 @@ internal static class Program
                 build = t.Build,
                 release = t.Release,
                 merge = t.Merge,
+                mergeBlocked = t.Merge && project.MergeBlockers(t).Count > 0,
+                mergeBlockerCount = t.Merge ? project.MergeBlockers(t).Count : 0,
                 branch = t.Branch,
                 tags = t.Tags,
                 notes = t.Notes,

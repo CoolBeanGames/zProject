@@ -105,7 +105,8 @@ public sealed class Project : Observable
         var normalized = BranchOrder
             .Select(branch => string.IsNullOrWhiteSpace(branch) ? "main" : branch.Trim())
             .Append(LastTaskBranch)
-            .Concat(Tasks.Select(task => task.BranchDisplay))
+            .Concat(Tasks.Where(task => !task.Done && !task.Archived && !task.FinishedToday)
+                .Select(task => task.BranchDisplay))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         if (!normalized.Contains("main", StringComparer.OrdinalIgnoreCase))
@@ -117,6 +118,41 @@ public sealed class Project : Observable
         foreach (var branch in normalized)
             BranchOrder.Add(branch);
     }
+
+    /// <summary>
+    /// Removes completed non-main branches from the active registry once their
+    /// merge task is done and no unfinished work remains. Task history retains
+    /// its original Branch value.
+    /// </summary>
+    public IReadOnlyList<string> CloseCompletedBranches()
+    {
+        var closed = Tasks
+            .Where(task => task.Merge && task.Done &&
+                           !string.Equals(task.BranchDisplay, "main", StringComparison.OrdinalIgnoreCase))
+            .Select(task => task.BranchDisplay)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(branch => !Tasks.Any(task => !task.Done && !task.Archived && !task.FinishedToday &&
+                string.Equals(task.BranchDisplay, branch, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        foreach (var branch in closed)
+            for (var i = BranchOrder.Count - 1; i >= 0; i--)
+                if (string.Equals(BranchOrder[i], branch, StringComparison.OrdinalIgnoreCase))
+                    BranchOrder.RemoveAt(i);
+
+        if (closed.Any(branch => string.Equals(branch, LastTaskBranch, StringComparison.OrdinalIgnoreCase)))
+            LastTaskBranch = BranchOrder.FirstOrDefault() ?? "main";
+        return closed;
+    }
+
+    /// <summary>Unfinished actionable work that must finish before this merge task can run.</summary>
+    public IReadOnlyList<TaskItem> MergeBlockers(TaskItem mergeTask)
+        => Tasks.Where(task =>
+                !ReferenceEquals(task, mergeTask) &&
+                !string.Equals(task.Id, mergeTask.Id, StringComparison.OrdinalIgnoreCase) &&
+                !task.IsNote && !task.StopExecution && !task.Done && !task.Archived &&
+                string.Equals(task.BranchDisplay, mergeTask.BranchDisplay, StringComparison.OrdinalIgnoreCase))
+            .ToList();
 
     public int BranchRank(string? branch)
     {
