@@ -67,6 +67,7 @@ internal static class Program
         "sync" when a.Length >= 3 => OperatorEngine.Sync(a[0], a[1], string.Join(' ', a.Skip(2))),
         "new_task" when a.Length >= 2 => OperatorEngine.NewTask(a[0], a[1], a.Length > 2 ? string.Join(' ', a.Skip(2)) : ""),
         "new_note" when a.Length >= 2 => OperatorEngine.NewNote(a[0], a[1], a.Length > 2 ? string.Join(' ', a.Skip(2)) : ""),
+        "new_stop" when a.Length >= 1 => OperatorEngine.NewStop(a[0]),
         "new_project" when a.Length >= 1 => OperatorEngine.NewProject(a[0], a.Length > 1 ? a[1] : null),
         "new_local_project" when a.Length >= 1 => OperatorEngine.NewLocalProject(a[0]),
         "sync_many" when a.Length >= 3 => OperatorEngine.SyncMany(a[0], Pairs(a.Skip(1))),
@@ -85,6 +86,8 @@ internal static class Program
             (a[2].Equals("up", StringComparison.OrdinalIgnoreCase) || a[2].Equals("down", StringComparison.OrdinalIgnoreCase)) =>
             OperatorEngine.MoveBranch(a[0], a[1], a[2].Equals("up", StringComparison.OrdinalIgnoreCase) ? -1 : 1),
         "branch_move" => OperatorResult.Fail("branch_move needs: <project> <branch> <up|down>"),
+        "branch_default" when a.Length >= 2 => OperatorEngine.SetDefaultBranch(a[0], a[1]),
+        "branch_default" => OperatorResult.Fail("branch_default needs: <project> <branch>"),
         _ => OperatorResult.Fail($"bad or incomplete command. \n{Usage}"),
     };
 
@@ -110,6 +113,7 @@ internal static class Program
           operator agent_unlock <task_id> <key>
           operator new_task   <project> <name> [prompt]
           operator new_note   <project> <name> [note]
+          operator new_stop   <project>
           operator new_project <name> [directory]
           operator new_subtask <task_id> <text...>
           operator subtask_done <task_id> <index> <true|false>
@@ -119,6 +123,7 @@ internal static class Program
           operator move       <task_id> <index>
           operator branch_lock <project> <branch> <true|false>
           operator branch_move <project> <branch> <up|down>
+          operator branch_default <project> <branch>
 
         <project> is a project name, id prefix, or directory path.
         <field>   is a tasks.xml element name, e.g. done, inProgress, locked,

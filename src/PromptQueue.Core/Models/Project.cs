@@ -18,6 +18,7 @@ public sealed class Project : Observable
     private int _nextIndex = 1;
     private string _loadError = "";
     private bool _isLocal;
+    private string _lastTaskBranch = "main";
 
     public string Name
     {
@@ -91,11 +92,19 @@ public sealed class Project : Observable
     /// </summary>
     public ObservableCollection<string> BranchOrder { get; } = new();
 
+    /// <summary>The branch preselected when the next task or note is created.</summary>
+    public string LastTaskBranch
+    {
+        get => string.IsNullOrWhiteSpace(_lastTaskBranch) ? "main" : _lastTaskBranch;
+        set => Set(ref _lastTaskBranch, string.IsNullOrWhiteSpace(value) ? "main" : value.Trim());
+    }
+
     /// <summary>Adds missing task branches, removes duplicates, and guarantees a main option.</summary>
     public void EnsureBranchOrder()
     {
         var normalized = BranchOrder
             .Select(branch => string.IsNullOrWhiteSpace(branch) ? "main" : branch.Trim())
+            .Append(LastTaskBranch)
             .Concat(Tasks.Select(task => task.BranchDisplay))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();

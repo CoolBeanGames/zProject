@@ -135,6 +135,10 @@ public static class OperatorEngine
     public static OperatorResult NewNote(string projectRef, string name, string note = "")
         => Enqueue(new OperatorJob("new_note", projectRef, name, note));
 
+    /// <summary>Queues creation of an explicit stop-execution barrier.</summary>
+    public static OperatorResult NewStop(string projectRef)
+        => Enqueue(new OperatorJob("new_stop", projectRef));
+
     /// <summary>
     /// Queues creation of a new project. With no directory it is created under
     /// <c>&lt;workspace root&gt;/projects/&lt;name&gt;</c>. The directory is returned in the output.
@@ -208,6 +212,10 @@ public static class OperatorEngine
     public static OperatorResult MoveBranch(string projectRef, string branch, int offset)
         => Enqueue(new OperatorJob("branch_move", projectRef, branch,
             offset < 0 ? "up" : "down"));
+
+    /// <summary>Persists the branch preselected for subsequently created work.</summary>
+    public static OperatorResult SetDefaultBranch(string projectRef, string branch)
+        => Enqueue(new OperatorJob("branch_default", projectRef, branch));
 
     /// <summary>
     /// Queues a full replace of a task (matched by id) with the supplied one, or
@@ -330,6 +338,7 @@ public static class OperatorEngine
                     Id = project.MintTaskId(),
                     Name = job.Arg(1),
                     Prompt = job.Arg(2),
+                    Branch = project.LastTaskBranch,
                     Order = project.Tasks.Count,
                 };
                 project.Tasks.Add(task);
@@ -348,6 +357,7 @@ public static class OperatorEngine
                     Name = job.Arg(1),
                     IsNote = true,
                     Note = job.Arg(2),
+                    Branch = project.LastTaskBranch,
                     Order = project.Tasks.Count,
                 };
                 project.Tasks.Add(note);
@@ -355,13 +365,31 @@ public static class OperatorEngine
                 return OperatorResult.Pass($"Created note {note.Id}", note.Id);
             }
 
+            case "new_stop":
+            {
+                var project = ResolveProject(ws, job.Arg(0));
+                if (project == null)
+                    return OperatorResult.Fail($"No project matches \"{job.Arg(0)}\".");
+                var marker = new TaskItem
+                {
+                    Id = project.MintTaskId(),
+                    Name = "STOP EXECUTION",
+                    StopExecution = true,
+                    Branch = project.LastTaskBranch,
+                    Order = project.Tasks.Count,
+                };
+                project.Tasks.Add(marker);
+                touched.Add(project);
+                return OperatorResult.Pass($"Created stop marker {marker.Id}", marker.Id);
+            }
+
             case "new_subtask":
             {
                 var (project, task) = ResolveTask(ws, job.Arg(0));
                 if (task == null)
                     return OperatorResult.Fail($"No task \"{job.Arg(0)}\".");
-                if (task.IsNote)
-                    return OperatorResult.Fail($"{task.Id} is an informational note and cannot have subtasks.");
+                if (task.IsNote || task.StopExecution)
+                    return OperatorResult.Fail($"{task.Id} is not an actionable task and cannot have subtasks.");
                 task.Subtasks.Add(new Subtask { Text = job.Arg(1) });
                 touched.Add(project!);
                 return OperatorResult.Pass($"{task.Id} +subtask");
@@ -425,8 +453,8 @@ public static class OperatorEngine
                 var (project, task) = ResolveTask(ws, job.Arg(0));
                 if (task == null)
                     return OperatorResult.Fail($"No task \"{job.Arg(0)}\".");
-                if (task.IsNote)
-                    return OperatorResult.Fail($"{task.Id} is an informational note; read it without taking an agent lock.");
+                if (task.IsNote || task.StopExecution)
+                    return OperatorResult.Fail($"{task.Id} is not actionable; handle it without taking an agent lock.");
                 var key = job.Arg(1).Trim();
                 if (key.Length == 0)
                     return OperatorResult.Fail("A lock key is required.");
@@ -547,6 +575,17 @@ public static class OperatorEngine
                 return OperatorResult.Pass($"Moved branch {project.BranchOrder[newIndex]} to position {newIndex + 1}");
             }
 
+            case "branch_default":
+            {
+                var project = ResolveProject(ws, job.Arg(0));
+                if (project == null)
+                    return OperatorResult.Fail($"No project matches \"{job.Arg(0)}\".");
+                project.LastTaskBranch = string.IsNullOrWhiteSpace(job.Arg(1)) ? "main" : job.Arg(1).Trim();
+                project.EnsureBranchOrder();
+                touched.Add(project);
+                return OperatorResult.Pass($"Default branch for {project.Name} is {project.LastTaskBranch}");
+            }
+
             case "upsert":
             {
                 var project = ResolveProject(ws, job.Arg(0));
@@ -577,7 +616,7 @@ public static class OperatorEngine
     private static int ApplyBranchLock(Project project, string branch, bool locked)
     {
         var branchTasks = project.Tasks.Where(t =>
-            !t.IsNote && !t.Done && !t.Archived &&
+            !t.IsNote && !t.StopExecution && !t.Done && !t.Archived &&
             string.Equals(t.BranchDisplay, branch, StringComparison.OrdinalIgnoreCase)).ToList();
         foreach (var task in branchTasks)
             task.Locked = locked;

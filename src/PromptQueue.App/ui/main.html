@@ -87,6 +87,10 @@
     .section-header.drag-branch-over { outline: 2px solid var(--zui-accent); outline-offset: -2px; }
     .task-card.priority { background: color-mix(in srgb, var(--zui-error) 24%, var(--zui-bg-surface)); border-color: var(--zui-error); }
     .task-card.note { background: color-mix(in srgb, var(--zui-accent) 9%, var(--zui-bg-surface)); }
+    .task-card.stop { background:color-mix(in srgb,var(--zui-warn) 16%,var(--zui-bg-surface)); border-color:var(--zui-warn); }
+    .stop-content { margin-top:3px; color:var(--zui-warn); font-size:11px; font-weight:var(--zui-fw-medium); text-transform:uppercase; letter-spacing:.06em; }
+    .task-card.stop [data-action="edit"], .task-card.stop [data-action="lock"],
+    .task-card.stop [data-action^="run-"] { display:none; }
     .note-content { margin-top:var(--zui-space-1); color:var(--zui-text-secondary); white-space:pre-wrap; overflow-wrap:anywhere; max-height:5.4em; overflow:auto; padding-right:var(--zui-space-1); }
     .task-card-preview { width:72px; height:52px; flex:0 0 auto; object-fit:cover; border:1px solid var(--zui-border); background:var(--zui-bg-app); }
 
@@ -155,6 +159,7 @@
       <div class="zui-row zui-gap-2 zui-items-center" style="padding:4px 8px;border-bottom:1px solid var(--zui-border);background:var(--zui-bg-surface-alt);flex-shrink:0;">
         <button class="zui-btn zui-btn--primary" id="btn-add-task">+ New Task</button>
         <button class="zui-btn" id="btn-add-note">+ New Note</button>
+        <button class="zui-btn" id="btn-add-stop" title="Insert an execution barrier">+ Stop Execution</button>
         <span class="zui-sep--v" style="height:16px"></span>
         <button class="zui-btn" id="btn-deploy-codex">▶ Codex</button>
         <button class="zui-btn" id="btn-deploy-claude">▶ Claude</button>
@@ -464,7 +469,7 @@ function renderTaskList() {
     hdr.dataset.section = section.key;
     let dotHtml = '';
     if (color) dotHtml = `<span class="branch-dot" style="background:${color}"></span>`;
-    const lockable = section.tasks.filter(t => !t.done && !t.archived);
+    const lockable = section.tasks.filter(t => !t.done && !t.archived && !t.isStop);
     const allLocked = lockable.length > 0 && lockable.every(t => t.locked);
     const lockHtml = lockable.length > 0
       ? `<button class="zui-btn branch-lock-btn" type="button">${allLocked ? 'Unlock branch' : 'Lock branch'}</button>`
@@ -529,7 +534,8 @@ function renderTaskList() {
 function renderTaskCard(task, sectionColor) {
   const card = document.createElement('div');
   card.className = 'task-card' + (task.priority && !task.done && !task.archived ? ' priority' : '') +
-    (task.isNote ? ' note' : '') + (task.done ? ' done' : '') + (task.indentLevel > 0 ? ' indented' : '');
+    (task.isNote ? ' note' : '') + (task.isStop ? ' stop' : '') +
+    (task.done ? ' done' : '') + (task.indentLevel > 0 ? ' indented' : '');
   card.dataset.taskId = task.id;
   card.draggable = !task.done && !task.archived;
 
@@ -538,6 +544,7 @@ function renderTaskCard(task, sectionColor) {
   // Chips
   let chips = '';
   if (!task.isNote) {
+    if (task.isStop) chips += chipHtml('locked', 'STOP');
     if (task.inProgress) chips += chipHtml('inprogress', 'IN PROGRESS');
     if (task.priority) chips += chipHtml('bug', 'PRIORITY');
     if (task.bug) chips += chipHtml('bug', 'BUG');
@@ -557,7 +564,7 @@ function renderTaskCard(task, sectionColor) {
 
   // Subtasks mini-list
   let subtasksHtml = '';
-  if (!task.isNote && task.subtasks && task.subtasks.length > 0) {
+  if (!task.isNote && !task.isStop && task.subtasks && task.subtasks.length > 0) {
     subtasksHtml = '<div class="task-subtasks">';
     for (let i = 0; i < task.subtasks.length; i++) {
       const s = task.subtasks[i];
@@ -571,7 +578,7 @@ function renderTaskCard(task, sectionColor) {
 
   const barStyle = tc ? `background:${tc}` : '';
   let copyPreviewHtml = '';
-  if (!task.isNote && (task.prompt || task.requirements)) {
+  if (!task.isNote && !task.isStop && (task.prompt || task.requirements)) {
     copyPreviewHtml = '<div class="task-copy-preview">';
     if (task.prompt) copyPreviewHtml += `<div title="${esc(task.prompt)}"><span class="task-copy-label">Prompt</span>${esc(task.prompt)}</div>`;
     if (task.requirements) copyPreviewHtml += `<div title="${esc(task.requirements)}"><span class="task-copy-label">Requirements</span>${esc(task.requirements)}</div>`;
@@ -582,8 +589,8 @@ function renderTaskCard(task, sectionColor) {
     <div class="task-row">
       <div class="branch-bar" style="${barStyle}"></div>
       <span class="drag-handle" title="Drag to reorder">⠿</span>
-      <input type="checkbox" class="task-done-cb" ${task.done ? 'checked' : ''}
-        data-task-id="${task.id}" title="Mark done">
+      ${task.isStop ? '' : `<input type="checkbox" class="task-done-cb" ${task.done ? 'checked' : ''}
+        data-task-id="${task.id}" title="Mark done">`}
       <div class="task-body">
         <div>
           <span class="task-id">${esc(task.id)}</span>
@@ -591,6 +598,7 @@ function renderTaskCard(task, sectionColor) {
         </div>
         ${chips ? `<div class="task-chips">${chips}</div>` : ''}
         ${task.isNote ? `<div class="note-content">${esc(task.note || '')}</div>` : ''}
+        ${task.isStop ? '<div class="stop-content">Agent processing stops here and awaits instructions</div>' : ''}
         ${copyPreviewHtml}
         ${subtasksHtml}
       </div>
@@ -602,14 +610,15 @@ function renderTaskCard(task, sectionColor) {
         <button data-action="run-agy" data-task-id="${task.id}">▶ AGY</button>` : ''}
         <button data-action="delete" data-task-id="${task.id}" class="danger">Del</button>
       </div>
-      ${!task.isNote && task.imagePreviewUrl ? `<img class="task-card-preview" src="${task.imagePreviewUrl}" alt="Attached image">` : ''}
+      ${!task.isNote && !task.isStop && task.imagePreviewUrl ? `<img class="task-card-preview" src="${task.imagePreviewUrl}" alt="Attached image">` : ''}
     </div>`;
 
   // Done checkbox
-  card.querySelector('.task-done-cb').addEventListener('change', e => {
-    e.stopPropagation();
-    zui.send('toggle-done', task.id);
-  });
+  const doneCheckbox = card.querySelector('.task-done-cb');
+  if (doneCheckbox) doneCheckbox.addEventListener('change', e => {
+      e.stopPropagation();
+      zui.send('toggle-done', task.id);
+    });
 
   // Subtask checkboxes
   for (const cb of card.querySelectorAll('[data-subtask-idx]')) {
@@ -636,7 +645,7 @@ function renderTaskCard(task, sectionColor) {
 
   // Double-click opens edit
   card.addEventListener('dblclick', e => {
-    if (e.target.closest('input, button')) return;
+    if (task.isStop || e.target.closest('input, button')) return;
     zui.send('open-edit-task', task.id);
   });
 
@@ -653,7 +662,7 @@ function renderTaskCard(task, sectionColor) {
     state.dragTask = null;
   });
   card.addEventListener('dragover', e => {
-    if (Array.from(e.dataTransfer?.types || []).includes('Files')) {
+    if (!task.isStop && Array.from(e.dataTransfer?.types || []).includes('Files')) {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'copy';
       clearDragOver();
@@ -908,6 +917,7 @@ function esc(s) {
 // Toolbar
 document.getElementById('btn-add-task').addEventListener('click', () => zui.send('add-task', null));
 document.getElementById('btn-add-note').addEventListener('click', () => zui.send('add-note', null));
+document.getElementById('btn-add-stop').addEventListener('click', () => zui.send('add-stop', null));
 document.getElementById('btn-deploy-codex').addEventListener('click', () => zui.send('deploy-agent', 'codex'));
 document.getElementById('btn-deploy-claude').addEventListener('click', () => zui.send('deploy-agent', 'claude'));
 document.getElementById('btn-deploy-antigravity').addEventListener('click', () => zui.send('deploy-agent', 'agy'));

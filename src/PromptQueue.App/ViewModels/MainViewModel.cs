@@ -87,6 +87,7 @@ public sealed class MainViewModel : Observable
 
         AddTaskCommand = new RelayCommand(AddTask, HasProject);
         AddNoteCommand = new RelayCommand(AddNote, HasProject);
+        AddStopCommand = new RelayCommand(AddStop, HasProject);
         EditTaskCommand = new RelayCommand(p => EditTask(p as TaskItem));
         DeleteTaskCommand = new RelayCommand(p => DeleteTask(p as TaskItem));
         ToggleTaskDoneCommand = new RelayCommand(p => ToggleDone(p as TaskItem));
@@ -165,6 +166,8 @@ public sealed class MainViewModel : Observable
                 ProjectStore.ReloadInto(value);
 
             var selectionChanged = Set(ref _selectedProject, value);
+            _newTaskBranch = value?.LastTaskBranch ?? "main";
+            Raise(nameof(NewTaskBranch));
             CloseOverlay();
             RebuildTasksView();
 
@@ -223,7 +226,17 @@ public sealed class MainViewModel : Observable
     public string NewTaskBranch
     {
         get => string.IsNullOrWhiteSpace(_newTaskBranch) ? "main" : _newTaskBranch;
-        set => Set(ref _newTaskBranch, value);
+        set
+        {
+            var branch = string.IsNullOrWhiteSpace(value) ? "main" : value.Trim();
+            if (!Set(ref _newTaskBranch, branch) || SelectedProject == null)
+                return;
+            var result = OperatorEngine.SetDefaultBranch(SelectedProject.Directory, branch);
+            if (result.Ok)
+                SelectedProject.LastTaskBranch = branch;
+            else
+                StatusText = $"Operator: {result.Message}";
+        }
     }
 
     // ---- Quick add (ZP-57): press Space -> type a name -> Enter ----
@@ -350,6 +363,7 @@ public sealed class MainViewModel : Observable
 
     public RelayCommand AddTaskCommand { get; }
     public RelayCommand AddNoteCommand { get; }
+    public RelayCommand AddStopCommand { get; }
     public RelayCommand EditTaskCommand { get; }
     public RelayCommand DeleteTaskCommand { get; }
     public RelayCommand ToggleTaskDoneCommand { get; }
@@ -901,6 +915,7 @@ public sealed class MainViewModel : Observable
             source: seed,
             onSave: form =>
             {
+                NewTaskBranch = form.Branch;
                 var task = new TaskItem { Id = newId, Order = project.Tasks.Count };
                 form.ApplyTo(task);
                 ApplyViaOperator(
@@ -938,6 +953,7 @@ public sealed class MainViewModel : Observable
             source: seed,
             onSave: form =>
             {
+                NewTaskBranch = form.Branch;
                 var note = new TaskItem { Id = newId, Order = project.Tasks.Count };
                 form.ApplyTo(note);
                 ApplyViaOperator(
@@ -957,6 +973,16 @@ public sealed class MainViewModel : Observable
             peers: project.Tasks.ToList(),
             projectDirectory: project.Directory,
             knownBranches: project.BranchOrder);
+    }
+
+    private void AddStop()
+    {
+        var project = SelectedProject;
+        if (project == null)
+            return;
+        ApplyViaOperator(
+            _ => OperatorEngine.NewStop(project.Directory),
+            result => result.Ok ? $"Inserted {result.Output}: STOP EXECUTION" : $"Operator: {result.Message}");
     }
 
     private void EditTask(TaskItem? task)
@@ -1196,6 +1222,7 @@ public sealed class MainViewModel : Observable
         SaveCurrentCommand.RaiseCanExecuteChanged();
         AddTaskCommand.RaiseCanExecuteChanged();
         AddNoteCommand.RaiseCanExecuteChanged();
+        AddStopCommand.RaiseCanExecuteChanged();
         DeployCodexCommand.RaiseCanExecuteChanged();
         DeployClaudeCommand.RaiseCanExecuteChanged();
         DeployAntigravityCommand.RaiseCanExecuteChanged();  // ZP-86

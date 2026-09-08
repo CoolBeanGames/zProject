@@ -28,7 +28,9 @@ public static class TaskXmlSerializer
     public const string ArchiveFileName = "archive.xml";
     public const string FinishedTodayFileName = "finished_today.xml";
 
-    public sealed record Document(string ProjectName, int NextIndex, List<string> BranchOrder, List<TaskItem> Tasks);
+    public sealed record Document(
+        string ProjectName, int NextIndex, string LastTaskBranch,
+        List<string> BranchOrder, List<TaskItem> Tasks);
 
     /// <summary>Builds the <c>&lt;tasks&gt;</c> element for a project (also reused inside data.cfg).</summary>
     public static XElement ToElement(Project project)
@@ -43,6 +45,7 @@ public static class TaskXmlSerializer
 
         project.EnsureBranchOrder();
         root.Add(new XElement("branches",
+            new XAttribute("lastUsed", project.LastTaskBranch),
             project.BranchOrder.Select(branch => new XElement("branch", branch))));
 
         // Actionable priorities precede every ordinary task, retaining their
@@ -60,6 +63,15 @@ public static class TaskXmlSerializer
 
     private static XElement TaskToElement(TaskItem task)
     {
+        if (task.StopExecution)
+        {
+            return new XElement("task",
+                new XAttribute("id", task.Id),
+                new XElement("name", string.IsNullOrWhiteSpace(task.Name) ? "STOP EXECUTION" : task.Name),
+                new XElement("stopExecution", true),
+                new XElement("branch", task.Branch));
+        }
+
         if (task.IsNote)
         {
             return new XElement("task",
@@ -145,6 +157,7 @@ public static class TaskXmlSerializer
         var root = doc.Root ?? throw new TaskXmlFormatException("tasks.xml has no root element.");
 
         var projectName = (string?)root.Attribute("project") ?? "";
+        var lastTaskBranch = ((string?)root.Element("branches")?.Attribute("lastUsed") ?? "").Trim();
         var branchOrder = root.Element("branches")?.Elements("branch")
             .Select(element => element.Value.Trim())
             .Where(branch => branch.Length > 0)
@@ -162,6 +175,7 @@ public static class TaskXmlSerializer
                 IsNote = el.Element("note") != null || ParseBool(el.Element("isNote")),
                 Note = (string?)el.Element("note") ?? "",
                 ClearAfterReading = ParseBool(el.Element("clearAfterReading")),
+                StopExecution = ParseBool(el.Element("stopExecution")),
                 Prompt = (string?)el.Element("prompt") ?? "",
                 Requirements = (string?)el.Element("requirements") ?? "",
                 InProgress = ParseBool(el.Element("inProgress")),
@@ -213,7 +227,7 @@ public static class TaskXmlSerializer
         var nextIndex = (int?)root.Attribute("nextIndex")
                         ?? InferNextIndex(projectName, tasks);
 
-        return new Document(projectName, nextIndex, branchOrder, tasks);
+        return new Document(projectName, nextIndex, lastTaskBranch, branchOrder, tasks);
     }
 
     /// <summary>

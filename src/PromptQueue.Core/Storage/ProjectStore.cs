@@ -62,6 +62,7 @@ public static class ProjectStore
         bool legacyInline = false;
         var loaded = new List<TaskItem>();
         var branchOrder = new List<string>();
+        var lastTaskBranch = "";
         int nextIndex = project.NextIndex;
 
         void MergeBranches(IEnumerable<string> branches)
@@ -77,6 +78,7 @@ public static class ProjectStore
             {
                 var doc = TaskXmlSerializer.Deserialize(File.ReadAllText(tasksPath));
                 nextIndex = doc.NextIndex;
+                lastTaskBranch = doc.LastTaskBranch;
                 MergeBranches(doc.BranchOrder);
                 MergeBranches(doc.Tasks.Select(task => task.BranchDisplay));
                 loaded.AddRange(doc.Tasks);
@@ -165,6 +167,9 @@ public static class ProjectStore
 
         project.LoadError = "";
         project.NextIndex = Math.Max(project.NextIndex, nextIndex);
+        project.LastTaskBranch = string.IsNullOrWhiteSpace(lastTaskBranch)
+            ? loaded.LastOrDefault(task => !task.Done && !task.Archived)?.BranchDisplay ?? "main"
+            : lastTaskBranch;
         project.BranchOrder.Clear();
         foreach (var branch in branchOrder)
             project.BranchOrder.Add(branch);

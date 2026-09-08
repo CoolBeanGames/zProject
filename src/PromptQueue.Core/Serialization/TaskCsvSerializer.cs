@@ -19,7 +19,7 @@ public static class TaskCsvSerializer
     {
         var rows = new List<string> { Join(Headers) };
         rows.AddRange(tasks
-            .Where(task => !task.IsNote)
+            .Where(task => !task.IsNote && !task.StopExecution)
             .Select(task => Join(new[]
             {
                 task.Id,

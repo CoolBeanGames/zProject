@@ -43,6 +43,7 @@ public sealed class TaskItem : Observable
     private bool _isNote;
     private string _note = "";
     private bool _clearAfterReading;
+    private bool _stopExecution;
     private int _order;
     private bool _collapsed;
 
@@ -85,6 +86,13 @@ public sealed class TaskItem : Observable
     {
         get => _clearAfterReading;
         set => Set(ref _clearAfterReading, value);
+    }
+
+    /// <summary>An explicit queue barrier: agents stop before processing later items.</summary>
+    public bool StopExecution
+    {
+        get => _stopExecution;
+        set { if (Set(ref _stopExecution, value)) RaiseSection(); }
     }
 
     /// <summary>Prompt text passed to the agent that processes this task.</summary>
@@ -240,6 +248,7 @@ public sealed class TaskItem : Observable
     public string StatusText =>
         Archived ? "Archived" :
         FinishedToday ? "Finished Today" :
+        StopExecution ? "Stop execution" :
         Locked ? "Locked" :
         Done ? "Done" :
         Priority ? "Priority" :
@@ -504,6 +513,7 @@ public sealed class TaskItem : Observable
             IsNote = IsNote,
             Note = Note,
             ClearAfterReading = ClearAfterReading,
+            StopExecution = StopExecution,
             Prompt = Prompt,
             Requirements = Requirements,
             InProgress = InProgress,
@@ -545,6 +555,7 @@ public sealed class TaskItem : Observable
         IsNote = other.IsNote;
         Note = other.Note;
         ClearAfterReading = other.ClearAfterReading;
+        StopExecution = other.StopExecution;
         Prompt = other.Prompt;
         Requirements = other.Requirements;
         InProgress = other.InProgress;

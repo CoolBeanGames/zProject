@@ -152,6 +152,7 @@ public partial class MainWindow : Window
         // Task list actions
         _ui.On("add-task",        _ => Dispatcher.Invoke(() => Vm?.AddTaskCommand.Execute(null)));
         _ui.On("add-note",        _ => Dispatcher.Invoke(() => Vm?.AddNoteCommand.Execute(null)));
+        _ui.On("add-stop",        _ => Dispatcher.Invoke(() => Vm?.AddStopCommand.Execute(null)));
         _ui.On("open-edit-task",  p => Dispatcher.Invoke(() =>
         {
             var id = p.GetString();
@@ -383,6 +384,7 @@ public partial class MainWindow : Window
             id           = t.Id,
             name         = t.Name,
             isNote       = t.IsNote,
+            isStop       = t.StopExecution,
             note         = t.Note,
             clearAfterReading = t.ClearAfterReading,
             dateFinished = t.DateFinishedText,

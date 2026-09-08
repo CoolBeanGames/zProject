@@ -376,6 +376,7 @@ internal static class Program
             "sync" when a.Length >= 3 => OperatorEngine.Sync(a[0], a[1], string.Join(' ', a.Skip(2))),
             "new_task" when a.Length >= 2 => OperatorEngine.NewTask(a[0], a[1], a.Length > 2 ? string.Join(' ', a.Skip(2)) : ""),
             "new_note" when a.Length >= 2 => OperatorEngine.NewNote(a[0], a[1], a.Length > 2 ? string.Join(' ', a.Skip(2)) : ""),
+            "new_stop" when a.Length >= 1 => OperatorEngine.NewStop(a[0]),
             "new_project" when a.Length >= 1 => OperatorEngine.NewProject(a[0], a.Length > 1 ? a[1] : null),
             "new_local_project" when a.Length >= 1 => OperatorEngine.NewLocalProject(a[0]),
             "new_subtask" when a.Length >= 2 => OperatorEngine.NewSubtask(a[0], string.Join(' ', a.Skip(1))),
@@ -393,6 +394,7 @@ internal static class Program
             "branch_move" when a.Length >= 3 &&
                 (a[2].Equals("up", StringComparison.OrdinalIgnoreCase) || a[2].Equals("down", StringComparison.OrdinalIgnoreCase)) =>
                 OperatorEngine.MoveBranch(a[0], a[1], a[2].Equals("up", StringComparison.OrdinalIgnoreCase) ? -1 : 1),
+            "branch_default" when a.Length >= 2 => OperatorEngine.SetDefaultBranch(a[0], a[1]),
             _ => OperatorResult.Fail($"bad or incomplete command '{req.Command}'"),
         };
 
@@ -565,6 +567,7 @@ internal static class Program
             name = project.Name,
             directory = project.Directory,
             branches = OrderedBranches(project),
+            defaultBranch = project.LastTaskBranch,
             tasks = project.Tasks
                 .OrderBy(t => !t.Done && !t.Archived && t.Priority ? 0 : !t.Done && !t.Archived && t.Bug ? 1 : 2)
                 .ThenBy(t => project.BranchRank(t.BranchDisplay))
@@ -575,6 +578,7 @@ internal static class Program
                 id = t.Id,
                 name = t.Name,
                 isNote = t.IsNote,
+                isStop = t.StopExecution,
                 note = t.Note,
                 clearAfterReading = t.ClearAfterReading,
                 displayName = t.DisplayName,

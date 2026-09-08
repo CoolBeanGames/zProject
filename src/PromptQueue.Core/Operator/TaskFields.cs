@@ -17,6 +17,7 @@ public static class TaskFields
             ["isnote"] = (t, v) => t.IsNote = Bool(v),
             ["note"] = (t, v) => t.Note = v,
             ["clearafterreading"] = (t, v) => t.ClearAfterReading = Bool(v),
+            ["stopexecution"] = (t, v) => t.StopExecution = Bool(v),
             ["prompt"] = (t, v) => t.Prompt = v,
             ["requirements"] = (t, v) => t.Requirements = v,
             ["inprogress"] = (t, v) => t.InProgress = Bool(v),
@@ -61,6 +62,7 @@ public static class TaskFields
             ["tag"] = "tags",
             ["is_note"] = "isnote",
             ["clear_after_reading"] = "clearafterreading",
+            ["stop_execution"] = "stopexecution",
             ["agent_notes"] = "notes",
         };
 
@@ -74,6 +76,7 @@ public static class TaskFields
             ["isnote"] = t => t.IsNote ? "true" : "false",
             ["note"] = t => t.Note,
             ["clearafterreading"] = t => t.ClearAfterReading ? "true" : "false",
+            ["stopexecution"] = t => t.StopExecution ? "true" : "false",
             ["prompt"] = t => t.Prompt,
             ["requirements"] = t => t.Requirements,
             ["inprogress"] = t => t.InProgress ? "true" : "false",
